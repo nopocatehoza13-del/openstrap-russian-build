@@ -1,4 +1,6 @@
+import 'dart:isolate';
 import 'package:personal_analytics/personal_analytics.dart';
+import '../../compute/intraday_stress_bridge.dart';
 import '../../data/day_label.dart';
 import '../../data/local_repository.dart';
 import '../screens/health_screen.dart';
@@ -10,6 +12,7 @@ class FamiliarData {
   final HealthData health;
   final List<Map<String, dynamic>> activities;
   final Map<String, dynamic> sleep;
+  final Map<String, dynamic> intradayStress;
   final List<ChartPoint> recovery, strain, steps;
   final String day;
   final AgeEstimate? age;
@@ -31,6 +34,7 @@ class FamiliarData {
     this.health = const HealthData(),
     this.activities = const [],
     this.sleep = const {},
+    this.intradayStress = const {},
     this.recovery = const [],
     this.strain = const [],
     this.steps = const [],
@@ -61,6 +65,21 @@ class FamiliarData {
       includeDetected: false,
     );
     final activities = <Map<String, dynamic>>[];
+    final stress = await repo.getDayStress(label);
+    final stored =
+        (stress['intraday_stress'] as Map?)?.cast<String, dynamic>() ??
+        const <String, dynamic>{};
+    final stressSessions = [
+      for (final row in stress['stress_sessions'] as List? ?? const [])
+        if (row is Map) row.cast<String, dynamic>(),
+    ];
+    // An edited/logged/deleted activity immediately changes the exclusions.
+    // Uses the same analytics function as derivation, never the nightly score.
+    final intraday = stored.isEmpty
+        ? const <String, dynamic>{}
+        : await Isolate.run(
+            () => projectIntradayStress(stored, stressSessions),
+          );
     {
       for (final row in rows) {
         final ts = row['start_ts'];
@@ -96,6 +115,7 @@ class FamiliarData {
       health: health,
       activities: activities,
       sleep: await repo.getDaySleepV2(label),
+      intradayStress: intraday,
       recovery: recovery,
       strain: strain,
       steps: steps,

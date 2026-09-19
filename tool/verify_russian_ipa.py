@@ -41,8 +41,9 @@ with zipfile.ZipFile(p) as z:
     assert not any(n.startswith(base+'Watch/') for n in names)
     verify_device_macho(z.read(base+'Runner'), 'Runner')
     verify_device_macho(z.read(base+'Frameworks/App.framework/App'), 'Flutter AOT')
-    assert info['CFBundleVersion'] == '66', 'Expected new familiar UI build 66'
+    assert info['CFBundleVersion'] == '67', 'Expected new familiar UI build 67'
     assert b'dirty bastard' in z.read(base+'Frameworks/App.framework/App'), 'Missing native familiar UI brand marker'
+    assert b'experimental_hr_activation_v1' in z.read(base+'Frameworks/App.framework/App'), 'Missing intraday stress model'
     print('ZIP CRC: OK; Runner and Flutter AOT: ARM64/iOS device; Russian iOS strings: present')
     print('Bundle:',info['CFBundleIdentifier'],'version:',info['CFBundleShortVersionString'],'min iOS:',info['MinimumOSVersion'])
     print('Unsigned sideload package; on-device signing and hardware behavior NOT verified.')

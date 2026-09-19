@@ -10290,6 +10290,15 @@ class LocalDb {
     );
   }
 
+  /// Half-open overlap, including a workout started before midnight and live
+  /// sessions. Kept separate from the start-date list used by existing screens.
+  static Future<List<Map<String, dynamic>>> stressSessionsInRange(int fromTs, int toTs) async {
+    final db = await instance;
+    return db.query('sessions',
+      where: 'start_ts < ? AND (end_ts > ? OR (end_ts IS NULL AND status = ?))',
+      whereArgs: [toTs, fromTs, 'live'], orderBy: 'start_ts ASC');
+  }
+
   static Future<void> deleteSession(String id) async {
     final db = await instance;
     await db.delete('sessions', where: 'id = ?', whereArgs: [id]);

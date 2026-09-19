@@ -138,17 +138,12 @@ void main() {
   testWidgets('stress scopes never relabel night as daytime', (t) async {
     await t.pumpWidget(app(const FamiliarStressDetail(data: fixture)));
     await t.pumpAndSettle();
-    expect(find.text('27 / 100'), findsOneWidget);
-    await t.tap(find.text('Весь день'));
-    await t.pumpAndSettle();
-    expect(find.text('27 / 100'), findsNothing);
-    expect(find.text('—'), findsOneWidget);
-    await t.tap(find.text('Без активности'));
-    await t.pumpAndSettle();
-    expect(find.text('—'), findsOneWidget);
-    await t.tap(find.text('Сон'));
-    await t.pumpAndSettle();
-    expect(find.text('27 / 100'), findsOneWidget);
+    for (final scope in ['Весь день', 'Без активности', 'Сон']) {
+      await t.tap(find.text(scope));
+      await t.pumpAndSettle();
+      expect(find.text('27 / 100'), findsNothing);
+      expect(find.text('— / 3'), findsOneWidget);
+    }
   });
   testWidgets('planner target persists without arming alarm', (t) async {
     await t.pumpWidget(app(const FamiliarSleepPlanner(data: fixture)));

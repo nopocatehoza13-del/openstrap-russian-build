@@ -925,6 +925,14 @@ class FamiliarAgeDetail extends StatelessWidget {
   }
 }
 
+Map<String, dynamic> _stressSummary(FamiliarData data, String scope) =>
+    ((data.intradayStress['summaries'] as Map?)?[scope] as Map?)
+        ?.cast<String, dynamic>() ??
+    const {};
+
+String _stressMinutes(Object? seconds) =>
+    seconds is num ? '${number(seconds / 60)} мин' : '—';
+
 class FamiliarStressCard extends StatelessWidget {
   final FamiliarData data;
   final VoidCallback onTap;
@@ -934,24 +942,32 @@ class FamiliarStressCard extends StatelessWidget {
     required this.onTap,
   });
   @override
-  Widget build(BuildContext c) => FamiliarPanel(
-    onTap: onTap,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        FamiliarHeading('МОНИТОР СТРЕССА', onTap: onTap),
-        Text(
-          '${number(data.health.stress.value)} / 100',
-          style: F.n34.copyWith(color: P.of(c).ink),
-        ),
-        const SizedBox(height: S.x2),
-        Text(
-          'Ночной индекс OpenStrap · не шкала WHOOP 0–3',
-          style: F.cap.copyWith(color: P.of(c).ink2),
-        ),
-      ],
-    ),
-  );
+  Widget build(BuildContext c) {
+    final summary = _stressSummary(data, 'all');
+    return FamiliarPanel(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FamiliarHeading('МОНИТОР СТРЕССА', onTap: onTap),
+          Text(
+            '${number(summary['mean'] as num?, 1)} / 3',
+            style: F.n34.copyWith(color: P.of(c).ink),
+          ),
+          const SizedBox(height: S.x2),
+          Text(
+            'Среднее за выбранный день · экспериментальная оценка',
+            style: F.cap.copyWith(color: P.of(c).ink2),
+          ),
+          if (summary['mean'] != null)
+            Text(
+              'Измерений: ${_stressMinutes(summary['covered_sec'])}',
+              style: F.cap.copyWith(color: P.of(c).ink2),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class FamiliarStressDetail extends StatefulWidget {
@@ -962,23 +978,38 @@ class FamiliarStressDetail extends StatefulWidget {
 }
 
 class _FamiliarStressDetailState extends State<FamiliarStressDetail> {
-  int scope = 2, range = 7;
+  int scope = 0;
+  int? selected;
   @override
   Widget build(BuildContext c) {
-    final d = widget.data, p = P.of(c), night = scope == 2;
+    final d = widget.data, p = P.of(c), model = d.intradayStress;
+    final key = ['all', 'rest', 'sleep'][scope],
+        summary = _stressSummary(d, key);
+    final points = [
+      for (final v in model['points'] as List? ?? const [])
+        if (v is Map) v,
+    ];
+    final values = [for (final v in points) (v[key] as num?)?.toDouble()];
+    final chosen = selected != null && selected! < points.length
+        ? points[selected!]
+        : null;
+    final mean = summary['mean'] as num?;
+    final status = model['status'];
     return FamiliarPage(
       'Монитор стресса',
       children: [
+        Text(d.day, style: F.over.copyWith(color: p.ink2)),
+        const SizedBox(height: S.x3),
         Text(
-          night ? 'НОЧНЫЕ ИЗМЕРЕНИЯ' : 'ДНЕВНОЙ СТРЕСС',
+          '${number(mean, 1)} / 3',
+          key: const ValueKey('stress-summary'),
+          style: F.n48.copyWith(color: p.ink),
+        ),
+        Text(
+          'СРЕДНЕЕ ПО ИЗМЕРЕННЫМ УЧАСТКАМ',
           style: F.over.copyWith(color: p.ink2),
         ),
         const SizedBox(height: S.x4),
-        Text(
-          night ? '${number(d.health.stress.value)} / 100' : '—',
-          style: F.n48.copyWith(color: p.ink),
-        ),
-        const SizedBox(height: S.x3),
         Wrap(
           spacing: S.x2,
           runSpacing: S.x2,
@@ -987,7 +1018,10 @@ class _FamiliarStressDetailState extends State<FamiliarStressDetail> {
               ChoiceChip(
                 label: Text(['Весь день', 'Без активности', 'Сон'][i]),
                 selected: scope == i,
-                onSelected: (_) => setState(() => scope = i),
+                onSelected: (_) => setState(() {
+                  scope = i;
+                  selected = null;
+                }),
               ),
           ],
         ),
@@ -997,57 +1031,137 @@ class _FamiliarStressDetailState extends State<FamiliarStressDetail> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                night ? 'ТЕНДЕНЦИЯ НОЧНОГО СТРЕССА' : 'ПОЧЕМУ НЕТ ЧИСЛА',
+                'ДИНАМИКА ЗА ДЕНЬ · 0–3',
                 style: F.over.copyWith(color: p.ink2),
               ),
-              if (night) ...[
-                FamiliarChart(
-                  first: datedSeries(
-                    d.health.points('stress'),
-                    DateTime.now(),
-                    range,
-                  ),
-                  maxFirst: 100,
+              const SizedBox(height: S.x2),
+              Scrubber(
+                key: const ValueKey('stress-chart'),
+                value: selected == null
+                    ? null
+                    : selected! / (points.length > 1 ? points.length - 1 : 1),
+                step: 1 / (points.length > 1 ? points.length - 1 : 1),
+                label: 'График стресса, шкала от 0 до 3',
+                onChanged: (v) {
+                  if (points.isNotEmpty) {
+                    setState(
+                      () => selected = (v * (points.length - 1)).round().clamp(
+                        0,
+                        points.length - 1,
+                      ),
+                    );
+                  }
+                },
+                describe: (v) {
+                  if (points.isEmpty) return 'Нет данных';
+                  final point =
+                      points[(v * (points.length - 1)).round().clamp(
+                        0,
+                        points.length - 1,
+                      )];
+                  return '${clockTs(point['t'])}: ${number(point[key] as num?, 1)}';
+                },
+                child: FamiliarChart(
+                  first: values,
+                  maxFirst: 3,
                   color: C.yellow,
                 ),
-                Text(
-                  'Последние $range календарных дней · шкала 0–100',
-                  style: F.cap.copyWith(color: p.ink2),
-                ),
-                Wrap(
-                  spacing: S.x2,
-                  children: [
-                    for (final n in [7, 30])
-                      ChoiceChip(
-                        label: Text(n == 7 ? 'Неделя' : 'Месяц'),
-                        selected: range == n,
-                        onSelected: (_) => setState(() => range = n),
-                      ),
-                  ],
-                ),
-              ] else ...[
-                const SizedBox(height: S.x3),
-                Text(
-                  'OpenStrap сохраняет ночной индекс Бaевского, но не непрерывный дневной стресс WHOOP. Нельзя честно получить «весь день» или «без активности» из одного ночного числа. Эти значения не выдумываются.',
-                  style: F.body,
-                ),
-              ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    clockTs(model['start']),
+                    style: F.cap.copyWith(color: p.ink2),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Местное время',
+                      textAlign: TextAlign.center,
+                      style: F.cap.copyWith(color: p.ink2),
+                    ),
+                  ),
+                  Text(
+                    clockTs(model['end']),
+                    style: F.cap.copyWith(color: p.ink2),
+                  ),
+                ],
+              ),
+              const SizedBox(height: S.x3),
+              Text(
+                chosen == null
+                    ? 'Нажми на график, чтобы посмотреть интервал'
+                    : '${clockTs(chosen['t'])}–${clockTs(chosen['end'])}: ${number(chosen[key] as num?, 1)}',
+                key: const ValueKey('stress-selected'),
+                style: F.body,
+              ),
+              const SizedBox(height: S.x2),
+              Text(
+                'Покрытие: ${mean == null ? '—' : _stressMinutes(summary['covered_sec'])} реальных измерений. Пробелы не заполняются.',
+                style: F.cap.copyWith(color: p.ink2),
+              ),
             ],
           ),
         ),
-        Text(
-          'Это показатель вариабельности интервалов между ударами, а не измерение эмоций или диагноз. Шкалу 0–100 нельзя линейно переименовать в WHOOP 0–3.',
-          style: F.cap.copyWith(color: p.ink2),
+        const SizedBox(height: S.x4),
+        FamiliarPanel(
+          child: Column(
+            children: [
+              _stressRow(c, 'Низкий · < 1', summary['low_sec']),
+              _stressRow(c, 'Умеренный · 1–2', summary['medium_sec']),
+              _stressRow(c, 'Высокий · ≥ 2', summary['high_sec']),
+            ],
+          ),
         ),
         const SizedBox(height: S.x4),
+        if (mean == null)
+          Text(
+            status == 'need_quiet_reference'
+                ? 'Пока мало спокойных участков: ${model['reference_minutes'] ?? 0} из 60 минут, ${model['reference_hours'] ?? 0} из 3 разных часов. Носи браслет и синхронизируй записи.'
+                : status == 'ready'
+                ? 'Для выбранного раздела нет подходящих измерений. Нулевой стресс не подставляется.'
+                : 'Нужны записи пульса и движения с браслета. Синхронизируй его; для сохранённых сырых записей доступен повторный анализ в управлении данными. Сводного CSV WHOOP недостаточно.',
+            style: F.body,
+          ),
+        const SizedBox(height: S.x3),
+        Text(
+          'Собственная экспериментальная шкала, не формула WHOOP. Пульс сравнивается со спокойными участками этого же дня; по мере синхронизации оценка может меняться. Это не измерение эмоций и не диагноз.',
+          style: F.cap.copyWith(color: p.ink2),
+        ),
+        const SizedBox(height: S.x3),
+        Text(
+          'Весь день включает физическую нагрузку. Без активности исключает отмеченные тренировки, заметное движение, известные интервалы сна и повышенный пульс сразу после нагрузки. Сон использует интервалы сна OpenStrap, включая дремоту, а не фиксированные часы.',
+          style: F.cap.copyWith(color: p.ink2),
+        ),
+        if (model['reference_bpm'] is num) ...[
+          const SizedBox(height: S.x3),
+          Text(
+            'Опорный пульс дня: ${number(model['reference_bpm'] as num, 1)} уд/мин · график по 5 минут',
+            style: F.cap.copyWith(color: p.ink2),
+          ),
+        ],
+        const SizedBox(height: S.x4),
         FamiliarButton(
-          'Показатель, метод и история',
+          'Ночной индекс 0–100 — отдельный показатель',
           Icons.insights,
           onTap: () => go(c, const MetricDetail('stress')),
         ),
       ],
     );
   }
+
+  Widget _stressRow(BuildContext c, String label, Object? seconds) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: S.x2),
+    child: Row(
+      children: [
+        Expanded(child: Text(label, style: F.body)),
+        Text(
+          _stressMinutes(seconds),
+          style: F.head.copyWith(color: P.of(c).ink),
+        ),
+      ],
+    ),
+  );
 }
 
 class FamiliarAllHealth extends StatelessWidget {

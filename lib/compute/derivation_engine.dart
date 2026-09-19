@@ -51,6 +51,7 @@ import 'hr_max.dart'
 import 'movement_floor_policy.dart' as mfp;
 import 'sleep_profile_policy.dart';
 import 'derive_prepare.dart';
+import 'intraday_stress_bridge.dart';
 import 'onehz_pipeline.dart';
 import 'step_cadence.dart';
 import 'profile.dart';
@@ -1712,7 +1713,11 @@ import 'substrate.dart';
 // any single-device install or any pairing where those three signals are not
 // actually contended (`group.length < 2` short-circuits to the unchanged row).
 // kAnalyticsPin/kProtocolPin UNCHANGED: edge-only fix.
-const int kAlgoVersion = 96;
+// v97: separate experimental intraday HR-activation model, with observed motion,
+// canonical sleep/workout spans, coverage gates and retained minute features.
+// Nightly Baevsky stress is unchanged. Personal analytics package is bundled;
+// upstream analytics/protocol pins are unchanged. No new BLE commands.
+const int kAlgoVersion = 97;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -4452,6 +4457,8 @@ class DerivationEngine {
         dynFloorG: dynFloorG,
         dynHistoryDays: dynHistory.length,
         savedSessions: savedSessions,
+        stressSessions: await LocalDb.stressSessionsInRange(
+          _localDayLabelToSec(day.date), localNextMidnightSecForDayLabel(day.date)),
         wristOffSpans: wristOffSpans,
         chargingSpans: chargingSpans,
         mainTstMin: (scMap?['tst_min'] as num?)?.round(),
@@ -8001,6 +8008,16 @@ class DerivationEngine {
       onset,
       offset,
     );
+    bundlePatch['intraday_stress'] = deriveIntradayStress(
+      substrate: daySub,
+      start: inp.dayStartSec,
+      end: localNextMidnightSecForDayLabel(inp.date),
+      observedUntil: inp.dataNowSec,
+      sleepPeriods: (bundlePatch['sleep_periods'] as Map).cast<String, dynamic>(),
+      sessions: inp.stressSessions,
+      wristOff: inp.wristOffSpans,
+      charging: inp.chargingSpans,
+    );
     // Overrides wake's activity_curve (same value, computed once here).
     bundlePatch['activity_curve'] = _activityCurve(daySub);
     // `detected_workouts` is NOT written. It was a permanently-empty stub kept
@@ -8683,6 +8700,7 @@ class _DayBlocksInput {
   final int dynHistoryDays;
 
   final List<Map<String, dynamic>> savedSessions;
+  final List<Map<String, dynamic>> stressSessions;
 
   /// The user's nap edits for this day, replayed over the detector's output.
   final List<NapEdit> napEdits;
@@ -8728,6 +8746,7 @@ class _DayBlocksInput {
     required this.dynFloorG,
     required this.dynHistoryDays,
     required this.savedSessions,
+    this.stressSessions = const [],
     this.napEdits = const [],
     required this.wristOffSpans,
     required this.chargingSpans,

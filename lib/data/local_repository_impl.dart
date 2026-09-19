@@ -749,6 +749,7 @@ class LocalRepositoryImpl extends LocalRepository {
     final b = await _bundleForDate(date);
     if (b == null) return const {};
     final hrCurve = (_sub(b, 'series')?['hr_curve'] as List?) ?? const [];
+
     final rmssd = _scalar(b, 'rmssd');
     final cd = await _crossDay();
     return {
@@ -1426,6 +1427,12 @@ class LocalRepositoryImpl extends LocalRepository {
       }
     }
 
+    final stressDay = DateTime.tryParse(date);
+    final stressSessions = b['intraday_stress'] is Map && stressDay != null
+        ? await LocalDb.stressSessionsInRange(
+            stressDay.millisecondsSinceEpoch ~/ 1000,
+            DateTime(stressDay.year, stressDay.month, stressDay.day + 1).millisecondsSinceEpoch ~/ 1000)
+        : const <Map<String, dynamic>>[];
     return {
       'stress': {
         'score': score,
@@ -1440,6 +1447,9 @@ class LocalRepositoryImpl extends LocalRepository {
       // both computed in the engine from accel / day-RR.
       'restlessness': b['restlessness'],
       'daytime_hrv': b['daytime_hrv'],
+      // Separate versioned metric. Never convert the old nightly scalar to 0–3.
+      if (b['intraday_stress'] is Map) 'intraday_stress': b['intraday_stress'],
+      'stress_sessions': stressSessions,
     };
   }
 

@@ -81,7 +81,8 @@ private func coherenceText(_ v: Double) -> String { v >= 0 ? "\(Int(v.rounded())
 
 @available(iOSApplicationExtension 17.0, *)
 struct EndBreathingIntent: LiveActivityIntent {
-  static var title: LocalizedStringResource { SWL.resource("End session") }
+  // AppIntents metadata extraction requires a literal, not a runtime helper.
+  static var title: LocalizedStringResource = "End session"
   func perform() async throws -> some IntentResult {
     UserDefaults(suiteName: kAppGroup)?.set(true, forKey: "end_breathing_session")
     for activity in Activity<OpenStrapBreathingAttributes>.activities {

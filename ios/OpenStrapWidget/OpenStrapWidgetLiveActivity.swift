@@ -165,7 +165,8 @@ private func kcalText(_ v: Int?) -> String { v.map { "\($0)" } ?? "" }
 
 @available(iOSApplicationExtension 17.0, *)
 struct EndSessionIntent: LiveActivityIntent {
-  static var title: LocalizedStringResource { SWL.resource("Finish session") }
+  // AppIntents metadata extraction requires a literal, not a runtime helper.
+  static var title: LocalizedStringResource = "Finish session"
   func perform() async throws -> some IntentResult {
     UserDefaults(suiteName: kAppGroup)?.set(true, forKey: "end_session")
     for activity in Activity<OpenStrapWidgetAttributes>.activities {

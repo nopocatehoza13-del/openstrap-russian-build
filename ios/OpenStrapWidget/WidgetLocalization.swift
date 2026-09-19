@@ -18,10 +18,6 @@ enum SWL {
     return result
   }
 
-  static func resource(_ key: String) -> LocalizedStringResource {
-    LocalizedStringResource(stringLiteral: text(key))
-  }
-
   private static let ru: [String: String] = [
     "Band": "Браслет",
     "Not connected yet": "Ещё не подключён",

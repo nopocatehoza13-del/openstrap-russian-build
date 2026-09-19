@@ -1,3 +1,4 @@
+import 'ui2/familiar/screens.dart';
 import 'l10n/ru_core_extra.dart';
 import 'dart:async';
 
@@ -29,8 +30,6 @@ import 'ui2/profile/profile.dart';
 import 'ui2/screens/ai_briefing.dart';
 import 'ui2/screens/calm_breathing.dart';
 import 'ui2/screens/what_changed.dart';
-import 'ui2/screens/health_screen.dart';
-import 'ui2/screens/home_screen.dart';
 import 'ui2/screens/journal_compose.dart';
 import 'ui2/screens/log_workout.dart';
 import 'ui2/screens/nutrition_screen.dart';
@@ -554,11 +553,13 @@ class _ShellState extends State<_Shell> {
         Prefs.setInt(Prefs.shellTab, d.index);
       },
       builder: (c, d) => switch (d) {
-        ShellDomain.home => const HomeScreen(),
-        ShellDomain.health => const HealthScreen(),
+        ShellDomain.home => const FamiliarDashboard(),
+        ShellDomain.health => const FamiliarDashboard(health: true),
         ShellDomain.nutrition => const NutritionScreen(),
         ShellDomain.workout => const WorkoutScreen(),
         ShellDomain.wellness => const WellnessScreen(),
+        ShellDomain.more => const FamiliarMore(),
+        ShellDomain.settings => const FamiliarSettings(),
       },
     );
   }

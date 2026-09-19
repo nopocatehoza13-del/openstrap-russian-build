@@ -1,3 +1,4 @@
+import 'imported_vitals.dart';
 // LocalRepositoryImpl — serves the UI from the PRECOMPUTED derived store.
 //
 // ZERO heavy compute on read: every method reads day_result / metric_series
@@ -473,6 +474,7 @@ class LocalRepositoryImpl extends LocalRepository {
       // condition, and it falls back to 0.5 when rsa is missing.
       if (sleepBundle != null) 'resp': ?_respObj(sleepBundle),
       'hrv': hrv,
+      'imported_vitals': importedVitals(sleepBundle),
       'skin_temp': sleepBundle != null
           ? await _skinTempBlock(sleepBundle)
           : const {'value': null},
@@ -716,6 +718,9 @@ class LocalRepositoryImpl extends LocalRepository {
   /// a `need_baseline:have=H,need=3` note so the card shows "Need N more nights"
   /// instead of a bare "—" (skin-temp z needs ≥3 nights of ADC baseline).
   Future<Map<String, dynamic>> _skinTempBlock(Map<String, dynamic> b) async {
+    if (b['source'] == 'whoop_export' && b['imported'] == true) {
+      return {'value': null, 'note': 'В CSV WHOOP температура записана в °C, а не в отклонениях от личной нормы. Значение доступно в мониторе здоровья.'};
+    }
     final z = _scalar(b, 'skin_temp_z');
     if (z != null) {
       // The ENVELOPE, not a bare `{'value': z}`. `Metric.isEmpty` is

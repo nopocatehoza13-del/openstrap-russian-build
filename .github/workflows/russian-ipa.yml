@@ -43,7 +43,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: OpenStrap-RU-unsigned
+          name: OpenStrap-Familiar-RU-unsigned
           if-no-files-found: error
           path: |
             dist/*.ipa

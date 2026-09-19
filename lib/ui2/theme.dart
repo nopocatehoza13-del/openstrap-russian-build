@@ -37,8 +37,8 @@ class C {
   // primary
   static const green = Color(0xFF22C55E);
   static const greenD = Color(0xFF16A34A);
-  static const blue = Color(0xFF3B82F6);
-  static const purple = Color(0xFF8B5CF6);
+  static const blue = Color(0xFF4CA6E8);
+  static const purple = Color(0xFF9298E9);
 
   // secondary
   static const orange = Color(0xFFF97316);
@@ -129,11 +129,11 @@ class P {
 
   static P of(BuildContext c) => P(Theme.of(c).brightness == Brightness.dark);
 
-  Color get bg => dark ? const Color(0xFF0B1017) : C.n50;
-  Color get card => dark ? const Color(0xFF151C26) : C.white;
-  Color get card2 => dark ? const Color(0xFF1D2632) : C.n100;
-  Color get line => dark ? const Color(0xFF232D3B) : C.n200;
-  Color get track => dark ? const Color(0xFF232D3B) : C.n200;
+  Color get bg => dark ? const Color(0xFF10181B) : C.n50;
+  Color get card => dark ? const Color(0xFF1C272B) : C.white;
+  Color get card2 => dark ? const Color(0xFF253237) : C.n100;
+  Color get line => dark ? const Color(0xFF344349) : C.n200;
+  Color get track => dark ? const Color(0xFF344349) : C.n200;
 
   Color get ink => dark ? const Color(0xFFF1F5F9) : C.n900;
   Color get ink2 => dark ? const Color(0xFF94A3B8) : C.n600;
@@ -142,7 +142,7 @@ class P {
   /// (light theme) / lightest (dark theme) surface it can sit on — so it is
   /// legible on every surface, not just the one it was eyeballed against.
   /// The values it replaces measured 4.34:1 and 3.21:1 respectively.
-  Color get ink3 => dark ? const Color(0xFF7F8DA0) : const Color(0xFF627188);
+  Color get ink3 => dark ? const Color(0xFF91A0AE) : const Color(0xFF627188);
 
   /// The ink that goes on top of a [fill]. White by construction — [fill]
   /// darkens the accent until white clears AA on it.
@@ -250,7 +250,7 @@ class P {
 /// the golden tests render the same shapes the design was drawn in rather than
 /// silently landing on Roboto.
 class F {
-  static const _f = '.SF Pro Text';
+  static const _f = 'Manrope';
   static const _fb = ['Manrope'];
   static const _tab = [FontFeature.tabularFigures()];
 
@@ -454,7 +454,7 @@ ThemeData buildTheme(Brightness b) {
     scaffoldBackgroundColor: p.bg,
     colorScheme:
         ColorScheme.fromSeed(seedColor: C.green, brightness: b, surface: p.card),
-    fontFamily: '.SF Pro Text',
+    fontFamily: 'Manrope',
     fontFamilyFallback: const ['Manrope'],
     splashFactory: NoSplash.splashFactory,
     highlightColor: const Color(0x00000000),

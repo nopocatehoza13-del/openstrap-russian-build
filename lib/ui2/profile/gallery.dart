@@ -1,3 +1,6 @@
+import '../familiar/data.dart';
+import '../familiar/screens.dart';
+import '../familiar/widgets.dart';
 // The component gallery, and the one set of fixtures behind it.
 //
 // Two things live here, and the second is the reason for the first.
@@ -659,6 +662,15 @@ final _psd = List<double>.generate(64, (i) => (i < 20 ? 40 - i : 26 - i * .3)
     .toDouble());
 
 Map<String, Widget> extraCases() => {
+  'familiar_panel': const FamiliarPanel(child: Text('Панель')),
+  'familiar_heading': FamiliarHeading('Показатели', onTap: () {}),
+  'familiar_ring': SizedBox(width: 112, child: FamiliarRing(label:'СОН', value:'—', subtitle:'Нет данных', fraction:null, color:C.purple, onTap:() {})),
+  'familiar_button': FamiliarButton('Добавить активность', Icons.add, onTap: () {}),
+  'familiar_chart': const FamiliarChart(first:[null,12,14,null,10,13,9],second:[null,60,70,null,58,75,62]),
+  'familiar_monitor': FamiliarHealthMonitor(data:const FamiliarData(), onTap:() {}),
+  'familiar_age': FamiliarAgeCard(data:const FamiliarData(), onTap:() {}),
+  'familiar_stress': FamiliarStressCard(data:const FamiliarData(), onTap:() {}),
+  'familiar_strain_recovery': FamiliarStrainRecovery(data:const FamiliarData(), end:DateTime(2026,9,19)),
       // The edge treatment that tells a horizontal row it continues. Swept
       // rather than photographed because the state worth seeing is the one a
       // still cannot hold: it is ABSENT when the content fits, present when it

@@ -1,15 +1,3 @@
-// The five-tab shell.
-//
-// Home · Health · Nutrition · Workout · Wellness. Stable forever: the contents
-// personalise, the mental map does not. Each domain owns an accent, so colour
-// tells you where you are before the label does.
-//
-// There is no sixth tab, and the type system is what says so — [ShellDomain]
-// is a closed enum and [AppShell] takes a builder keyed by it, so "just add a
-// tab for X" is a change to this file with a reviewer attached, not something
-// a screen can do on its own. Anything that feels like a sixth destination is
-// a `SubTabs` inside the domain that owns it.
-
 import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -23,7 +11,9 @@ enum ShellDomain {
   health('Health', LucideIcons.heartPulse, C.domHealth),
   nutrition('Nutrition', LucideIcons.utensils, C.domFood),
   workout('Workout', LucideIcons.dumbbell, C.domMove),
-  wellness('Wellness', LucideIcons.leaf, C.domMind);
+  wellness('Wellness', LucideIcons.leaf, C.domMind),
+  more('Ещё', LucideIcons.grid2x2, C.teal),
+  settings('Настройки', LucideIcons.settings, C.teal);
 
   const ShellDomain(this.label, this.icon, this.accent);
 
@@ -70,9 +60,25 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell>
+    with SingleTickerProviderStateMixin {
   late ShellDomain _current = widget.initial;
   late final Set<ShellDomain> _built = {widget.initial};
+  late final AnimationController _fade = AnimationController(
+    vsync: this,
+    duration: Motion.base,
+    value: 1,
+  );
+  late final Animation<double> _opacity = Tween<double>(
+    begin: .84,
+    end: 1,
+  ).animate(CurvedAnimation(parent: _fade, curve: Curves.easeOutCubic));
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
+  }
 
   void _select(ShellDomain d) {
     setState(() {
@@ -80,6 +86,8 @@ class _AppShellState extends State<AppShell> {
       _built.add(d);
     });
     widget.onSelect?.call(d);
+    _fade.duration = motion(context, Motion.base);
+    _fade.forward(from: 0);
   }
 
   @override
@@ -89,23 +97,28 @@ class _AppShellState extends State<AppShell> {
       backgroundColor: p.bg,
       body: SafeArea(
         bottom: false,
-        child: Column(children: [
-          Expanded(
-            child: IndexedStack(
-              index: _current.index,
-              children: [
-                // An unvisited tab is an empty box, not a built screen — the
-                // old shell built all forty screens' worth of state on launch.
-                for (final d in ShellDomain.values)
-                  if (_built.contains(d))
-                    widget.builder(c, d)
-                  else
-                    const SizedBox.shrink(),
-              ],
+        child: Column(
+          children: [
+            Expanded(
+              child: FadeTransition(
+                opacity: _opacity,
+                child: IndexedStack(
+                  index: _current.index,
+                  children: [
+                    // An unvisited tab is an empty box, not a built screen — the
+                    // old shell built all forty screens' worth of state on launch.
+                    for (final d in ShellDomain.values)
+                      if (_built.contains(d))
+                        widget.builder(c, d)
+                      else
+                        const SizedBox.shrink(),
+                  ],
+                ),
+              ),
             ),
-          ),
-          if (widget.banner != null) widget.banner!,
-        ]),
+            if (widget.banner != null) widget.banner!,
+          ],
+        ),
       ),
       bottomNavigationBar: _TabBar(current: _current, onTap: _select),
     );
@@ -132,11 +145,23 @@ class _TabBar extends StatelessWidget {
           height: 60,
           child: Row(
             children: [
-              for (final d in ShellDomain.values)
+              for (final d in const [
+                ShellDomain.home,
+                ShellDomain.health,
+                ShellDomain.more,
+                ShellDomain.settings,
+              ])
                 Expanded(
                   child: _Tab(
                     domain: d,
-                    on: d == current,
+                    on:
+                        d == current ||
+                        (d == ShellDomain.more &&
+                            const [
+                              ShellDomain.nutrition,
+                              ShellDomain.workout,
+                              ShellDomain.wellness,
+                            ].contains(current)),
                     onTap: () => onTap(d),
                   ),
                 ),
@@ -170,7 +195,9 @@ class _Tab extends StatelessWidget {
             AnimatedContainer(
               duration: motion(c, Motion.base),
               padding: EdgeInsets.symmetric(
-                  horizontal: on ? S.x3 : 0, vertical: S.x1),
+                horizontal: on ? S.x3 : 0,
+                vertical: S.x1,
+              ),
               decoration: BoxDecoration(
                 color: on ? p.wash(domain.accent) : const Color(0x00000000),
                 borderRadius: R.rPill,

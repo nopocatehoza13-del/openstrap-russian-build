@@ -118,7 +118,8 @@ class ReadinessData {
 
 class ReadinessDetail extends StatefulWidget {
   final ReadinessData? data;
-  const ReadinessDetail({super.key, this.data});
+  final String? dayLabel;
+  const ReadinessDetail({super.key, this.data, this.dayLabel});
 
   @override
   State<ReadinessDetail> createState() => _ReadinessDetailState();
@@ -164,7 +165,7 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
     // No date in the nav bar. It named the held-over night, and the headline
     // can no longer BE that night — a date up here now would be labelling
     // today's number with somebody else's day.
-    return detailScaffold(c, l?.readinessDetailTitle ?? 'Readiness', [
+    return detailScaffold(c, widget.dayLabel == null ? (l?.readinessDetailTitle ?? 'Readiness') : 'Восстановление · ${widget.dayLabel}', [
       if (_loading && _d == null) ...[
         const SizedBox(height: S.x8),
         const Center(child: CircularProgressIndicator()),
@@ -300,7 +301,7 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
       xLabels: [
         l?.readinessDetailDaysAgo(win.length - 1) ??
             '${win.length - 1} day${win.length == 2 ? '' : 's'} ago',
-        l?.readinessDetailToday ?? 'Today',
+        widget.dayLabel ?? l?.readinessDetailToday ?? 'Today',
       ],
       series: win,
       child: CustomPaint(

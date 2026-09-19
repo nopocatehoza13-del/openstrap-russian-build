@@ -45,6 +45,41 @@ import '../../data/day_label.dart' show calendarDaysBetween;
 import 'log_workout.dart';
 import 'start_card.dart';
 
+/// Shared real start flow used by the familiar home dashboard as well as this
+/// tab. It keeps the same persistence host and strength-history suggestions.
+Future<void> openFamiliarActivityPicker(BuildContext c) async {
+  final app = c.read<AppState>();
+  final d = await _loadWorkoutData(app);
+  if (!c.mounted) return;
+  await Navigator.of(c).push(MaterialPageRoute<void>(builder: (_) =>
+    ActivityPicker(weightKg: d.weightKg, recent: d.recent,
+      host: activityHost(app, history: d.setHistory))));
+}
+
+String familiarActivityName(BuildContext c, String? type) =>
+  activityText(c, activityByName(type)?.name ?? type ?? 'Workout');
+
+/// Reuses the canonical detail enrichment (HR, zones, route, rating, sets).
+Future<void> openFamiliarWorkout(BuildContext c, Map<String, dynamic> row) async {
+  final app = c.read<AppState>();
+  final ts = row['start_ts'];
+  final id = row['id'];
+  if (ts is! num || id is! String) return;
+  final a = activityByName(row['type']?.toString()) ??
+    const Activity('Workout', LucideIcons.activity, C.purple, Track.duration, 5.0);
+  final w = _PastWorkout(id, a, DateTime.fromMillisecondsSinceEpoch(ts.toInt()*1000),
+    Motion.tick * 60 * ((row['duration_min'] as num?)?.round() ?? 0),
+    strain: (row['strain'] as num?)?.toDouble(),
+    calories: (row['calories'] as num?)?.round(),
+    avgHr: (row['avg_hr'] as num?)?.round(), maxHr: (row['max_hr'] as num?)?.round(),
+    zoneMinutes: _decodeZoneMinutes(row['zone_min']), private: row['private'] == true);
+  final result = await _detailOf(app, w);
+  final profile = await app.repo?.getProfile();
+  if (!c.mounted) return;
+  await Navigator.of(c).push(MaterialPageRoute<void>(builder: (_) => ActivitySummary(
+    result, weightKg: (profile?['weight_kg'] as num?)?.toDouble())));
+}
+
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
 

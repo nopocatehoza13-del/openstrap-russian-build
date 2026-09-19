@@ -89,8 +89,8 @@ class DayStrainData {
 
   bool get hasCurve => curve.any((v) => v != null);
 
-  static Future<DayStrainData> load(LocalRepository repo) async {
-    final asked = todayLabel();
+  static Future<DayStrainData> load(LocalRepository repo, {String? want}) async {
+    final asked = want ?? todayLabel();
     final s = await repo.getDayStrain(asked);
     if (s.isEmpty) return const DayStrainData();
 
@@ -138,7 +138,7 @@ class DayStrainData {
 
     final hr = s['hr'];
     return DayStrainData(
-      day: day,
+      day: day ?? DateTime.tryParse(asked),
       curve: grid,
       strain: (s['strain'] as num?)?.toDouble(),
       zoneMin: zoneMin,
@@ -159,7 +159,8 @@ class DayStrainData {
 class DayStrainDetail extends StatefulWidget {
   /// Preloaded, for goldens. Null means read the repo on open.
   final DayStrainData? data;
-  const DayStrainDetail({super.key, this.data});
+  final String? day;
+  const DayStrainDetail({super.key, this.data, this.day});
 
   @override
   State<DayStrainDetail> createState() => _DayStrainDetailState();
@@ -187,7 +188,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
       return;
     }
     try {
-      final d = await DayStrainData.load(repo);
+      final d = await DayStrainData.load(repo, want: widget.day);
       if (mounted) setState(() => (_d = d, _loading = false));
     } catch (_) {
       if (mounted) setState(() => _loading = false);

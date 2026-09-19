@@ -119,7 +119,7 @@ void main() {
     test('no ${rule.name} outside the token boundary', () {
       final hits = <String>[];
       for (final f in files) {
-        final rel = f.path.replaceFirst(RegExp(r'^\./'), '');
+        final rel = f.path.replaceAll('\\', '/').replaceFirst(RegExp(r'^\./'), '');
         if (rule.allow.contains(rel)) continue;
         final lines = codeLines(f.readAsStringSync());
         for (var i = 0; i < lines.length; i++) {
@@ -193,6 +193,12 @@ void main() {
 /// this list fails the test above, so the choice has to be made rather than
 /// drifted into.
 const _notComponents = {
+  // Native familiar routes own Scaffolds, persistence or a repository lifecycle;
+  // explicitly swept at 320/390 px in familiar_ui_test instead of nested inside
+  // the component gallery. Pure cards and controls remain in the gallery below.
+  'FamiliarDashboard', 'FamiliarMonitorDetail', 'FamiliarSleepPlanner',
+  'FamiliarAgeDetail', 'FamiliarStressDetail', 'FamiliarAllHealth',
+  'FamiliarActivities', 'FamiliarMore', 'FamiliarSettings', 'FamiliarPage',
   // shell and routing
   'AppShell', 'Domain', 'GalleryScreen',
   // onboarding routes

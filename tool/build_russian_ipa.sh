@@ -8,6 +8,8 @@ fi
 python3 tool/check_russian.py
 flutter gen-l10n
 flutter test --no-pub test/russian_runtime_screens_test.dart test/russian_observations_extra_test.dart test/russian_activity_extra_test.dart test/russian_core_extra_test.dart test/profile_russian_extra_test.dart test/notification_russian_copy_test.dart test/native_russian_localization_test.dart test/russian_localization_test.dart test/russian_count_labels_test.dart test/russian_metric_notes_test.dart test/russian_metric_specs_test.dart test/russian_screens_test.dart test/widget_russian_locale_test.dart test/widget_service_sentinels_test.dart test/battery_audit_policy_test.dart test/absence_reason_test.dart test/wear_gap_reason_test.dart --reporter=expanded --concurrency=1 --timeout=60s
+flutter analyze --no-pub lib/ui2/familiar lib/data/imported_vitals.dart lib/data/local_repository_impl.dart lib/app.dart lib/ui2/app_shell.dart lib/ui2/screens/workout_screen.dart lib/ui2/screens/readiness_detail.dart lib/ui2/activity/day_strain.dart packages/personal_analytics
+flutter test --no-pub test/familiar_age_test.dart test/familiar_ui_test.dart test/familiar_import_test.dart test/manual_session_test.dart test/import_data_safety_test.dart test/ui2_sleep_detail_test.dart test/edit_profile_import_test.dart test/sleep_profile_policy_test.dart test/ui2_contrast_test.dart test/ui2_tokens_test.dart --reporter=expanded --concurrency=1 --timeout=120s
 flutter build ios --release --no-codesign --dart-define-from-file=.env
 APP="$PWD/build/ios/iphoneos/Runner.app"
 [[ -f "$APP/Info.plist" && -f "$APP/Runner" ]]
@@ -24,7 +26,7 @@ STAGING=$(mktemp -d "$PWD/build/ru-ipa.XXXXXX")
 mkdir -p "$STAGING/Payload"
 ditto "$APP" "$STAGING/Payload/Runner.app"
 mkdir -p dist
-IPA="$PWD/dist/OpenStrap-RU-0.9.29-r2-unsigned.ipa"
+IPA="$PWD/dist/OpenStrap-Familiar-RU-0.9.29-v5-unsigned.ipa"
 (cd "$STAGING" && zip -qry -y "$STAGING/fresh.ipa" Payload)
 mv "$STAGING/fresh.ipa" "$IPA"
 python3 tool/verify_russian_ipa.py "$IPA"

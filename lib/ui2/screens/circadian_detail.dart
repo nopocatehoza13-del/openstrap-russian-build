@@ -17,6 +17,8 @@
 // than step counts, and the card says so out loud rather than letting the
 // numbers imply accelerometry.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
+import '../../l10n/ru_observations_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:openstrap_analytics/onehz.dart' as ana;
@@ -252,13 +254,14 @@ class CircadianData {
 }
 
 /// Hours past midnight → a wall clock, in the app's one clock format.
-String _hourClock(num? h) => h == null ? '' : clock(((h % 24) * 60).round());
+String _hourClock(num? h, [AppLocalizations? l]) =>
+    h == null ? '' : clock(((h % 24) * 60).round(), l);
 
 /// `'YYYY-MM-DD'` → `'9 Aug'`. Built off [prettyDay] rather than a second month
 /// table: two dates spelled "Saturday, 9 August" do not fit one table row, and
 /// this screen's own actogram axis already prints bare dates.
-String _shortDay(Object? day) {
-  final parts = prettyDay(day?.toString()).split(', ');
+String _shortDay(Object? day, [AppLocalizations? l]) {
+  final parts = prettyDay(day?.toString(), l).split(', ');
   if (parts.length < 2) return '';
   final dm = parts.last.split(' ');
   return dm.length < 2 ? parts.last : '${dm[0]} ${dm[1].substring(0, 3)}';
@@ -342,7 +345,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
                   ticks: 3,
                   // Rows run noon → noon, so 0 and 24 are both midday and 12 is
                   // midnight — read straight off the anchor the columns use.
-                  format: (v) => clock(((12 + v) * 60).round())),
+                  format: (v) => clock(((12 + v) * 60).round(), l)),
               xLabels: d.labels.isEmpty
                   ? const []
                   : [d.labels.first, d.labels.last],
@@ -404,10 +407,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
     ]);
   }
 
-  String _hm(num hours) {
-    final m = (hours * 60).round();
-    return m < 60 ? '${m}m' : '${m ~/ 60}h ${(m % 60).toString().padLeft(2, '0')}m';
-  }
+  String _hm(num hours, [AppLocalizations? l]) => hm(hours * 60, l);
 
   /// CV-09 — daytime HRV by hour of day, motion-gated.
   ///
@@ -458,7 +458,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
         yAxis: axis,
         // The row is 24 hours of the local clock, so both edges and the middle
         // are wall-clock times rather than positions in an array.
-        xLabels: [clock(0), clock(12 * 60), clock(23 * 60)],
+        xLabels: [clock(0, l), clock(12 * 60, l), clock(23 * 60, l)],
         series: d.hourly,
         footnote: l?.circadianDetailStillnessFootnote(lo, hi, d.hourlyDays, drawn) ??
             'Each hour is the middle value of $lo–$hi five-minute '
@@ -506,9 +506,9 @@ class _CircadianDetailState extends State<CircadianDetail> {
           unit: 'shape only',
           height: 96,
           xLabels: [
-            _hourClock(v.startHour),
-            _hourClock(v.startHour + 9),
-            _hourClock(v.startHour + 18),
+            _hourClock(v.startHour, l),
+            _hourClock(v.startHour + 9, l),
+            _hourClock(v.startHour + 18, l),
           ],
           // No `series:`. A shape has no reading; handing the frame one would
           // have it speak numbers off a curve that deliberately has none.
@@ -524,28 +524,28 @@ class _CircadianDetailState extends State<CircadianDetail> {
         ),
         const SizedBox(height: S.x3),
         Text(
-          l?.circadianDetailTroughText(
+          coreText(c, l?.circadianDetailTroughText(
                 v.troughLabel,
-                _hourClock(v.troughStartHour),
-                _hourClock(v.troughEndHour),
+                _hourClock(v.troughStartHour, l),
+                _hourClock(v.troughEndHour, l),
               ) ??
               'The flattest stretch lands in ${v.troughLabel}, around '
-                  '${_hourClock(v.troughStartHour)}–${_hourClock(v.troughEndHour)}.',
+                  '${_hourClock(v.troughStartHour)}–${_hourClock(v.troughEndHour)}.'),
           style: F.body.copyWith(color: p.ink, height: 1.5),
         ),
         const SizedBox(height: S.x3),
         Text(
-          '${l?.circadianDetailPredictionDisclaimer ?? 'This is a prediction, not a reading. Nothing on the band measures '
+          coreText(c, '${l?.circadianDetailPredictionDisclaimer ?? 'This is a prediction, not a reading. Nothing on the band measures '
               'how alert you are, and it knows last night and nothing else — a '
               'nap, coffee, or anything that happens today never reaches it.'}'
-          '${assumedPhase ? ' ${l?.circadianDetailAssumedPhaseNote ?? 'Your own clock peak is not worked out yet, so this uses an average one.'}' : ''}',
+          '${assumedPhase ? ' ${l?.circadianDetailAssumedPhaseNote ?? 'Your own clock peak is not worked out yet, so this uses an average one.'}' : ''}'),
           style: F.cap.copyWith(color: p.ink2, height: 1.6),
         ),
         const SizedBox(height: S.x3),
         Text(
-          l?.circadianDetailNotADrivingCheck ??
+          coreText(c, l?.circadianDetailNotADrivingCheck ??
               'It is not a fitness-to-drive check and not a shift-safety '
-                  'tool, and it does not say you are impaired.',
+                  'tool, and it does not say you are impaired.'),
           style: F.cap.copyWith(color: p.ink2, height: 1.6),
         ),
       ]),
@@ -558,20 +558,20 @@ class _CircadianDetailState extends State<CircadianDetail> {
     final showNights = _showNights && worst != null;
     final rows = <(String, String)>[
       if (d.chronotypeLabel.isNotEmpty)
-        (l?.circadianDetailChronotype ?? 'Chronotype', d.chronotypeLabel),
+        (l?.circadianDetailChronotype ?? 'Chronotype', chronotypeObservationLabel(d.chronotypeLabel, l?.localeName)),
       if (d.midFreeH != null)
         (l?.circadianDetailMidSleepFree ?? 'Mid-sleep, free days',
-            _hourClock(d.midFreeH)),
+            _hourClock(d.midFreeH, l)),
       if (d.midWorkH != null)
         (l?.circadianDetailMidSleepWork ?? 'Mid-sleep, working days',
-            _hourClock(d.midWorkH)),
+            _hourClock(d.midWorkH, l)),
       // `abs_hours` is UNSIGNED. Whether the free-day clock runs later or
       // earlier is the sign of free minus work; the card that used to say
       // "later" read it off the magnitude.
       if (d.jetlag.value != null)
         (
           l?.circadianDetailSocialJetlag ?? 'Social jetlag',
-          '${_hm(d.jetlag.value!)}'
+          '${_hm(d.jetlag.value!, l)}'
               '${d.midFreeH == null || d.midWorkH == null ? '' : (d.midFreeH! >= d.midWorkH! ? ' ${l?.circadianDetailLater ?? 'later'}' : ' ${l?.circadianDetailEarlier ?? 'earlier'}')}',
         ),
       if (d.nFree != null && d.nWork != null)
@@ -585,7 +585,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
       // name the pair that agreed least and print it on the same scale.
       if (showNights)
         (l?.circadianDetailNightsLeastAlike ?? 'Nights least alike',
-            '${_shortDay(worst['prev_date'])} → ${_shortDay(worst['date'])}'),
+            '${_shortDay(worst['prev_date'], l)} → ${_shortDay(worst['date'], l)}'),
       if (showNights)
         (l?.circadianDetailSamePairScale ?? 'That pair, same scale',
             '${(worst['sri'] as num).round()} / 100'),
@@ -611,11 +611,11 @@ class _CircadianDetailState extends State<CircadianDetail> {
       _table(p, rows),
       const SizedBox(height: S.x3),
       Text(
-        l?.circadianDetailPairFootnote(d.sriPairs.length) ??
+        coreText(c, l?.circadianDetailPairFootnote(d.sriPairs.length) ??
             'The pair that matched least, out of ${d.sriPairs.length}. A '
                 'weekend that runs late is a different schedule, not a worse '
                 'night. Pairs where too little of either day was recorded '
-                'are left out.',
+                'are left out.'),
         style: F.over.copyWith(color: p.ink3, height: 1.5),
       ),
     ]);
@@ -643,13 +643,13 @@ class _CircadianDetailState extends State<CircadianDetail> {
             n(np, 'RA')!.toStringAsFixed(2)),
       if (n(np, 'm10_start_epoch') != null)
         (l?.circadianDetailM10Start ?? 'Highest-HR 10 hours start',
-            _hourClock(n(np, 'm10_start_epoch'))),
+            _hourClock(n(np, 'm10_start_epoch'), l)),
       if (n(np, 'l5_start_epoch') != null)
         (l?.circadianDetailL5Start ?? 'Lowest-HR 5 hours start',
-            _hourClock(n(np, 'l5_start_epoch'))),
+            _hourClock(n(np, 'l5_start_epoch'), l)),
       if (n(cos, 'acrophase_hours') != null)
         (l?.circadianDetailRhythmPeak ?? 'Rhythm peak',
-            _hourClock(n(cos, 'acrophase_hours'))),
+            _hourClock(n(cos, 'acrophase_hours'), l)),
       if (n(cos, 'amplitude') != null)
         (l?.circadianDetailPeakSwing ?? 'Peak-to-mean swing',
             '${n(cos, 'amplitude')!.toStringAsFixed(1)} bpm'),
@@ -675,7 +675,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
       _table(p, rows),
       const SizedBox(height: S.x3),
       Text(
-        used == null
+        coreText(c, used == null
             ? (l?.circadianDetailStrengthFootnoteUnknown ??
                 'From a run of fully-recorded days of heart rate. These are '
                     'your highest and lowest heart-rate hours, not your '
@@ -683,7 +683,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
             : (l?.circadianDetailStrengthFootnoteKnown(used) ??
                 'From $used fully-recorded day${used == 1 ? '' : 's'} of '
                     'heart rate. These are your highest and lowest '
-                    'heart-rate hours, not your busiest.'),
+                    'heart-rate hours, not your busiest.')),
         style: F.over.copyWith(color: p.ink3, height: 1.5),
       ),
     ]);
@@ -699,7 +699,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
               child: Row(children: [
                 Expanded(
                     child:
-                        Text(rows[i].$1, style: F.body.copyWith(color: p.ink))),
+                        Text(coreText(context, rows[i].$1), style: F.body.copyWith(color: p.ink))),
                 const SizedBox(width: S.x3),
                 // Flexible, like every other two-column row in the app: at 3.1x
                 // text the label wraps inside its Expanded and the value's
@@ -708,7 +708,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
                 // index / 62 / 100" is enough on its own — so it is not the
                 // SLP-08 rows that need it, it is the table.
                 Flexible(
-                  child: Text(rows[i].$2,
+                  child: Text(coreText(context, rows[i].$2),
                       textAlign: TextAlign.right,
                       style: F.body
                           .copyWith(color: p.ink2, fontWeight: FontWeight.w600)),

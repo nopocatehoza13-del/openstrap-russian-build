@@ -45,6 +45,7 @@ import '../../ble/ble_state.dart'
 import '../../ble/hrs_link.dart';
 import '../../data/db.dart' show LocalDb;
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_profile_extra.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'profile.dart';
@@ -154,15 +155,21 @@ class _PairSensorScreenState extends State<PairSensorScreen> {
       // A phone-level blocker has copy of its own, written once and shared by
       // every surface that shows the link — home, devices, pairing, and now
       // this. Anything else is reported as itself.
-      final blocker =
-          e is BleUnavailableException ? e.blocker : classifyBleBlocker(error: e);
+      final blocker = e is BleUnavailableException
+          ? e.blocker
+          : classifyBleBlocker(error: e);
       if (!mounted) return;
-      setState(() => _problem = blocker != null
-          ? localizedBandStatus(context,
-                  bandStatusFor(connection: 'disconnected', blocker: blocker))
-              .reason
-          : (AppLocalizations.of(context)?.pairSensorScanDidNotRun(e.toString()) ??
-              'The scan did not run: $e'));
+      setState(
+        () => _problem = blocker != null
+            ? localizedBandStatus(
+                context,
+                bandStatusFor(connection: 'disconnected', blocker: blocker),
+              ).reason
+            : (AppLocalizations.of(
+                    context,
+                  )?.pairSensorScanDidNotRun(e.toString()) ??
+                  'The scan did not run: $e'),
+      );
     } finally {
       if (mounted) setState(() => _scanning = false);
     }
@@ -196,7 +203,8 @@ class _PairSensorScreenState extends State<PairSensorScreen> {
               label: c.label,
             );
     } catch (e) {
-      failure = l?.pairSensorCouldNotPair(e.toString()) ??
+      failure =
+          l?.pairSensorCouldNotPair(e.toString()) ??
           'Could not pair that device: $e';
     }
     if (!mounted) return;
@@ -225,17 +233,17 @@ class _PairSensorScreenState extends State<PairSensorScreen> {
 
   @override
   Widget build(BuildContext c) => PairSensorView(
-        entryLabel: widget.entry.label,
-        candidates: _found,
-        scanning: _scanning,
-        heldBack: _heldBack,
-        problem: _problem,
-        paired: _paired,
-        busyRemoteId: _busy,
-        onScan: _scan,
-        onPick: _pick,
-        onForget: _forget,
-      );
+    entryLabel: widget.entry.label,
+    candidates: _found,
+    scanning: _scanning,
+    heldBack: _heldBack,
+    problem: _problem,
+    paired: _paired,
+    busyRemoteId: _busy,
+    onScan: _scan,
+    onPick: _pick,
+    onForget: _forget,
+  );
 }
 
 /// The pure half — everything this screen draws, from values, so a test can
@@ -278,101 +286,110 @@ class PairSensorView extends StatelessWidget {
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(l?.pairSensorAddASensor ?? 'Add a sensor',
-                sub: entryLabel),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-              children: [
-                if (paired != null) ..._pairedSection(c, paired!),
-                Section(
-                  paired == null
-                      ? (l?.pairSensorWhatThisAdds ?? 'What this adds')
-                      : (l?.pairSensorPairAnother ?? 'Pair another'),
-                  Surface(
-                    child: Text(
-                      l?.pairSensorExplainer ??
-                          'A sensor is used only while a workout is running, and '
-                              'only for heart rate and beat timing. It does not '
-                              'replace your band, it is never used overnight, and '
-                              'nothing it records feeds a score yet — its readings are '
-                              'stored and shown, and that is all.',
-                      style: F.cap.copyWith(color: p.ink3, height: 1.5),
-                    ),
-                  ),
-                ),
-                if (heldBack != null) ...[
-                  const SizedBox(height: S.x4),
-                  StatusCard(
-                    l?.pairSensorSearchWouldHideSheet ??
-                        'Searching would hide the system pairing sheet',
-                    heldBack!,
-                    fix: l?.pairSensorSearchAnyway ?? 'Search anyway',
-                    icon: LucideIcons.triangleAlert,
-                    onFix: busy ? null : onScan,
-                  ),
-                ] else ...[
-                  const SizedBox(height: S.x6),
-                  BigButton(
-                    scanning
-                        ? (l?.pairSensorSearching ?? 'Searching…')
-                        : (l?.pairSensorSearchForSensors ?? 'Search for sensors'),
-                    icon: LucideIcons.bluetooth,
-                    color: C.blue,
-                    onTap: scanning || busy ? null : onScan,
-                  ),
-                ],
-                if (problem != null) ...[
-                  const SizedBox(height: S.x4),
-                  StatusCard(
-                    l?.pairSensorThatDidNotWork ?? 'That did not work',
-                    problem!,
-                    icon: LucideIcons.circleAlert,
-                  ),
-                ],
-                if (candidates.isNotEmpty)
-                  Section(
-                    l?.pairSensorInRange ?? 'In range',
-                    Surface(
-                      pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                      child: Column(children: [
-                        for (var i = 0; i < candidates.length; i++) ...[
-                          _candidateRow(c, candidates[i], busy),
-                          if (i < candidates.length - 1)
-                            Divider(color: p.line, height: 1),
-                        ],
-                      ]),
-                    ),
-                  )
-                else if (scanning)
-                  Padding(
-                    padding: const EdgeInsets.only(top: S.x6),
-                    child: Center(
-                      child: NoData(
-                          message: l?.pairSensorListeningForSensors ??
-                              'Listening for sensors…'),
-                    ),
-                  )
-                else if (heldBack == null && problem == null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: S.x6),
-                    child: StatusCard(
-                      l?.pairSensorNothingFoundYet ?? 'Nothing found yet',
-                      l?.pairSensorNothingFoundBody ??
-                          'A sensor answers a search only while it is awake, worn '
-                              'or damp, and not already connected to another phone '
-                              'or app.',
-                      icon: LucideIcons.searchX,
-                    ),
-                  ),
-              ],
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: S.x4),
+              child: NavBar(
+                l?.pairSensorAddASensor ?? 'Add a sensor',
+                sub: profileText(c, entryLabel),
+              ),
             ),
-          ),
-        ]),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
+                children: [
+                  if (paired != null) ..._pairedSection(c, paired!),
+                  Section(
+                    paired == null
+                        ? (l?.pairSensorWhatThisAdds ?? 'What this adds')
+                        : (l?.pairSensorPairAnother ?? 'Pair another'),
+                    Surface(
+                      child: Text(
+                        l?.pairSensorExplainer ??
+                            'A sensor is used only while a workout is running, and '
+                                'only for heart rate and beat timing. It does not '
+                                'replace your band, it is never used overnight, and '
+                                'nothing it records feeds a score yet — its readings are '
+                                'stored and shown, and that is all.',
+                        style: F.cap.copyWith(color: p.ink3, height: 1.5),
+                      ),
+                    ),
+                  ),
+                  if (heldBack != null) ...[
+                    const SizedBox(height: S.x4),
+                    StatusCard(
+                      l?.pairSensorSearchWouldHideSheet ??
+                          'Searching would hide the system pairing sheet',
+                      profileText(c, heldBack!),
+                      fix: l?.pairSensorSearchAnyway ?? 'Search anyway',
+                      icon: LucideIcons.triangleAlert,
+                      onFix: busy ? null : onScan,
+                    ),
+                  ] else ...[
+                    const SizedBox(height: S.x6),
+                    BigButton(
+                      scanning
+                          ? (l?.pairSensorSearching ?? 'Searching…')
+                          : (l?.pairSensorSearchForSensors ??
+                                'Search for sensors'),
+                      icon: LucideIcons.bluetooth,
+                      color: C.blue,
+                      onTap: scanning || busy ? null : onScan,
+                    ),
+                  ],
+                  if (problem != null) ...[
+                    const SizedBox(height: S.x4),
+                    StatusCard(
+                      l?.pairSensorThatDidNotWork ?? 'That did not work',
+                      profileText(c, problem!),
+                      icon: LucideIcons.circleAlert,
+                    ),
+                  ],
+                  if (candidates.isNotEmpty)
+                    Section(
+                      l?.pairSensorInRange ?? 'In range',
+                      Surface(
+                        pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < candidates.length; i++) ...[
+                              _candidateRow(c, candidates[i], busy),
+                              if (i < candidates.length - 1)
+                                Divider(color: p.line, height: 1),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (scanning)
+                    Padding(
+                      padding: const EdgeInsets.only(top: S.x6),
+                      child: Center(
+                        child: NoData(
+                          message:
+                              l?.pairSensorListeningForSensors ??
+                              'Listening for sensors…',
+                        ),
+                      ),
+                    )
+                  else if (heldBack == null && problem == null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: S.x6),
+                      child: StatusCard(
+                        l?.pairSensorNothingFoundYet ?? 'Nothing found yet',
+                        l?.pairSensorNothingFoundBody ??
+                            'A sensor answers a search only while it is awake, worn '
+                                'or damp, and not already connected to another phone '
+                                'or app.',
+                        icon: LucideIcons.searchX,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -384,28 +401,31 @@ class PairSensorView extends StatelessWidget {
         l?.pairSensorPaired ?? 'Paired',
         Surface(
           pad: const EdgeInsets.symmetric(horizontal: S.x4),
-          child: Column(children: [
-            SetRow(
-              LucideIcons.heartPulse,
-              C.green,
-              // A sensor that advertised no name is shown as what it is, not
-              // as an invented one.
-              s.label ?? entryLabel,
-              sub: l?.pairSensorUsedDuringWorkouts ?? 'Used during workouts',
-              chevron: false,
-              onTap: null,
-            ),
-            SetRow(
-              LucideIcons.trash2,
-              C.red,
-              l?.pairSensorForgetThisSensor ?? 'Forget this sensor',
-              sub: l?.pairSensorForgetThisSensorSub ??
-                  'Removes the source. The readings it already took stay.',
-              danger: true,
-              chevron: false,
-              onTap: onForget == null ? null : () => onForget!(s.id),
-            ),
-          ]),
+          child: Column(
+            children: [
+              SetRow(
+                LucideIcons.heartPulse,
+                C.green,
+                // A sensor that advertised no name is shown as what it is, not
+                // as an invented one.
+                s.label ?? profileText(c, entryLabel),
+                sub: l?.pairSensorUsedDuringWorkouts ?? 'Used during workouts',
+                chevron: false,
+                onTap: null,
+              ),
+              SetRow(
+                LucideIcons.trash2,
+                C.red,
+                l?.pairSensorForgetThisSensor ?? 'Forget this sensor',
+                sub:
+                    l?.pairSensorForgetThisSensorSub ??
+                    'Removes the source. The readings it already took stay.',
+                danger: true,
+                chevron: false,
+                onTap: onForget == null ? null : () => onForget!(s.id),
+              ),
+            ],
+          ),
         ),
       ),
     ];
@@ -425,12 +445,12 @@ class PairSensorView extends StatelessWidget {
     return SetRow(
       LucideIcons.heartPulse,
       C.blue,
-      cand.label ?? entryLabel,
+      cand.label ?? profileText(c, entryLabel),
       sub: busyRemoteId == id
           ? (l?.pairSensorPairing ?? 'Pairing…')
           : cand.label == null
-              ? '…$tail · ${cand.rssi} dBm'
-              : '${cand.rssi} dBm',
+          ? profileText(c, '…$tail · ${cand.rssi} dBm')
+          : profileText(c, '${cand.rssi} dBm'),
       chevron: !busy,
       onTap: busy || onPick == null ? null : () => onPick!(cand),
     );

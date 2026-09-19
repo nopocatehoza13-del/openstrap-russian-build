@@ -12,6 +12,7 @@
 // not connected the pacer still runs; it just says plainly that there will be
 // no score.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -649,14 +650,14 @@ class _Setup extends StatelessWidget {
     return ListView(
       children: [
         const SizedBox(height: S.x4),
-        Text(l?.calmBreathingTakeABreath ?? 'Take a breath.',
+        Text(coreText(c, l?.calmBreathingTakeABreath ?? 'Take a breath.'),
             style: F.t1.copyWith(color: p.ink)),
         const SizedBox(height: S.x2),
         // The buzz is band-dependent and this screen does not yet know whether
         // the band will accept the session, so it is not promised here. The
         // `!banded` card during the run is where that gets said.
         Text(
-          l?.calmBreathingRingLeads ?? 'The ring leads. Put the phone down.',
+          coreText(c, l?.calmBreathingRingLeads ?? 'The ring leads. Put the phone down.'),
           style: F.cap.copyWith(color: p.ink2, height: 1.5),
         ),
         for (final b in patternsFor(yours, l))
@@ -675,7 +676,7 @@ class _Setup extends StatelessWidget {
                           children: [
                             Flexible(
                               child: Text(
-                                b.label,
+                                coreText(c, b.label),
                                 style: F.body.copyWith(
                                   color: p.ink,
                                   fontWeight: FontWeight.w600,
@@ -690,7 +691,7 @@ class _Setup extends StatelessWidget {
                         ),
                         const SizedBox(height: S.x1),
                         Text(
-                          b.description,
+                          coreText(c, b.description),
                           style: F.cap.copyWith(color: p.ink3, height: 1.4),
                         ),
                       ],
@@ -698,7 +699,7 @@ class _Setup extends StatelessWidget {
                   ),
                   const SizedBox(width: S.x3),
                   Text(
-                    '${b.rate.toStringAsFixed(1)}/min',
+                    coreText(c, '${b.rate.toStringAsFixed(1)}/min'),
                     style: F.n17.copyWith(color: p.on(C.domMind)),
                   ),
                 ],
@@ -726,7 +727,7 @@ class _Setup extends StatelessWidget {
                           ),
                           child: Center(
                             child: Text(
-                              l?.calmBreathingMinutesAbbrev(m) ?? '$m min',
+                              coreText(c, l?.calmBreathingMinutesAbbrev(m) ?? '$m min'),
                               style: F.body.copyWith(
                                 color: m == minutes ? p.inkOnFill : p.ink2,
                               ),
@@ -786,8 +787,8 @@ class _Setup extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l?.calmBreathingMeasureBeforeAfter ??
-                      'Measure before and after · adds 4 min',
+                  coreText(c, l?.calmBreathingMeasureBeforeAfter ??
+                      'Measure before and after · adds 4 min'),
                   style: F.body.copyWith(
                     color: connected ? p.ink : p.ink3,
                     fontWeight: FontWeight.w600,
@@ -795,11 +796,11 @@ class _Setup extends StatelessWidget {
                 ),
                 const SizedBox(height: S.x1),
                 Text(
-                  !connected
+                  coreText(c, !connected
                       ? (l?.calmBreathingNeedsBandBeatTiming ??
                           'Needs the band on — the comparison is made from '
                               'beat timing.')
-                      : breathingEffectLine(e ?? _noSessionsYet),
+                      : breathingEffectLine(e ?? _noSessionsYet)),
                   style: F.cap.copyWith(color: p.ink3, height: 1.4),
                 ),
                 // The caveat rides WITH the finding, never as a footnote
@@ -808,7 +809,7 @@ class _Setup extends StatelessWidget {
                 if (connected && e != null && e.detected) ...[
                   const SizedBox(height: S.x2),
                   Text(
-                    kBreathingEffectCaveat,
+                    coreText(c, kBreathingEffectCaveat),
                     style: F.over.copyWith(color: p.ink3, height: 1.5),
                   ),
                 ],
@@ -838,7 +839,7 @@ class _Setup extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                l?.calmBreathingFindYourPace ?? 'Find the pace your heart follows',
+                coreText(c, l?.calmBreathingFindYourPace ?? 'Find the pace your heart follows'),
                 style: F.body.copyWith(
                   color: connected ? p.ink : p.ink3,
                   fontWeight: FontWeight.w600,
@@ -846,7 +847,7 @@ class _Setup extends StatelessWidget {
               ),
               const SizedBox(height: S.x1),
               Text(
-                !connected
+                coreText(c, !connected
                     ? (l?.calmBreathingNeedsBandBeatTiming ??
                         'Needs the band on — the comparison is made from '
                             'beat timing.')
@@ -862,7 +863,7 @@ class _Setup extends StatelessWidget {
                         'Two sittings agreed on '
                             '${yours.toStringAsFixed(1)} breaths a minute, '
                             'and Resonance is paced there. Run it again to '
-                            'check.'),
+                            'check.')),
                 style: F.cap.copyWith(color: p.ink3, height: 1.4),
               ),
             ],
@@ -918,10 +919,10 @@ class _Running extends StatelessWidget {
       children: [
         if (block != null) ...[
           Text(
-            l?.calmBreathingPaceOfRate(
+            coreText(c, l?.calmBreathingPaceOfRate(
                     block! + 1, kPaceSweepRates.length, pattern.rate.toStringAsFixed(1)) ??
                 'PACE ${block! + 1} OF ${kPaceSweepRates.length} · '
-                '${pattern.rate.toStringAsFixed(1)} BREATHS A MINUTE',
+                '${pattern.rate.toStringAsFixed(1)} BREATHS A MINUTE'),
             textAlign: TextAlign.center,
             style: F.over.copyWith(color: p.ink3),
           ),
@@ -929,10 +930,10 @@ class _Running extends StatelessWidget {
         ],
         BreathCircle(t: t, label: breathPhaseKindLabel(kind, l)),
         const SizedBox(height: S.x8),
-        Text(_clock(elapsed), style: F.n34.copyWith(color: p.ink2)),
+        Text(coreText(c, _clock(elapsed)), style: F.n34.copyWith(color: p.ink2)),
         if (target != null) ...[
           const SizedBox(height: S.x1),
-          Text(l?.calmBreathingOfClock(_clock(target!)) ?? 'of ${_clock(target!)}',
+          Text(coreText(c, l?.calmBreathingOfClock(_clock(target!)) ?? 'of ${_clock(target!)}'),
               style: F.cap.copyWith(color: p.ink3)),
         ],
         if (!banded) ...[
@@ -975,38 +976,38 @@ class _Quiet extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          pre
+          coreText(c, pre
               ? (l?.calmBreathingBeforeLabel ?? 'BEFORE')
-              : (l?.calmBreathingAfterLabel ?? 'AFTER'),
+              : (l?.calmBreathingAfterLabel ?? 'AFTER')),
           textAlign: TextAlign.center,
           style: F.over.copyWith(color: p.ink3),
         ),
         const SizedBox(height: S.x4),
         Text(
-          pre
+          coreText(c, pre
               ? (l?.calmBreathingSitStill ?? 'Sit still for a moment.')
-              : (l?.calmBreathingStaySitting ?? 'Stay sitting.'),
+              : (l?.calmBreathingStaySitting ?? 'Stay sitting.')),
           textAlign: TextAlign.center,
           style: F.t2.copyWith(color: p.ink),
         ),
         const SizedBox(height: S.x3),
         Text(
-          l?.calmBreathingNothingPacingScored ??
+          coreText(c, l?.calmBreathingNothingPacingScored ??
               'Breathe however you normally would. Nothing is pacing you and '
-              'nothing is being scored.',
+              'nothing is being scored.'),
           textAlign: TextAlign.center,
           style: F.cap.copyWith(color: p.ink2, height: 1.5),
         ),
         const SizedBox(height: S.x8),
         Text(
-          _clock(elapsed),
+          coreText(c, _clock(elapsed)),
           textAlign: TextAlign.center,
           style: F.n34.copyWith(color: p.ink2),
         ),
         const SizedBox(height: S.x1),
         Text(
-          l?.calmBreathingOfClock(_clock(kBreathingWindow)) ??
-              'of ${_clock(kBreathingWindow)}',
+          coreText(c, l?.calmBreathingOfClock(_clock(kBreathingWindow)) ??
+              'of ${_clock(kBreathingWindow)}'),
           textAlign: TextAlign.center,
           style: F.cap.copyWith(color: p.ink3),
         ),
@@ -1037,7 +1038,7 @@ class BreathCircle extends StatelessWidget {
             size: const Size(240, 240),
             painter: BreathRing(t, p.on(C.domMind)),
           ),
-          Text(label, style: F.head.copyWith(color: p.ink)),
+          Text(coreText(c, label), style: F.head.copyWith(color: p.ink)),
         ],
       ),
     );
@@ -1098,7 +1099,7 @@ class _Result extends StatelessWidget {
     return ListView(
       children: [
         const SizedBox(height: S.x8),
-        Text(l?.calmBreathingThatIsDone ?? 'That is done.',
+        Text(coreText(c, l?.calmBreathingThatIsDone ?? 'That is done.'),
             style: F.t1.copyWith(color: p.ink)),
         const SizedBox(height: S.x5),
         if (absent != null)
@@ -1146,9 +1147,9 @@ class _SweepResult extends StatelessWidget {
       children: [
         const SizedBox(height: S.x8),
         Text(
-          aborted
+          coreText(c, aborted
               ? (l?.calmBreathingStoppedThere ?? 'Stopped there.')
-              : (l?.calmBreathingThatIsDone ?? 'That is done.'),
+              : (l?.calmBreathingThatIsDone ?? 'That is done.')),
           style: F.t1.copyWith(color: p.ink),
         ),
         const SizedBox(height: S.x5),
@@ -1157,8 +1158,8 @@ class _SweepResult extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                l?.calmBreathingHowStronglyEachPace ??
-                    'HOW STRONGLY YOUR HEART RATE FOLLOWED EACH PACE',
+                coreText(c, l?.calmBreathingHowStronglyEachPace ??
+                    'HOW STRONGLY YOUR HEART RATE FOLLOWED EACH PACE'),
                 style: F.over.copyWith(color: p.ink3),
               ),
               const SizedBox(height: S.x3),
@@ -1169,10 +1170,10 @@ class _SweepResult extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          l?.calmBreathingBreathsAMinute(
+                          coreText(c, l?.calmBreathingBreathsAMinute(
                                   kPaceSweepRates[i].toStringAsFixed(1)) ??
                               '${kPaceSweepRates[i].toStringAsFixed(1)} '
-                                  'breaths a minute',
+                                  'breaths a minute'),
                           style: F.body.copyWith(
                             color: winner == kPaceSweepRates[i]
                                 ? p.ink
@@ -1185,12 +1186,12 @@ class _SweepResult extends StatelessWidget {
                       // block that ran and could not be scored are different
                       // things, and both of them are sentences.
                       Text(
-                        i >= scores.length
+                        coreText(c, i >= scores.length
                             ? (l?.calmBreathingNotReached ?? 'not reached')
                             : scores[i] == null
                             ? (l?.calmBreathingTooFewCleanBeats ??
                                 'too few clean beats')
-                            : '${scores[i]}',
+                            : '${scores[i]}'),
                         style:
                             (i < scores.length && scores[i] != null
                                     ? F.n17
@@ -1205,16 +1206,16 @@ class _SweepResult extends StatelessWidget {
         ),
         const SizedBox(height: S.x4),
         Text(
-          _verdict(winner, agreed, l),
+          coreText(c, _verdict(winner, agreed, l)),
           style: F.body.copyWith(color: p.ink, height: 1.4),
         ),
         const SizedBox(height: S.x3),
         Text(
-          l?.calmBreathingRankingExplainer ??
+          coreText(c, l?.calmBreathingRankingExplainer ??
               'A ranking of three paces from one sitting. The blocks run back '
               'to back, so each pace is measured while you are still settling '
               'out of the one before. It says which pace your heart rate '
-              'followed most strongly, and nothing else.',
+              'followed most strongly, and nothing else.'),
           style: F.over.copyWith(color: p.ink3, height: 1.5),
         ),
       ],

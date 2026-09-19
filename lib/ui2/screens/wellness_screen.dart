@@ -25,6 +25,7 @@ import '../../data/day_label.dart';
 import '../../data/journal_fields.dart';
 import '../../data/med_store.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_observations_extra.dart';
 import '../../models/metric.dart' show whyFromNote;
 import '../../state/app_state.dart';
 import '../../stress/breath_phases.dart';
@@ -221,8 +222,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
     // `select`, not `watch`: this screen lives in the shell's IndexedStack and
     // stays mounted, so a plain watch would rebuild it on every unrelated
     // AppState notification for the life of the app.
-    final showCycle =
-        c.select<AppState, bool>((a) => a.cycleTrackingEnabled);
+    final showCycle = c.select<AppState, bool>((a) => a.cycleTrackingEnabled);
     final labels = [
       l?.wellnessTabMind ?? 'Mind',
       l?.wellnessTabRecovery ?? 'Recovery',
@@ -244,8 +244,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
       children: [
         for (final w in <Widget>[
           ScreenTitle(l?.wellnessTitle ?? 'Wellness'),
-          SubTabs(tabs, tab, (i) => setState(() => _tab = i),
-              color: C.domMind),
+          SubTabs(tabs, tab, (i) => setState(() => _tab = i), color: C.domMind),
           const SizedBox(height: S.x5),
           if (_loading)
             const Center(child: CircularProgressIndicator())
@@ -263,8 +262,9 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                 sub: last == null
                     ? (l?.wellnessPickOneAndGo ?? 'Pick one and go')
                     : (l?.wellnessLastMinutes(
-                            (_reading(last['seconds']) ?? 0) ~/ 60) ??
-                        'Last: ${(_reading(last['seconds']) ?? 0) ~/ 60} min'),
+                            (_reading(last['seconds']) ?? 0) ~/ 60,
+                          ) ??
+                          'Last: ${(_reading(last['seconds']) ?? 0) ~/ 60} min'),
                 asset: 'mascot_wellness.png',
                 accent: C.domMind,
                 deep: C.teal,
@@ -288,7 +288,8 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                 onTap: () async {
                   await Navigator.of(c).push(
                     MaterialPageRoute<void>(
-                        builder: (_) => const CalmBreathing()),
+                      builder: (_) => const CalmBreathing(),
+                    ),
                   );
                   await _load();
                 },
@@ -302,8 +303,9 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
             w
           else
             Padding(
-                padding: const EdgeInsets.symmetric(horizontal: S.x4),
-                child: w),
+              padding: const EdgeInsets.symmetric(horizontal: S.x4),
+              child: w,
+            ),
       ],
     );
   }
@@ -378,7 +380,9 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
     // Not `.toLowerCase()`: these are user-entered/localized field labels
     // (acronyms like HRV, or nouns a language capitalizes) — lowercasing
     // them here would corrupt content the join has no business rewriting.
-    final names = [for (final f in _fields) f.label];
+    final names = [
+      for (final f in _fields) journalFieldLabel(f, l?.localeName),
+    ];
     if (names.isEmpty) {
       return l?.wellnessJournalDefaultSubtitle ??
           'Anything you want to remember about today';
@@ -445,7 +449,10 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
             child: Recommendation(
               l?.wellnessTurnInBy(formatMinuteOfDay(bedMin.round())) ??
                   'Turn in by ${formatMinuteOfDay(bedMin.round())}',
-              l?.wellnessDebtBody(_hm(debtH * 60), _hm(needSec / 60)) ??
+              l?.wellnessDebtBody(
+                    _hm(debtH * 60, l.localeName),
+                    _hm(needSec / 60, l.localeName),
+                  ) ??
                   'You are ${_hm(debtH * 60)} down against your own need, and '
                       'tonight\'s is ${_hm(needSec / 60)}.',
               l?.wellnessSeeWhatLastNightCost ?? 'See what last night cost you',
@@ -464,8 +471,10 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
           _drivers.isEmpty
               ? StatusCard(
                   l?.wellnessNoDriversTitle ?? 'No readiness drivers yet',
-                  whyFromNote(metricOf(_stress['readiness']).note,
-                      locale: l?.localeName) ??
+                  whyFromNote(
+                        metricOf(_stress['readiness']).note,
+                        locale: l?.localeName,
+                      ) ??
                       (l?.wellnessNoDriversBody ??
                           'Needs enough nights to know what normal looks like '
                               'for you.'),
@@ -481,7 +490,10 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
               // nothing, and was printed for every cause the estimator has.
               ? StatusCard(
                   l?.wellnessNoSleepNeedTitle ?? 'No sleep need yet',
-                  whyFromNote(_noteOf(coachMap?['need']), locale: l?.localeName) ??
+                  whyFromNote(
+                        _noteOf(coachMap?['need']),
+                        locale: l?.localeName,
+                      ) ??
                       (l?.wellnessNoSleepNeedBody ??
                           'Nothing recorded says why there is no need for '
                               'tonight.'),
@@ -494,7 +506,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                         LucideIcons.bedDouble,
                         C.blue,
                         l?.wellnessTonightsNeed ?? 'Tonight\'s need',
-                        _hm(needSec / 60),
+                        _hm(needSec / 60, l?.localeName),
                       ),
                       // Null here means "we do not know", which is why it is a
                       // missing row rather than "+0 min".
@@ -503,7 +515,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                           LucideIcons.trendingDown,
                           C.orange,
                           l?.wellnessSleepDebt ?? 'Sleep debt',
-                          _hm(debtH * 60),
+                          _hm(debtH * 60, l?.localeName),
                         ),
                       if (strainMin != null)
                         MetricRow(
@@ -511,7 +523,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                           C.purple,
                           l?.wellnessAddedForStrain ?? 'Added for strain',
                           '${strainMin.round()}',
-                          unit: 'min',
+                          unit: observationUnit('min', l?.localeName),
                         ),
                       if (napMin != null)
                         MetricRow(
@@ -519,7 +531,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                           C.yellow,
                           l?.wellnessCreditedFromNaps ?? 'Credited from naps',
                           '${napMin.round()}',
-                          unit: 'min',
+                          unit: observationUnit('min', l?.localeName),
                         ),
                       if (bedMin != null)
                         MetricRow(
@@ -581,7 +593,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
                       Pressable(
                         semanticLabel:
                             l?.wellnessRemoveHabitSemantic(h.label) ??
-                                'Remove ${h.label}',
+                            'Remove ${h.label}',
                         onTap: () => _confirmRemoveHabit(h),
                         child: Padding(
                           padding: const EdgeInsets.only(right: S.x3),
@@ -665,9 +677,10 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
     final l = AppLocalizations.of(context);
     final ok = await confirmRemove(
       context,
-      title: l?.wellnessRemoveHabitConfirmTitle(h.label) ??
-          'Remove ${h.label}?',
-      body: l?.wellnessRemoveHabitConfirmBody ??
+      title:
+          l?.wellnessRemoveHabitConfirmTitle(h.label) ?? 'Remove ${h.label}?',
+      body:
+          l?.wellnessRemoveHabitConfirmBody ??
           'It stops being asked. The days you already recorded stay.',
     );
     if (!ok || !mounted) return;
@@ -900,7 +913,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
               sub: skipped
                   ? (l?.wellnessBackToNotTaken ?? 'Back to not taken.')
                   : (l?.wellnessRecordedAsDecision ??
-                      'Recorded as a decision, not a miss.'),
+                        'Recorded as a decision, not a miss.'),
               onTap: () {
                 Navigator.of(sheet).pop();
                 _skipDose(s);
@@ -917,9 +930,9 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
             ),
             _SheetAction(
               LucideIcons.trash2,
-              l?.wellnessRemoveMedTitle(s.def.label) ??
-                  'Remove ${s.def.label}',
-              sub: l?.wellnessRemoveMedBody ??
+              l?.wellnessRemoveMedTitle(s.def.label) ?? 'Remove ${s.def.label}',
+              sub:
+                  l?.wellnessRemoveMedBody ??
                   'It stops being scheduled. Marked doses stay.',
               onTap: () {
                 Navigator.of(sheet).pop();
@@ -984,9 +997,9 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
     final l = AppLocalizations.of(context);
     final ok = await confirmRemove(
       context,
-      title: l?.wellnessRemoveMedConfirmTitle(d.label) ??
-          'Remove ${d.label}?',
-      body: l?.wellnessRemoveMedConfirmBody ??
+      title: l?.wellnessRemoveMedConfirmTitle(d.label) ?? 'Remove ${d.label}?',
+      body:
+          l?.wellnessRemoveMedConfirmBody ??
           'It stops being scheduled and stops counting towards adherence. '
               'The doses you already marked stay.',
     );
@@ -1105,9 +1118,12 @@ String? _noteOf(Object? envelope) {
   return note is String ? note : null;
 }
 
-String _hm(double minutes) {
+String _hm(double minutes, [String? locale]) {
   final sign = minutes < 0 ? '−' : '';
   final t = minutes.abs().round();
+  if (observationsUseRussian(locale)) {
+    return t < 60 ? '$sign$t мин' : '$sign${t ~/ 60} ч ${t % 60} мин';
+  }
   return t < 60 ? '$sign${t}m' : '$sign${t ~/ 60}h ${t % 60}m';
 }
 
@@ -1236,7 +1252,10 @@ Future<MedSchedule?> pickMedSchedule(
                 },
                 child: Container(
                   padding: const EdgeInsets.all(S.x4),
-                  decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
+                  decoration: BoxDecoration(
+                    color: p.card2,
+                    borderRadius: R.rMd,
+                  ),
                   child: Row(
                     children: [
                       Icon(LucideIcons.clock, size: 17, color: p.ink3),
@@ -1305,7 +1324,7 @@ Future<MedSchedule?> pickMedSchedule(
                 picked.isEmpty
                     ? (l?.wellnessPickAtLeastOneDay ?? 'Pick at least one day.')
                     : (l?.wellnessDueDays(_daysLabel(c, picked.toList())) ??
-                        'Due ${_daysLabel(c, picked.toList()).toLowerCase()}.'),
+                          'Due ${_daysLabel(c, picked.toList()).toLowerCase()}.'),
                 style: F.cap.copyWith(color: p.ink3),
               ),
               const SizedBox(height: S.x4),
@@ -1314,9 +1333,9 @@ Future<MedSchedule?> pickMedSchedule(
                 color: C.domMind,
                 onTap: picked.isEmpty
                     ? null
-                    : () => Navigator.of(sheet).pop(
-                        MedSchedule(minute, picked.toList()..sort()),
-                      ),
+                    : () => Navigator.of(
+                        sheet,
+                      ).pop(MedSchedule(minute, picked.toList()..sort())),
               ),
             ],
           ),
@@ -1381,7 +1400,8 @@ class MedRow extends StatelessWidget {
     final taken = slot.state == DoseState.taken;
     return Pressable(
       onTap: onTap,
-      semanticLabel: l?.wellnessMedAtTime(slot.def.label, slot.timeLabel) ??
+      semanticLabel:
+          l?.wellnessMedAtTime(slot.def.label, slot.timeLabel) ??
           '${slot.def.label} at ${slot.timeLabel}',
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: S.x3),
@@ -1406,7 +1426,7 @@ class MedRow extends StatelessWidget {
                     style: F.body.copyWith(color: taken ? p.ink3 : p.ink),
                   ),
                   Text(
-                    '${slot.def.doseLabel} · ${slot.timeLabel} · '
+                    '${medicationDoseLabel(slot.def, l?.localeName)} · ${slot.timeLabel} · '
                     '${_stateLabel(l, slot.state)}',
                     style: F.over.copyWith(color: p.ink3),
                   ),
@@ -1417,7 +1437,7 @@ class MedRow extends StatelessWidget {
               Pressable(
                 semanticLabel:
                     l?.wellnessMoreForMed(slot.def.label) ??
-                        'More for ${slot.def.label}',
+                    'More for ${slot.def.label}',
                 onTap: onMore,
                 child: Padding(
                   padding: const EdgeInsets.only(right: S.x3),
@@ -1617,9 +1637,17 @@ class _JournalFindingsState extends State<JournalFindings> {
   /// alcohol, your resting HR ran 6 bpm higher" is the same finding the rho
   /// carried and a sentence a person can check against their own memory.
   String _headline(AppLocalizations? l, Map<String, dynamic> r) {
-    final field = (r['field_label'] ?? '').toString();
-    final outcome = (r['outcome_label'] ?? '').toString();
-    final unit = (r['unit'] ?? '').toString();
+    final field = journalInsightField(
+      (r['field'] ?? '').toString(),
+      (r['field_label'] ?? '').toString(),
+      l?.localeName,
+    );
+    final outcome = journalOutcomeLabel(
+      (r['outcome'] ?? '').toString(),
+      (r['outcome_label'] ?? '').toString(),
+      l?.localeName,
+    );
+    final unit = observationUnit((r['unit'] ?? '').toString(), l?.localeName);
     if (r['binary'] == true) {
       final delta = (r['delta'] as num?)?.toDouble() ?? 0;
       final direction = delta > 0
@@ -1646,7 +1674,14 @@ class _JournalFindingsState extends State<JournalFindings> {
         ? (l?.wellnessHigher ?? 'higher')
         : (l?.wellnessLower ?? 'lower');
     final amount = _amount((slope * per).abs(), unit);
-    return l?.wellnessHeadlineSlope(n, field, outcome, amount, direction, step) ??
+    return l?.wellnessHeadlineSlope(
+          n,
+          field,
+          outcome,
+          amount,
+          direction,
+          step,
+        ) ??
         'On the $n days you logged $field, $outcome ran '
             '$amount $direction per $step';
   }
@@ -1674,13 +1709,14 @@ class _JournalFindingsState extends State<JournalFindings> {
         journalFieldLagDays[field] ??
         (field.startsWith('caffeine') ? journalFieldLagDays['caffeine'] : null);
     if (lag == null) {
-      return l?.wellnessMatchedSameDay ?? 'Matched against the same day\'s numbers.';
+      return l?.wellnessMatchedSameDay ??
+          'Matched against the same day\'s numbers.';
     }
     return lag > 0
         ? (l?.wellnessMatchedNightFollowed ??
-            'Matched against the night that followed.')
+              'Matched against the night that followed.')
         : (l?.wellnessMatchedNightEnded ??
-            'Matched against the night that ended that morning.');
+              'Matched against the night that ended that morning.');
   }
 
   String _detail(AppLocalizations? l, Map<String, dynamic> r) {
@@ -1688,7 +1724,8 @@ class _JournalFindingsState extends State<JournalFindings> {
     if (r['binary'] == true) {
       final d = (r['cohens_d'] as num?)?.toDouble();
       final n = '${r['n_without']}';
-      final against = l?.wellnessAgainstDaysYouDidNot(n) ??
+      final against =
+          l?.wellnessAgainstDaysYouDidNot(n) ??
           'Against the $n days you did not';
       return '$against'
           '${d == null ? '' : ' · d ${d.abs().toStringAsFixed(1)}'}. $when';
@@ -1702,15 +1739,15 @@ class _JournalFindingsState extends State<JournalFindings> {
     final base = rho == null
         ? ''
         : (l?.wellnessRankCorrelation(rho.toStringAsFixed(2), ci) ??
-            'Rank correlation ${rho.toStringAsFixed(2)}$ci. ');
+              'Rank correlation ${rho.toStringAsFixed(2)}$ci. ');
     // MT-06's own ceiling, said where the finding is: `at_min` is the LAST
     // occurrence, so timing cannot tell two coffees from five, and a late
     // stressful day produces both the late coffee and the bad night.
     if (r['field'] == 'caffeine_last_min') {
       return '$base$when ${l?.wellnessCaffeineCaveat ?? 'This is your last '
-          'caffeine of the day only — two cups and five look identical '
-          'here, so "later" can quietly mean "more". A long, stressful day '
-          'produces both the late coffee and the poor night.'}';
+              'caffeine of the day only — two cups and five look identical '
+              'here, so "later" can quietly mean "more". A long, stressful day '
+              'produces both the late coffee and the poor night.'}';
     }
     return '$base$when'.trim();
   }
@@ -1723,6 +1760,20 @@ class _JournalFindingsState extends State<JournalFindings> {
       return (60.0, l?.wellnessHourLater ?? 'hour later');
     }
     final u = (r['field_unit'] ?? '').toString();
+    if (observationsUseRussian(l?.localeName)) {
+      // Custom labels/units remain exactly as entered; only the shipped
+      // field catalogue has standard units we can safely render in Russian.
+      final key = (r['field'] ?? '').toString();
+      final known = kJournalFieldsByKey.containsKey(key);
+      return (
+        1.0,
+        u.isEmpty
+            ? (l?.wellnessPointUnit ?? '1 балл')
+            : known
+            ? observationUnit(u, l?.localeName)
+            : u,
+      );
+    }
     // Singular: the phrase is "per unit", "per mg", "per point".
     final one = u.isEmpty
         ? (l?.wellnessPointUnit ?? 'point')
@@ -1772,14 +1823,16 @@ class _JournalFindingsState extends State<JournalFindings> {
     return Surface(
       pad: const EdgeInsets.symmetric(horizontal: S.x4),
       child: DriverRow(
-        label: l?.wellnessWeekdayHeadline(
+        label:
+            l?.wellnessWeekdayHeadline(
               weekdayPlural,
               '${delta.abs().round()}',
               direction,
             ) ??
             '${_weekdayName(day)}s: readiness runs '
                 '${delta.abs().round()} $direction than your overall median',
-        detail: l?.wellnessWeekdayDetail('$n') ??
+        detail:
+            l?.wellnessWeekdayDetail('$n') ??
             'From $n of them. A weekday is not a cause — it is a container '
                 'for what you do on it. Nothing here is advice.',
       ),

@@ -20,6 +20,7 @@
 // "locked" — Beats, Vitals, Sleep, Readiness and every metric drill-down each
 // carry a plain row down to it.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'dart:convert' show jsonDecode;
 import 'dart:math' show sqrt;
 
@@ -289,7 +290,7 @@ class _InvestigateState extends State<Investigate> {
               d.coveragePct == null ? '—' : '${d.coveragePct} %'),
           if (d.windowStart != null)
             (l?.investigateSleepWindowLabel ?? 'Sleep window',
-                '${clockOfTs(d.windowStart)} – ${clockOfTs(d.windowEnd)}'),
+                '${clockOfTs(d.windowStart, l)} – ${clockOfTs(d.windowEnd, l)}'),
           // Asserted as "wrist optical · this device" for every day, including
           // days that were read out of somebody else's export.
           (l?.investigateSourceLabel ?? 'Source',
@@ -582,7 +583,7 @@ class _InvestigateState extends State<Investigate> {
     final origin = (raw['origin_ms'] as num?)?.toDouble();
     String at(int i) {
       final s = (bins[i]['t'] as num?)?.toDouble();
-      return (origin == null || s == null) ? '' : clockOfTs(origin / 1000 + s);
+      return (origin == null || s == null) ? '' : clockOfTs(origin / 1000 + s, l);
     }
 
     String ms(Object? x) => x is num ? '${x.toStringAsFixed(1)} ms' : '—';
@@ -815,12 +816,12 @@ class _InvestigateState extends State<Investigate> {
         color: P.of(context).card2,
         elevation: 0,
         child: Text(
-          l?.investigateFloorNotRateBody ??
+          coreText(context, l?.investigateFloorNotRateBody ??
               'A floor, not a rate for the day. Only stretches where you were '
               'almost completely still can be read at all, so these are the '
               'stillest few minutes the band saw outside your sleep — nothing '
               'here describes the rest of your day, and breathing while you '
-              'move cannot be recovered from beat timing.',
+              'move cannot be recovered from beat timing.'),
           style: F.cap.copyWith(color: P.of(context).ink2, height: 1.6),
         ),
       ),
@@ -973,11 +974,11 @@ class _InvestigateState extends State<Investigate> {
         color: p.card2,
         elevation: 0,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(l?.investigateAcrossNOwnNights(n) ?? 'ACROSS $n OF YOUR OWN NIGHTS',
+          Text(coreText(context, l?.investigateAcrossNOwnNights(n) ?? 'ACROSS $n OF YOUR OWN NIGHTS'),
               style: F.over.copyWith(color: p.ink3)),
           const SizedBox(height: S.x3),
           Text(
-            v.aboveOwnUsual
+            coreText(context, v.aboveOwnUsual
                 ? (l?.investigateCvhrAboveUsual(n) ??
                     'Over your most recent nights, the heart-rate cycling '
                         'this screen counts has been running higher than '
@@ -985,40 +986,40 @@ class _InvestigateState extends State<Investigate> {
                 : (l?.investigateCvhrInsideUsual(n) ??
                     'Over your most recent nights, the heart-rate cycling '
                         'this screen counts has stayed inside the range of '
-                        'the $n nights behind it.'),
+                        'the $n nights behind it.')),
             style: F.body.copyWith(color: p.ink, height: 1.5),
           ),
           const SizedBox(height: S.x3),
           Text(
-            l?.investigateCvhrExplainer ??
+            coreText(context, l?.investigateCvhrExplainer ??
                 'It is a pattern in your pulse, not a measurement of your '
                 'breathing, and it is not a test for anything. The same '
                 'cycling comes from an irregular rhythm, from being at '
                 'altitude, and from any broken-up night — and beta-blockers, '
                 'diabetes and nerve conditions flatten it, so genuinely '
-                'disturbed breathing often leaves nothing here at all.',
+                'disturbed breathing often leaves nothing here at all.'),
             style: F.cap.copyWith(color: p.ink2, height: 1.6),
           ),
           const SizedBox(height: S.x3),
           Text(
-            l?.investigateCvhrNotNegativeResult ??
+            coreText(context, l?.investigateCvhrNotNegativeResult ??
                 'So nothing here is a negative result and nothing here '
                 'clears anything, and none of it says anything about any one '
                 'night — a single night’s count moves for a dozen reasons on '
-                'its own.',
+                'its own.'),
             style: F.cap.copyWith(color: p.ink2, height: 1.6),
           ),
           const SizedBox(height: S.x3),
           Text(
-            l?.investigateCvhrSeeClinicianIfSymptoms ??
+            coreText(context, l?.investigateCvhrSeeClinicianIfSymptoms ??
                 'If you snore, wake unrefreshed, or someone has seen you '
                 'stop breathing in your sleep, a clinician can test that '
-                'properly.',
+                'properly.'),
             style: F.cap.copyWith(color: p.ink2, height: 1.6),
           ),
           if (dropped.isNotEmpty) ...[
             const SizedBox(height: S.x3),
-            Text('${dropped.join('; ')}.',
+            Text(coreText(context, '${dropped.join('; ')}.'),
                 style: F.over.copyWith(color: p.ink3, height: 1.5)),
           ],
         ]),
@@ -1129,16 +1130,16 @@ class _InvestigateState extends State<Investigate> {
       elevation: 0,
       color: p.card2,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(l?.investigateMethodLabel ?? 'METHOD', style: F.over.copyWith(color: p.ink3)),
+        Text(coreText(c, l?.investigateMethodLabel ?? 'METHOD'), style: F.over.copyWith(color: p.ink3)),
         const SizedBox(height: S.x2),
         Text(
-            spec.method.isEmpty
+            coreText(c, spec.method.isEmpty
                 ? (l?.investigateNotDocumented ?? 'Not documented.')
-                : spec.method,
+                : spec.method),
             style: F.cap.copyWith(color: p.ink2, height: 1.6)),
         if (spec.citation.isNotEmpty) ...[
           const SizedBox(height: S.x3),
-          Text(spec.citation,
+          Text(coreText(c, spec.citation),
               style: F.over.copyWith(color: p.ink3, fontFamily: 'Menlo')),
         ],
       ]),

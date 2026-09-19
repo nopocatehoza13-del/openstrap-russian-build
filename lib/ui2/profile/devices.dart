@@ -37,8 +37,7 @@
 // (ASSUMPTIONS R6).
 
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart'
-    show BluetoothDevice;
+import 'package:flutter_blue_plus/flutter_blue_plus.dart' show BluetoothDevice;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
@@ -112,6 +111,7 @@ import '../../ble/band_status_l10n.dart' show localizedBandStatus;
 import '../../ble/ble_state.dart' show BandStatus, kMaxConcurrentSecondaryLinks;
 import '../../data/db.dart' show LocalDb;
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_profile_extra.dart';
 import '../../notify/battery_forecast.dart';
 import '../../state/prefs.dart' show Prefs;
 import '../../sync/paired_device.dart' show cleanDeviceLabel;
@@ -254,7 +254,7 @@ class DeviceFilter extends StatelessWidget {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
     final all = l?.deviceFilterAllDevices ?? 'All devices';
-    final labels = [all, for (final o in options) o.label];
+    final labels = [all, for (final o in options) profileText(c, o.label)];
     final index = selected == null
         ? 0
         : options.indexWhere((o) => o.deviceId == selected) + 1;
@@ -266,34 +266,42 @@ class DeviceFilter extends StatelessWidget {
         if (!options[i].selectable) i + 1,
     };
     final shown = index <= 0 ? null : options[index - 1];
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SubTabs(
-        labels,
-        index < 0 ? 0 : index,
-        (i) => onSelect(i == 0 ? null : options[i - 1].deviceId),
-        color: color,
-        disabled: disabled,
-      ),
-      // THE REASON, for the selected pill and for any disabled one. Never an
-      // unexplained empty chart and never an unexplained dead option.
-      if (shown?.reason case final r?) ...[
-        const SizedBox(height: S.x2),
-        Text('${shown!.label} · $r', style: F.over.copyWith(color: p.ink3)),
-      ] else if (disabled.isNotEmpty) ...[
-        const SizedBox(height: S.x2),
-        Text(
-          [
-            // `reason` is documented as non-null for a non-selectable option
-            // but the type does not enforce it, and an unguarded
-            // interpolation renders the literal text "null" beside the label.
-            for (final o in options)
-              if (!o.selectable)
-                o.reason == null ? o.label : '${o.label} · ${o.reason}',
-          ].join('   '),
-          style: F.over.copyWith(color: p.ink3),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SubTabs(
+          labels,
+          index < 0 ? 0 : index,
+          (i) => onSelect(i == 0 ? null : options[i - 1].deviceId),
+          color: color,
+          disabled: disabled,
         ),
+        // THE REASON, for the selected pill and for any disabled one. Never an
+        // unexplained empty chart and never an unexplained dead option.
+        if (shown?.reason case final r?) ...[
+          const SizedBox(height: S.x2),
+          Text(
+            '${profileText(c, shown!.label)} · ${profileText(c, r)}',
+            style: F.over.copyWith(color: p.ink3),
+          ),
+        ] else if (disabled.isNotEmpty) ...[
+          const SizedBox(height: S.x2),
+          Text(
+            [
+              // `reason` is documented as non-null for a non-selectable option
+              // but the type does not enforce it, and an unguarded
+              // interpolation renders the literal text "null" beside the label.
+              for (final o in options)
+                if (!o.selectable)
+                  o.reason == null
+                      ? profileText(c, o.label)
+                      : '${profileText(c, o.label)} · ${profileText(c, o.reason!)}',
+            ].join('   '),
+            style: F.over.copyWith(color: p.ink3),
+          ),
+        ],
       ],
-    ]);
+    );
   }
 }
 
@@ -341,8 +349,10 @@ class _SignalPriorityScreenState extends State<SignalPriorityScreen> {
       final stored = priorities[sig.name];
       order[sig] = stored != null && stored.isNotEmpty
           ? [
-              for (final id in stored) if (declaring.contains(id)) id,
-              for (final id in declaring) if (!stored.contains(id)) id,
+              for (final id in stored)
+                if (declaring.contains(id)) id,
+              for (final id in declaring)
+                if (!stored.contains(id)) id,
             ]
           : declaring;
     }
@@ -361,10 +371,10 @@ class _SignalPriorityScreenState extends State<SignalPriorityScreen> {
   /// snapping back with no sentence anywhere is how a user believes they set
   /// a preference they did not.
   Future<void> _sayNotSaved() => showReasonSheet(
-        context,
-        AppLocalizations.of(context)?.devicesOrderNotSaved ??
-            'That order could not be saved. Nothing changed.',
-      );
+    context,
+    AppLocalizations.of(context)?.devicesOrderNotSaved ??
+        'That order could not be saved. Nothing changed.',
+  );
 
   @override
   Widget build(BuildContext c) {
@@ -373,89 +383,103 @@ class _SignalPriorityScreenState extends State<SignalPriorityScreen> {
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(l?.devicesWhichSourceWins ?? 'Which source wins'),
-          ),
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-                children: [
-                  for (final sig in _signals) ...[
-                    Section(
-                      signalDisplayName(c, sig),
-                      Column(children: [
-                        ReorderableListView(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          onReorder: (from, to) async {
-                            final ids = [...?_order[sig]];
-                            // ReorderableListView's `to` is the index BEFORE removal.
-                            ids.insert(
-                                to > from ? to - 1 : to, ids.removeAt(from));
-                            try {
-                              await LocalDb.setSignalPriority(sig, ids);
-                            } catch (_) {
-                              // The stored order is unchanged, so leave the
-                              // list where it was rather than showing an order
-                              // nothing persisted. Same shape as `_saveRpe`.
-                              if (mounted) await _sayNotSaved();
-                              return;
-                            }
-                            if (!mounted) return;
-                            setState(() {
-                              _order = {..._order, sig: ids};
-                              _userSet = {..._userSet, sig.name};
-                            });
-                          },
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: S.x4),
+              child: NavBar(l?.devicesWhichSourceWins ?? 'Which source wins'),
+            ),
+            if (_loading)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
+                  children: [
+                    for (final sig in _signals) ...[
+                      Section(
+                        signalDisplayName(c, sig),
+                        Column(
                           children: [
-                            for (final id in _order[sig] ?? const <String>[])
-                              ListTile(
-                                key: ValueKey(id),
-                                title: Text(_labels[id] ?? id),
+                            ReorderableListView(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              onReorder: (from, to) async {
+                                final ids = [...?_order[sig]];
+                                // ReorderableListView's `to` is the index BEFORE removal.
+                                ids.insert(
+                                  to > from ? to - 1 : to,
+                                  ids.removeAt(from),
+                                );
+                                try {
+                                  await LocalDb.setSignalPriority(sig, ids);
+                                } catch (_) {
+                                  // The stored order is unchanged, so leave the
+                                  // list where it was rather than showing an order
+                                  // nothing persisted. Same shape as `_saveRpe`.
+                                  if (mounted) await _sayNotSaved();
+                                  return;
+                                }
+                                if (!mounted) return;
+                                setState(() {
+                                  _order = {..._order, sig: ids};
+                                  _userSet = {..._userSet, sig.name};
+                                });
+                              },
+                              children: [
+                                for (final id
+                                    in _order[sig] ?? const <String>[])
+                                  ListTile(
+                                    key: ValueKey(id),
+                                    title: Text(
+                                      profileText(c, _labels[id] ?? id),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            if (_userSet.contains(sig.name))
+                              Pressable(
+                                onTap: () async {
+                                  try {
+                                    await LocalDb.clearSignalPriority(sig);
+                                  } catch (_) {
+                                    if (mounted) await _sayNotSaved();
+                                    return;
+                                  }
+                                  await _load();
+                                },
+                                semanticLabel: profileText(
+                                  c,
+                                  'Reset ${signalDisplayName(c, sig)} '
+                                  'to the default order',
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: S.x2,
+                                  ),
+                                  child: Text(
+                                    l?.devicesResetToDefault ??
+                                        'Back to the default order',
+                                    style: F.cap.copyWith(color: p.on(C.blue)),
+                                  ),
+                                ),
                               ),
                           ],
                         ),
-                        if (_userSet.contains(sig.name))
-                          Pressable(
-                            onTap: () async {
-                              try {
-                                await LocalDb.clearSignalPriority(sig);
-                              } catch (_) {
-                                if (mounted) await _sayNotSaved();
-                                return;
-                              }
-                              await _load();
-                            },
-                            semanticLabel: 'Reset ${signalDisplayName(c, sig)} '
-                                'to the default order',
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: S.x2),
-                              child: Text(
-                                l?.devicesResetToDefault ??
-                                    'Back to the default order',
-                                style: F.cap.copyWith(color: p.on(C.blue)),
-                              ),
-                            ),
-                          ),
-                      ]),
+                      ),
+                      const SizedBox(height: S.x4),
+                    ],
+                    Text(
+                      l?.metricDetailHistoryKeepsSource ??
+                          'Days already finished keep the source they were '
+                              'calculated with.',
+                      style: F.over.copyWith(color: p.ink3),
                     ),
-                    const SizedBox(height: S.x4),
                   ],
-                  Text(
-                    l?.metricDetailHistoryKeepsSource ??
-                        'Days already finished keep the source they were '
-                            'calculated with.',
-                    style: F.over.copyWith(color: p.ink3),
-                  ),
-                ],
+                ),
               ),
-            ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -471,13 +495,11 @@ class _SignalPriorityScreenState extends State<SignalPriorityScreen> {
 String signalDisplayName(BuildContext c, InputSignal s) {
   final l = AppLocalizations.of(c);
   return switch (s) {
-    InputSignal.rrIntervals =>
-      l?.signalRrIntervals ?? 'Beat-to-beat intervals',
+    InputSignal.rrIntervals => l?.signalRrIntervals ?? 'Beat-to-beat intervals',
     InputSignal.hr1Hz => l?.signalHr1Hz ?? 'Continuous heart rate',
     InputSignal.hrSparse => l?.signalHrSparse ?? 'Heart rate',
     InputSignal.accel1Hz => l?.signalAccel1Hz ?? 'Movement',
-    InputSignal.accelHighRate =>
-      l?.signalAccelHighRate ?? 'High-rate movement',
+    InputSignal.accelHighRate => l?.signalAccelHighRate ?? 'High-rate movement',
     InputSignal.ppgGreen => l?.signalPpgGreen ?? 'Green PPG',
     InputSignal.ppgRedIr => l?.signalPpgRedIr ?? 'Red/infrared PPG',
     InputSignal.skinTempRaw => l?.signalSkinTempRaw ?? 'Skin temperature',
@@ -504,24 +526,25 @@ String signalDisplayName(BuildContext c, InputSignal s) {
 String missingSignalReason(BuildContext c, Set<InputSignal> missing) {
   final l = AppLocalizations.of(c);
   String words(InputSignal s) => switch (s) {
-        InputSignal.rrIntervals =>
-          l?.missingSignalRrIntervals ?? 'no beat-to-beat intervals',
-        InputSignal.hr1Hz =>
-          l?.missingSignalHr1Hz ?? 'no continuous heart rate',
-        InputSignal.hrSparse => l?.missingSignalHrSparse ?? 'no heart rate',
-        InputSignal.accel1Hz => l?.missingSignalAccel1Hz ?? 'no accelerometer',
-        InputSignal.accelHighRate =>
-          l?.missingSignalAccelHighRate ?? 'no high-rate accelerometer',
-        InputSignal.ppgGreen => l?.missingSignalPpgGreen ?? 'no green PPG',
-        InputSignal.ppgRedIr =>
-          l?.missingSignalPpgRedIr ?? 'no red/infrared PPG',
-        InputSignal.skinTempRaw =>
-          l?.missingSignalSkinTempRaw ?? 'no temperature sensor',
-        InputSignal.vendorScalars =>
-          l?.missingSignalVendorScalars ?? 'reports nothing of its own',
-      };
+    InputSignal.rrIntervals =>
+      l?.missingSignalRrIntervals ?? 'no beat-to-beat intervals',
+    InputSignal.hr1Hz => l?.missingSignalHr1Hz ?? 'no continuous heart rate',
+    InputSignal.hrSparse => l?.missingSignalHrSparse ?? 'no heart rate',
+    InputSignal.accel1Hz => l?.missingSignalAccel1Hz ?? 'no accelerometer',
+    InputSignal.accelHighRate =>
+      l?.missingSignalAccelHighRate ?? 'no high-rate accelerometer',
+    InputSignal.ppgGreen => l?.missingSignalPpgGreen ?? 'no green PPG',
+    InputSignal.ppgRedIr => l?.missingSignalPpgRedIr ?? 'no red/infrared PPG',
+    InputSignal.skinTempRaw =>
+      l?.missingSignalSkinTempRaw ?? 'no temperature sensor',
+    InputSignal.vendorScalars =>
+      l?.missingSignalVendorScalars ?? 'reports nothing of its own',
+  };
   // Ordered by the enum so two devices missing the same pair read identically.
-  final parts = [for (final s in InputSignal.values) if (missing.contains(s)) s];
+  final parts = [
+    for (final s in InputSignal.values)
+      if (missing.contains(s)) s,
+  ];
   return parts.isEmpty
       ? (l?.missingSignalUnknown ?? 'cannot supply this')
       : words(parts.first);
@@ -597,7 +620,8 @@ List<DeviceOption> candidatesFromSources(
 /// "declares this signal" (a metric's selectable pills, say) silently deletes
 /// a device from a signal it really does declare, and takes it out of every
 /// OTHER metric that shares that signal. Per signal, never per metric.
-List<String> declaringDeviceIds(List<HealthSource> sources, InputSignal sig) => [
+List<String> declaringDeviceIds(List<HealthSource> sources, InputSignal sig) =>
+    [
       for (final s in rankSources(sources))
         // Skipped, never force-unwrapped: an id-less source (the phone) has
         // nothing to rank, and `!` here would throw the day one declares a
@@ -653,7 +677,11 @@ Future<Map<InputSignal, String?>> signalWinners(
   // (AGENTS.md §3.7), and this file is under lib/ui2's token boundary, where
   // a raw `Duration(` is reserved for animation timing gated through
   // `motion(context, …)` (ui2_tokens_test.dart).
-  final from = DateTime(now.year, now.month, now.day - kSignalWinnersLookbackDays);
+  final from = DateTime(
+    now.year,
+    now.month,
+    now.day - kSignalWinnersLookbackDays,
+  );
   final nowSec = now.millisecondsSinceEpoch ~/ 1000;
   final fromSec = from.millisecondsSinceEpoch ~/ 1000;
   // Only a signal with a customized (non-empty) stored order needs real
@@ -668,7 +696,8 @@ Future<Map<InputSignal, String?>> signalWinners(
   final coverageBySig = Map.fromIterables(
     needsCoverage,
     await Future.wait([
-      for (final sig in needsCoverage) LocalDb.coverageIntervals(sig, fromSec, nowSec),
+      for (final sig in needsCoverage)
+        LocalDb.coverageIntervals(sig, fromSec, nowSec),
     ]),
   );
 
@@ -684,10 +713,9 @@ Future<Map<InputSignal, String?>> signalWinners(
         ? const [LocalDb.kPrimaryDeviceId]
         : [
             ...rawPriority,
-            ...{for (final iv in coverageBySig[sig] ?? const []) iv.deviceId}
-                .difference(rawPriority.toSet())
-                .toList()
-              ..sort(),
+            ...{
+              for (final iv in coverageBySig[sig] ?? const []) iv.deviceId,
+            }.difference(rawPriority.toSet()).toList()..sort(),
           ];
     String? winner;
     for (final id in order) {
@@ -729,7 +757,10 @@ List<InputSignal> contendedSignalsOf(List<HealthSource> sources) {
       n[sig] = (n[sig] ?? 0) + 1;
     }
   }
-  return [for (final s in InputSignal.values) if ((n[s] ?? 0) >= 2) s];
+  return [
+    for (final s in InputSignal.values)
+      if ((n[s] ?? 0) >= 2) s,
+  ];
 }
 
 /// Bands the owner has personally held and cross-confirmed. Everything else is
@@ -870,7 +901,7 @@ class HealthSource {
     return (
       label,
       'Metrics that depend on the sensor use this band’s own constants, so two '
-          'different bands can land on different tiers for the same physiology.'
+          'different bands can land on different tiers for the same physiology.',
     );
   }
   // Null is the honest majority case, not an error: every row banked before
@@ -882,41 +913,44 @@ class HealthSource {
     'Not stated yet',
     'This band has not said which generation it is, and imported or older '
         'days never will. Metrics that depend on the sensor abstain rather '
-        'than borrow another band’s numbers.'
+        'than borrow another band’s numbers.',
   );
 }
 
 /// The glyph for a paired sensor. A ring is not a chest strap and the row is
 /// the only place a user can tell two paired sensors apart at a glance.
 IconData sensorIcon(String? adapterId) => switch (adapterId) {
-      'oura' || 'o2ring' || 'lefun' || 'colmi' || 'ringconn' || 'ring11m' =>
-        LucideIcons.circleDot,
-      'polar_pmd' => LucideIcons.activity,
-      'coros' => LucideIcons.timer,
-      'ultrahuman' => LucideIcons.circle,
-      'dafit' ||
-      'dt78' ||
-      'garmin' ||
-      'hplus' ||
-      'id115' ||
-      'makibeshr3' ||
-      'miband234' ||
-      'pebble' ||
-      'pinetime' ||
-      'qhybrid' ||
-      'casio' ||
-      'jyou' ||
-      'wearfit' ||
-      'zetime' ||
-      'watch9' ||
-      'xwatch' ||
-      'tlw64' ||
-      'smaq2oss' ||
-      'withings_steel_hr' ||
-      'banglejs' =>
-        LucideIcons.watch,
-      _ => LucideIcons.heartPulse,
-    };
+  'oura' ||
+  'o2ring' ||
+  'lefun' ||
+  'colmi' ||
+  'ringconn' ||
+  'ring11m' => LucideIcons.circleDot,
+  'polar_pmd' => LucideIcons.activity,
+  'coros' => LucideIcons.timer,
+  'ultrahuman' => LucideIcons.circle,
+  'dafit' ||
+  'dt78' ||
+  'garmin' ||
+  'hplus' ||
+  'id115' ||
+  'makibeshr3' ||
+  'miband234' ||
+  'pebble' ||
+  'pinetime' ||
+  'qhybrid' ||
+  'casio' ||
+  'jyou' ||
+  'wearfit' ||
+  'zetime' ||
+  'watch9' ||
+  'xwatch' ||
+  'tlw64' ||
+  'smaq2oss' ||
+  'withings_steel_hr' ||
+  'banglejs' => LucideIcons.watch,
+  _ => LucideIcons.heartPulse,
+};
 
 /// The tier named by a `device.tier` column, or null when the column is blank
 /// or holds a name this build does not have.
@@ -939,69 +973,69 @@ SourceTier? tierNamed(Object? name) {
 /// it changes on every beat: routing it through [AppState] would notify every
 /// listener in the app at 1 Hz for the duration of a workout, which is the
 /// rebuild storm this screen has already been fixed for once.
-List<HealthSource> liveSources(AppState app,
-        {Set<String> liveAdapterIds = const {}}) =>
-    [
-      if (app.isPaired)
-        HealthSource(
-          name: app.strapName ?? 'Your band',
-          // The registry's own word for this band, or just what it is when the
-          // link has not said. Never an assertion that an unnamed band is a
-          // WHOOP 4.
-          kind: [
-            ?bandLabelFor(app.device.generation),
-            'wrist optical',
-          ].join(' · '),
-          tier: SourceTier.wristOptical,
-          icon: LucideIcons.watch,
-          connected: app.isConnected,
-          syncing: app.syncingNow,
-          batteryPct: app.device.batteryPct,
-          charging: app.device.charging ?? false,
-          lastData: app.lastRecordAt,
-          isBand: true,
-          family: app.device.generation,
-        ),
-      // Sensors paired alongside the band. One row each, ranked by their own
-      // tier like everything else — a beat-to-beat strap sorts ABOVE the wrist
-      // band, which is the whole point of the ladder being quality-first.
-      for (final r in app.sensors)
-        HealthSource(
-          // The advertised name the user picked, then the registry's word for
-          // what it is. Never a placeholder — `cleanDeviceLabel` already
-          // refused anything junk at pairing.
-          name: (r['label'] as String?) ??
-              bandLabelFor(r['adapter_id'] as String?) ??
-              'Paired sensor',
-          kind: bandLabelFor(r['adapter_id'] as String?) ?? 'Unknown sensor',
-          // Null when the column is blank (a source with nothing to rank) or
-          // names a rung this build does not have. Either way it is a refusal,
-          // never the nearest rung we happen to know.
-          tier: tierNamed(r['tier']),
-          icon: sensorIcon(r['adapter_id'] as String?),
-          // `liveAdapterIds` is keyed by adapter so a live PPI stream never
-          // marks an unrelated paired Oura row as connected just because
-          // some sensor happens to be live right now.
-          connected: liveAdapterIds.contains(r['adapter_id']),
-          isBand: false,
-          deviceId: r['id'] as String?,
-          family: r['adapter_id'] as String?,
-        ),
-      if (app.phoneStepsEnabled)
-        HealthSource(
-          name: 'This phone',
-          kind: 'Motion coprocessor',
-          tier: SourceTier.phone,
-          icon: LucideIcons.smartphone,
-          // NOT the toggle. On iOS `requestAuthorization` reports success even
-          // when the user denied READ, so the toggle sits on while every read
-          // comes back empty — this row used to hardcode `true` and claim a
-          // source that was measuring nothing. Steps actually banked is the
-          // only evidence the phone is a source.
-          connected: app.phoneStepsLastSyncedDays != null &&
-              (app.phoneStepsLastTotal ?? 0) > 0,
-        ),
-    ];
+List<HealthSource> liveSources(
+  AppState app, {
+  Set<String> liveAdapterIds = const {},
+}) => [
+  if (app.isPaired)
+    HealthSource(
+      name: app.strapName ?? 'Your band',
+      // The registry's own word for this band, or just what it is when the
+      // link has not said. Never an assertion that an unnamed band is a
+      // WHOOP 4.
+      kind: [?bandLabelFor(app.device.generation), 'wrist optical'].join(' · '),
+      tier: SourceTier.wristOptical,
+      icon: LucideIcons.watch,
+      connected: app.isConnected,
+      syncing: app.syncingNow,
+      batteryPct: app.device.batteryPct,
+      charging: app.device.charging ?? false,
+      lastData: app.lastRecordAt,
+      isBand: true,
+      family: app.device.generation,
+    ),
+  // Sensors paired alongside the band. One row each, ranked by their own
+  // tier like everything else — a beat-to-beat strap sorts ABOVE the wrist
+  // band, which is the whole point of the ladder being quality-first.
+  for (final r in app.sensors)
+    HealthSource(
+      // The advertised name the user picked, then the registry's word for
+      // what it is. Never a placeholder — `cleanDeviceLabel` already
+      // refused anything junk at pairing.
+      name:
+          (r['label'] as String?) ??
+          bandLabelFor(r['adapter_id'] as String?) ??
+          'Paired sensor',
+      kind: bandLabelFor(r['adapter_id'] as String?) ?? 'Unknown sensor',
+      // Null when the column is blank (a source with nothing to rank) or
+      // names a rung this build does not have. Either way it is a refusal,
+      // never the nearest rung we happen to know.
+      tier: tierNamed(r['tier']),
+      icon: sensorIcon(r['adapter_id'] as String?),
+      // `liveAdapterIds` is keyed by adapter so a live PPI stream never
+      // marks an unrelated paired Oura row as connected just because
+      // some sensor happens to be live right now.
+      connected: liveAdapterIds.contains(r['adapter_id']),
+      isBand: false,
+      deviceId: r['id'] as String?,
+      family: r['adapter_id'] as String?,
+    ),
+  if (app.phoneStepsEnabled)
+    HealthSource(
+      name: 'This phone',
+      kind: 'Motion coprocessor',
+      tier: SourceTier.phone,
+      icon: LucideIcons.smartphone,
+      // NOT the toggle. On iOS `requestAuthorization` reports success even
+      // when the user denied READ, so the toggle sits on while every read
+      // comes back empty — this row used to hardcode `true` and claim a
+      // source that was measuring nothing. Steps actually banked is the
+      // only evidence the phone is a source.
+      connected:
+          app.phoneStepsLastSyncedDays != null &&
+          (app.phoneStepsLastTotal ?? 0) > 0,
+    ),
+];
 
 /// Quality first, then recency, then the name. The inverse of last-writer-wins.
 ///
@@ -1085,11 +1119,18 @@ class MyDevices extends StatelessWidget {
 /// Data, not a switch statement, because the ONLY thing that differs between
 /// them is which entry the picker filters on and what has to happen once the
 /// user taps one. `PairSensorScreen` is generic over exactly that.
-final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDevice)? pick})>
-    kPairableSensors = [
+final List<
+  ({
+    BandEntry entry,
+    String blurb,
+    Future<String?> Function(BluetoothDevice)? pick,
+  })
+>
+kPairableSensors = [
   (
     entry: kBleHrs,
-    blurb: 'A chest strap or armband. Beat timing measured electrically, '
+    blurb:
+        'A chest strap or armband. Beat timing measured electrically, '
         'which a wrist pulse cannot match. Runs during a workout.',
     // Null means the plain notify-class pairing, which is the whole of what a
     // heart-rate sensor needs.
@@ -1097,7 +1138,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kOura,
-    blurb: 'Reads the ring directly, with no Oura account and no subscription. '
+    blurb:
+        'Reads the ring directly, with no Oura account and no subscription. '
         'The ring must be factory reset FIRST — one that is already set up in '
         'the Oura app cannot be re-keyed. Reset it from the Oura app (remove/'
         'unpair the ring), then close that app before pairing here.',
@@ -1105,7 +1147,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kPolarPmd,
-    blurb: 'A Polar Verity Sense or OH1. Beat timing measured optically, '
+    blurb:
+        'A Polar Verity Sense or OH1. Beat timing measured optically, '
         'streamed during a workout, same as a chest strap.',
     // Null: no handshake and no key — the START/STOP toggle this sensor
     // needs belongs to the workout session, not to pairing. Same as
@@ -1114,7 +1157,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kRing11m,
-    blurb: 'An unbranded smart ring sold under many storefront names '
+    blurb:
+        'An unbranded smart ring sold under many storefront names '
         '(not the Colmi R11/R12). No account or key needed. Banks its own '
         'data; nothing else derives from it yet.',
     // Null means the plain notify-class pairing — no key exchange needed
@@ -1124,7 +1168,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kCoros,
-    blurb: 'A Coros sports watch. Reads battery, model/serial/firmware and '
+    blurb:
+        'A Coros sports watch. Reads battery, model/serial/firmware and '
         'live heart rate — no pairing needed. Recorded runs, sleep and steps '
         'stay on the watch; there is no public way to pull them off yet.',
     // Null means the plain notify-class pairing — no key needed before the
@@ -1133,7 +1178,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kGarmin,
-    blurb: 'A Garmin sports watch. Before pairing here, put the watch into '
+    blurb:
+        'A Garmin sports watch. Before pairing here, put the watch into '
         'its own Settings → Sensors & Accessories → Phone → Pair Phone '
         'screen — it will not accept a new connection otherwise. Reads its '
         'model, firmware and battery; nothing else derives from it yet.',
@@ -1144,7 +1190,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kUltrahuman,
-    blurb: 'Reads the ring directly. No account, no key exchange — just pair '
+    blurb:
+        'Reads the ring directly. No account, no key exchange — just pair '
         'it like a chest strap.',
     // Null: this wire has no auth at all, so there is no key/handshake step
     // beyond the plain notify-class pairing — same as `kBleHrs`.
@@ -1152,14 +1199,16 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kWithingsSteelHr,
-    blurb: 'Pairs and connects, with no account and no subscription. Nothing '
+    blurb:
+        'Pairs and connects, with no account and no subscription. Nothing '
         'it captures is decoded into a number yet — no one on this project '
         'has held one.',
     pick: pairWithingsSteelHr,
   ),
   (
     entry: kMiBand234,
-    blurb: 'A Mi Band 2, 3 or 4. It must have no key installed yet — one '
+    blurb:
+        'A Mi Band 2, 3 or 4. It must have no key installed yet — one '
         'still bound to Mi Fit or Zepp will refuse to pair. Unpair it from '
         'that app first, or use a factory-reset unit. Pairs and connects; '
         'nothing derives from it yet.',
@@ -1167,7 +1216,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kPebble,
-    blurb: 'Pebble 2 or Pebble 2 SE only — older Pebbles need Bluetooth '
+    blurb:
+        'Pebble 2 or Pebble 2 SE only — older Pebbles need Bluetooth '
         'Classic, which this app cannot reach. Nothing is decoded yet — raw '
         'bytes are archived for a future update to make sense of.',
     // Same generic notify-class pairing as the chest strap above — no key,
@@ -1176,7 +1226,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kMakibesHr3,
-    blurb: 'An unbranded Makibes HR3 board. Pairs and banks its raw data in '
+    blurb:
+        'An unbranded Makibes HR3 board. Pairs and banks its raw data in '
         'the background, but does not derive anything from it yet — nobody '
         'on this project owns one to verify its numbers against.',
     // Null means the plain notify-class pairing — no key, no clock write
@@ -1185,7 +1236,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kId115,
-    blurb: 'An unbranded ID115 board. Pairs and banks its raw data in the '
+    blurb:
+        'An unbranded ID115 board. Pairs and banks its raw data in the '
         'background, but does not derive anything from it yet — nobody on '
         'this project owns one to verify its numbers against.',
     // Null means the plain notify-class pairing — no key, no clock write
@@ -1194,7 +1246,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kSmaq2oss,
-    blurb: 'An SMA-Q2-OSS smartwatch. Pairs and banks its raw data in the '
+    blurb:
+        'An SMA-Q2-OSS smartwatch. Pairs and banks its raw data in the '
         'background, but does not derive anything from it yet — nobody on '
         'this project owns one to verify its numbers against.',
     // Null means the plain notify-class pairing — no key, no clock write
@@ -1203,7 +1256,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kXWatch,
-    blurb: 'An unbranded XWatch board. Pairs and banks its raw data in the '
+    blurb:
+        'An unbranded XWatch board. Pairs and banks its raw data in the '
         'background, but does not derive anything from it yet — nobody on '
         'this project owns one to verify its numbers against.',
     // Null means the plain notify-class pairing — no key, no clock write
@@ -1212,7 +1266,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kWatch9,
-    blurb: 'An unbranded Watch9 board. Pairs and banks its raw data in the '
+    blurb:
+        'An unbranded Watch9 board. Pairs and banks its raw data in the '
         'background, but does not derive anything from it yet — nobody on '
         'this project owns one to verify its numbers against.',
     // Null means the plain notify-class pairing — no key, no clock write
@@ -1221,7 +1276,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kNo1Band,
-    blurb: 'A TLW64 or NO1 F1 fitness band. Pairs and banks its raw data in '
+    blurb:
+        'A TLW64 or NO1 F1 fitness band. Pairs and banks its raw data in '
         'the background, but does not derive anything from it yet — nobody '
         'on this project owns one to verify its numbers against.',
     // Null means the plain notify-class pairing — no key, no clock write
@@ -1230,7 +1286,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kDafit,
-    blurb: 'An unbranded DaFit/MOYOUNG-style watch, sold under many storefront '
+    blurb:
+        'An unbranded DaFit/MOYOUNG-style watch, sold under many storefront '
         'names. Banks its own data; nothing else derives from it yet.',
     // Null means the plain notify-class pairing — no key, no clock write
     // needed before the row can be written. The init handshake runs inside
@@ -1239,20 +1296,23 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kO2Ring,
-    blurb: 'Reads its battery, model and serial. No SpO2 or pulse reading '
+    blurb:
+        'Reads its battery, model and serial. No SpO2 or pulse reading '
         'from the ring itself appears anywhere in the app yet.',
     pick: pairO2Ring,
   ),
   (
     entry: kZeTime,
-    blurb: 'Pairs and connects. Nothing is decoded from it yet beyond its own '
+    blurb:
+        'Pairs and connects. Nothing is decoded from it yet beyond its own '
         'battery level — no one on this project has held one to confirm what '
         'its other data means.',
     pick: pairZeTime,
   ),
   (
     entry: kWearFit,
-    blurb: 'A Howear-branded band (HK8 Ultra, HK8 Pro Max and similar), paired '
+    blurb:
+        'A Howear-branded band (HK8 Ultra, HK8 Pro Max and similar), paired '
         'through the WearFit app family. Banks its own battery report and '
         'whatever else it sends; nothing else derives from it yet.',
     // Null means the plain notify-class pairing — no key, no clock, no
@@ -1261,7 +1321,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kRingConn,
-    blurb: 'Pairs directly, no app or account needed. Every sync starts from '
+    blurb:
+        'Pairs directly, no app or account needed. Every sync starts from '
         'now rather than a saved bookmark, so a sync run right after the '
         'RingConn app’s own sync can come back looking emptier than expected '
         '— the ring shares one resume point between whichever app reads it '
@@ -1272,7 +1333,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kDt78,
-    blurb: 'Pairs and banks its raw data in the background, but does not '
+    blurb:
+        'Pairs and banks its raw data in the background, but does not '
         'derive anything from it yet — nobody on this project owns one to '
         'verify its numbers against.',
     // Null means the plain notify-class pairing, which is the whole of what
@@ -1281,7 +1343,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kLefun,
-    blurb: 'A generic Bluetooth ring or band from the family sold under many '
+    blurb:
+        'A generic Bluetooth ring or band from the family sold under many '
         'storefront names. Pairs and connects, but reports nothing yet — '
         'nobody on this project has held one to verify what its numbers mean.',
     // No key, no handshake — plain notify-class pairing, with no measurement
@@ -1296,7 +1359,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kHPlus,
-    blurb: 'A generic HPlus-family HR band (HPlus, Makibes F68, Zeblaze and '
+    blurb:
+        'A generic HPlus-family HR band (HPlus, Makibes F68, Zeblaze and '
         'similar). No account, no handshake — it pairs and banks what it '
         'sends, but nothing is decoded into a number yet.',
     // Null: no auth step, so the plain notify-class pairing is the whole of
@@ -1305,7 +1369,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kPineTime,
-    blurb: 'Pairs and banks its raw data in the background, but does not '
+    blurb:
+        'Pairs and banks its raw data in the background, but does not '
         'derive anything from it yet — nobody on this project owns one to '
         'verify its numbers against.',
     // Null means the plain notify-class pairing, which is the whole of what
@@ -1314,7 +1379,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kQHybrid,
-    blurb: 'The original Fossil/Skagen hybrid smartwatch line, not the newer '
+    blurb:
+        'The original Fossil/Skagen hybrid smartwatch line, not the newer '
         'Hybrid HR. Pairs and connects; nothing derives from it yet.',
     // NOT plain notify-class pairing (`pick: null`): unlike a heart-rate
     // strap, which a workout arms, this band has no workout role, so
@@ -1327,7 +1393,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kColmi,
-    blurb: 'A Colmi ring. No account, no handshake — it pairs and banks its '
+    blurb:
+        'A Colmi ring. No account, no handshake — it pairs and banks its '
         'history, but nothing is decoded into a number yet.',
     // Null: no auth step, so the plain notify-class pairing is the whole of
     // what this ring needs — same as [kBleHrs].
@@ -1335,7 +1402,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kCasio,
-    blurb: 'GBX100, GW-B5600, GMW-B5000, ECB-S100 and current Casio '
+    blurb:
+        'GBX100, GW-B5600, GMW-B5000, ECB-S100 and current Casio '
         'smartwatches. Pairs and connects; nothing derives from it yet.',
     // Null means the plain notify-class pairing — standard BLE bonding is
     // the whole of what this watch needs.
@@ -1343,7 +1411,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kJyou,
-    blurb: 'Pairs and banks its raw data, but does not derive anything from '
+    blurb:
+        'Pairs and banks its raw data, but does not derive anything from '
         'it yet — nobody on this project owns one to verify its numbers '
         'against.',
     // Null means the plain notify-class pairing, same as the heart-rate
@@ -1352,7 +1421,8 @@ final List<({BandEntry entry, String blurb, Future<String?> Function(BluetoothDe
   ),
   (
     entry: kBangleJs,
-    blurb: 'Pairs any Espruino/Nordic-UART device generically, not just '
+    blurb:
+        'Pairs any Espruino/Nordic-UART device generically, not just '
         'Bangle.js-branded watches. Banks raw bytes only; nothing is decoded '
         'into a number.',
     // Plain notify-class pairing — no handshake to run at pick time.
@@ -1380,11 +1450,13 @@ Future<void> addSensor(BuildContext c) async {
     // DERIVED FROM THE CONSTANT the check above uses. Hardcoded, the sentence
     // states a different rule from the one enforced the moment the cap moves.
     await showReasonSheet(
-        c,
-        AppLocalizations.of(c)
-                ?.devicesSensorLimit(kMaxConcurrentSecondaryLinks) ??
-            'This phone will pair at most $kMaxConcurrentSecondaryLinks '
-                'sensors alongside your band. Remove one to add another.');
+      c,
+      AppLocalizations.of(
+            c,
+          )?.devicesSensorLimit(kMaxConcurrentSecondaryLinks) ??
+          'This phone will pair at most $kMaxConcurrentSecondaryLinks '
+              'sensors alongside your band. Remove one to add another.',
+    );
     return;
   }
   if (!c.mounted) return;
@@ -1415,9 +1487,10 @@ Future<void> addFramedBand(BuildContext c) async {
   if (!c.mounted) return;
   if (!saved) {
     await showReasonSheet(
-        c,
-        AppLocalizations.of(c)?.devicesRequestNotSaved ??
-            'That request could not be saved. Please try again.');
+      c,
+      AppLocalizations.of(c)?.devicesRequestNotSaved ??
+          'That request could not be saved. Please try again.',
+    );
     return;
   }
   await showRestartRequiredSheet(c);
@@ -1434,9 +1507,12 @@ Future<void> showRestartRequiredSheet(BuildContext c) async {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(S.x4, S.x2, S.x4, S.x4),
         child: Text(
-          'iOS can only show the system pairing sheet before the app has used '
-          'Bluetooth. Close OpenStrap completely, then reopen it — the sheet '
-          'appears on its own.',
+          profileText(
+            c,
+            'iOS can only show the system pairing sheet before the app has used '
+            'Bluetooth. Close OpenStrap completely, then reopen it — the sheet '
+            'appears on its own.',
+          ),
           style: F.body.copyWith(color: p.ink),
         ),
       ),
@@ -1510,8 +1586,9 @@ class MyDevicesView extends StatelessWidget {
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
-    final localizedStatus =
-        status == null ? null : localizedBandStatus(c, status!);
+    final localizedStatus = status == null
+        ? null
+        : localizedBandStatus(c, status!);
     final fault = localizedStatus?.isFault == true ? localizedStatus : null;
     // A BAND, not "a source". The phone is a source and it is not a substitute
     // for one: gating this on `sources.isEmpty` meant a phone counting steps
@@ -1529,92 +1606,110 @@ class MyDevicesView extends StatelessWidget {
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(l?.devicesMySources ?? 'My sources'),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-              children: [
-                // FIRST, in the tier-2 slot the missing band would occupy —
-                // not appended under the phone. Someone who has just forgotten
-                // a band is here to add one, and the row they can see is not
-                // the one they came for.
-                if (!hasBand) ...[
-                  StatusCard(
-                    phoneCounting
-                        ? (l?.devicesNoBandPaired ?? 'No band is paired')
-                        : (l?.devicesNothingMeasuringYet ??
-                            'Nothing is measuring yet'),
-                    phoneCounting
-                        ? (l?.devicesPhoneCountingBody ??
-                            'The phone counts steps and nothing else. Heart '
-                                'rate, sleep, recovery and temperature all abstain '
-                                'until a band is paired.')
-                        : (l?.devicesNothingMeasuringBody ??
-                            'No band is paired and no phone steps are arriving, '
-                                'so every metric in the app will abstain rather '
-                                'than estimate.'),
-                    fix: l?.devicesPairABand ?? 'Pair a band',
-                    icon: LucideIcons.watch,
-                    onFix: onPair,
-                  ),
-                  if (sources.isNotEmpty) const SizedBox(height: S.x3),
-                ],
-                // LIVE — the first of the two buckets. Only drawn when there is
-                // something in it: a heading over nothing is the empty rung
-                // problem again, one level up.
-                if (sources.isNotEmpty) ...[
-                  Text(l?.devicesLive ?? 'LIVE', style: F.over.copyWith(color: p.ink3)),
-                  const SizedBox(height: S.x3),
-                ],
-                for (final s in sources) ...[
-                  SourceRow(s, onTap: () => goto(c, DeviceDetail(s))),
-                  if (s.isBand && fault != null) ...[
-                    const SizedBox(height: S.x2),
-                    StatusCard(fault.title, fault.reason,
-                        fix: fault.fix ?? '',
-                        icon: LucideIcons.bluetoothOff),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: S.x4),
+              child: NavBar(l?.devicesMySources ?? 'My sources'),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
+                children: [
+                  // FIRST, in the tier-2 slot the missing band would occupy —
+                  // not appended under the phone. Someone who has just forgotten
+                  // a band is here to add one, and the row they can see is not
+                  // the one they came for.
+                  if (!hasBand) ...[
+                    StatusCard(
+                      phoneCounting
+                          ? (l?.devicesNoBandPaired ?? 'No band is paired')
+                          : (l?.devicesNothingMeasuringYet ??
+                                'Nothing is measuring yet'),
+                      phoneCounting
+                          ? (l?.devicesPhoneCountingBody ??
+                                'The phone counts steps and nothing else. Heart '
+                                    'rate, sleep, recovery and temperature all abstain '
+                                    'until a band is paired.')
+                          : (l?.devicesNothingMeasuringBody ??
+                                'No band is paired and no phone steps are arriving, '
+                                    'so every metric in the app will abstain rather '
+                                    'than estimate.'),
+                      fix: l?.devicesPairABand ?? 'Pair a band',
+                      icon: LucideIcons.watch,
+                      onFix: onPair,
+                    ),
+                    if (sources.isNotEmpty) const SizedBox(height: S.x3),
                   ],
-                  const SizedBox(height: S.x3),
-                ],
-                // At the foot of LIVE, because that is what it adds to. Not
-                // gated on having a band: a sensor is a second source, and
-                // someone with no band at all is exactly who benefits most
-                // from being able to pair one.
-                if (onAddSensor != null)
-                  Surface(
-                    pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: SetRow(LucideIcons.plus, C.green,
+                  // LIVE — the first of the two buckets. Only drawn when there is
+                  // something in it: a heading over nothing is the empty rung
+                  // problem again, one level up.
+                  if (sources.isNotEmpty) ...[
+                    Text(
+                      l?.devicesLive ?? 'LIVE',
+                      style: F.over.copyWith(color: p.ink3),
+                    ),
+                    const SizedBox(height: S.x3),
+                  ],
+                  for (final s in sources) ...[
+                    SourceRow(s, onTap: () => goto(c, DeviceDetail(s))),
+                    if (s.isBand && fault != null) ...[
+                      const SizedBox(height: S.x2),
+                      StatusCard(
+                        fault.title,
+                        fault.reason,
+                        fix: fault.fix ?? '',
+                        icon: LucideIcons.bluetoothOff,
+                      ),
+                    ],
+                    const SizedBox(height: S.x3),
+                  ],
+                  // At the foot of LIVE, because that is what it adds to. Not
+                  // gated on having a band: a sensor is a second source, and
+                  // someone with no band at all is exactly who benefits most
+                  // from being able to pair one.
+                  if (onAddSensor != null)
+                    Surface(
+                      pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                      child: SetRow(
+                        LucideIcons.plus,
+                        C.green,
                         l?.devicesAddASensor ?? 'Add a sensor',
-                        sub: l?.devicesAddASensorSub ??
+                        sub:
+                            l?.devicesAddASensorSub ??
                             'A heart-rate strap or a ring, alongside the band',
-                        onTap: onAddSensor),
-                  ),
-                // ONLY when something can actually contend. A reorder screen
-                // over one device is a control with nothing to order, which is
-                // the empty-rung problem this screen already refuses (§6.5).
-                if (contendedSignals.isNotEmpty && onSignalPriority != null) ...[
-                  const SizedBox(height: S.x3),
-                  Surface(
-                    pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: SetRow(LucideIcons.arrowUpDown, C.blue,
+                        onTap: onAddSensor,
+                      ),
+                    ),
+                  // ONLY when something can actually contend. A reorder screen
+                  // over one device is a control with nothing to order, which is
+                  // the empty-rung problem this screen already refuses (§6.5).
+                  if (contendedSignals.isNotEmpty &&
+                      onSignalPriority != null) ...[
+                    const SizedBox(height: S.x3),
+                    Surface(
+                      pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                      child: SetRow(
+                        LucideIcons.arrowUpDown,
+                        C.blue,
                         l?.devicesWhichSourceWins ?? 'Which source wins',
-                        sub: l?.devicesWhichSourceWinsSub ??
+                        sub:
+                            l?.devicesWhichSourceWinsSub ??
                             'When two of your devices measure the same thing',
-                        onTap: onSignalPriority),
+                        onTap: onSignalPriority,
+                      ),
+                    ),
+                  ],
+                  // NOT YET — removed from this screen per product decision
+                  // (owner's call, live review). `kNotYet`/`NotYet` still hold
+                  // the reasons and permanences below; only the render is gone.
+                  const SizedBox(height: S.x5),
+                  Text(
+                    l?.devicesQualityLadder ?? 'THE QUALITY LADDER',
+                    style: F.over.copyWith(color: p.ink3),
                   ),
-                ],
-                // NOT YET — removed from this screen per product decision
-                // (owner's call, live review). `kNotYet`/`NotYet` still hold
-                // the reasons and permanences below; only the render is gone.
-                const SizedBox(height: S.x5),
-                Text(l?.devicesQualityLadder ?? 'THE QUALITY LADDER',
-                    style: F.over.copyWith(color: p.ink3)),
-                const SizedBox(height: S.x3),
-                for (final t in SourceTier.values)
+                  const SizedBox(height: S.x3),
+                  for (final t in SourceTier.values)
                   // Every rung is drawn now, filled or not. The tier-1 rung
                   // used to be hidden because nothing could reach it and an
                   // unreachable empty rung is just something to go hunting
@@ -1625,10 +1720,11 @@ class MyDevicesView extends StatelessWidget {
                     TierRow(t, filled: sources.any((s) => s.tier == t)),
                     const SizedBox(height: S.x3),
                   ],
-              ],
+                ],
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -1653,7 +1749,9 @@ String sourceState(HealthSource s) {
     // A source with no rung supplies no signal, so there is nothing for a
     // workout to arm and nothing being derived. Say that, rather than promise
     // a stream that will never start.
-    return s.tier == null ? 'Paired · storing what it sends' : 'Waiting for a workout';
+    return s.tier == null
+        ? 'Paired · storing what it sends'
+        : 'Waiting for a workout';
   }
   if (s.tier == SourceTier.phone) {
     return s.connected ? 'Reporting steps' : 'No steps arriving';
@@ -1693,71 +1791,105 @@ class SourceRow extends StatelessWidget {
     final battery = s.batteryPct;
     return Surface(
       onTap: onTap,
-      child: Row(children: [
-        Container(
-          width: 52,
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
-          child: Icon(s.icon, size: 24, color: p.ink2),
-        ),
-        const SizedBox(width: S.x3),
-        Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(s.name,
-                style: F.body
-                    .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-            Text(s.kind, style: F.over.copyWith(color: p.ink3)),
-            const SizedBox(height: 5),
-            // Wrap, not Row: at 2x text "Not connected · 78%" is wider than
-            // the card and a Flex would simply clip the battery away.
-            Wrap(spacing: S.x3, runSpacing: S.x1, children: [
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                      color: s.connected ? p.on(C.green) : p.ink3,
-                      shape: BoxShape.circle),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: p.card2, borderRadius: R.rMd),
+            child: Icon(s.icon, size: 24, color: p.ink2),
+          ),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profileText(c, s.name),
+                  style: F.body.copyWith(
+                    color: p.ink,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(width: 5),
-                // Flexible because this string is not fixed: "Not connected"
-                // and "No steps arriving" are 10 px wider than the column at
-                // 390 pt, and an unflexed Text in a Wrap simply overflows.
-                Flexible(
-                  child: Text(_localizedSourceState(c, s),
-                      style: F.over.copyWith(
-                          color: s.connected ? p.on(C.green) : p.ink3)),
+                Text(
+                  profileText(c, s.kind),
+                  style: F.over.copyWith(color: p.ink3),
                 ),
-              ]),
-              if (battery != null)
-                Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(
-                      s.charging
-                          ? LucideIcons.batteryCharging
-                          : LucideIcons.battery,
-                      size: 13,
-                      color: p.ink3),
-                  const SizedBox(width: 3),
-                  Text('${battery.round()}%',
-                      style: F.over.copyWith(color: p.ink3)),
-                ]),
-              // IN THE WRAP, not a second trailing pill: this line already
-              // wraps at accessibility sizes, and a pill column beside it does
-              // not. The band's own page carries the explanation.
-              if (s.experimental)
-                Text(AppLocalizations.of(c)?.devicesExperimental ?? 'Experimental',
-                    style: F.over.copyWith(color: p.on(C.orange))),
-            ]),
-          ]),
-        ),
-        const SizedBox(width: S.x2),
-        // No pill for an unranked source. A blank one reads as tier zero.
-        if (s.tier case final t?)
-          Pill(AppLocalizations.of(c)?.devicesTierRank(t.rank) ?? 'Tier ${t.rank}',
-              t.accent),
-      ]),
+                const SizedBox(height: 5),
+                // Wrap, not Row: at 2x text "Not connected · 78%" is wider than
+                // the card and a Flex would simply clip the battery away.
+                Wrap(
+                  spacing: S.x3,
+                  runSpacing: S.x1,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: s.connected ? p.on(C.green) : p.ink3,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        // Flexible because this string is not fixed: "Not connected"
+                        // and "No steps arriving" are 10 px wider than the column at
+                        // 390 pt, and an unflexed Text in a Wrap simply overflows.
+                        Flexible(
+                          child: Text(
+                            _localizedSourceState(c, s),
+                            style: F.over.copyWith(
+                              color: s.connected ? p.on(C.green) : p.ink3,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (battery != null)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            s.charging
+                                ? LucideIcons.batteryCharging
+                                : LucideIcons.battery,
+                            size: 13,
+                            color: p.ink3,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${battery.round()}%',
+                            style: F.over.copyWith(color: p.ink3),
+                          ),
+                        ],
+                      ),
+                    // IN THE WRAP, not a second trailing pill: this line already
+                    // wraps at accessibility sizes, and a pill column beside it does
+                    // not. The band's own page carries the explanation.
+                    if (s.experimental)
+                      Text(
+                        AppLocalizations.of(c)?.devicesExperimental ??
+                            'Experimental',
+                        style: F.over.copyWith(color: p.on(C.orange)),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: S.x2),
+          // No pill for an unranked source. A blank one reads as tier zero.
+          if (s.tier case final t?)
+            Pill(
+              AppLocalizations.of(c)?.devicesTierRank(t.rank) ??
+                  'Tier ${t.rank}',
+              t.accent,
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1774,34 +1906,51 @@ class TierRow extends StatelessWidget {
     return Surface(
       elevation: 0,
       color: filled ? p.wash(tier.accent) : p.card2,
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(filled ? LucideIcons.badgeCheck : LucideIcons.circleDashed,
-            size: 20, color: filled ? p.on(tier.accent) : p.ink3),
-        const SizedBox(width: S.x3),
-        Expanded(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-                AppLocalizations.of(c)?.devicesTierRankLabel(
-                        tier.rank, sourceTierLabel(c, tier)) ??
-                    'Tier ${tier.rank} · ${tier.label}',
-                style: F.body.copyWith(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            filled ? LucideIcons.badgeCheck : LucideIcons.circleDashed,
+            size: 20,
+            color: filled ? p.on(tier.accent) : p.ink3,
+          ),
+          const SizedBox(width: S.x3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppLocalizations.of(c)?.devicesTierRankLabel(
+                        tier.rank,
+                        sourceTierLabel(c, tier),
+                      ) ??
+                      'Tier ${tier.rank} · ${tier.label}',
+                  style: F.body.copyWith(
                     color: filled ? p.ink : p.ink2,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: S.x1),
-            Text(sourceTierDetail(c, tier),
-                style: F.cap.copyWith(color: p.ink3, height: 1.5)),
-            if (!filled) ...[
-              const SizedBox(height: S.x1),
-              // A dashed circle and a paler wash are not a statement. Without
-              // a word here an empty rung reads exactly like the tier you do
-              // have — including to a screen reader, which sees neither.
-              Text(AppLocalizations.of(c)?.devicesNothingHereYet ?? 'Nothing here yet',
-                  style: F.over.copyWith(color: p.ink3)),
-            ],
-          ]),
-        ),
-      ]),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: S.x1),
+                Text(
+                  sourceTierDetail(c, tier),
+                  style: F.cap.copyWith(color: p.ink3, height: 1.5),
+                ),
+                if (!filled) ...[
+                  const SizedBox(height: S.x1),
+                  // A dashed circle and a paler wash are not a statement. Without
+                  // a word here an empty rung reads exactly like the tier you do
+                  // have — including to a screen reader, which sees neither.
+                  Text(
+                    AppLocalizations.of(c)?.devicesNothingHereYet ??
+                        'Nothing here yet',
+                    style: F.over.copyWith(color: p.ink3),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1837,9 +1986,11 @@ class _DeviceDetailState extends State<DeviceDetail> {
     super.initState();
     if (!widget.s.isBand) return;
     _liveHrOwner = context.read<AppState>()..retainLiveHrView();
-    LocalDb.batteryHealth().then((h) {
-      if (mounted) setState(() => _health = h);
-    }).catchError((_) {});
+    LocalDb.batteryHealth()
+        .then((h) {
+          if (mounted) setState(() => _health = h);
+        })
+        .catchError((_) {});
     _loadForecast();
   }
 
@@ -1894,8 +2045,10 @@ class _DeviceDetailState extends State<DeviceDetail> {
       // which a sensor has — pointing this at it would have unpaired the
       // WHOOP from a chest strap's page.
       onSync: switch (s.family) {
-        'oura' || 'ringconn' || 'o2ring' || 'ring11m' =>
-          () => _syncRing(c, s.family),
+        'oura' ||
+        'ringconn' ||
+        'o2ring' ||
+        'ring11m' => () => _syncRing(c, s.family),
         'coros' => () => _syncCorosWatch(c),
         'garmin' => () => _syncGarminWatch(c),
         'ultrahuman' => () => _syncUltrahumanRing(c),
@@ -1903,8 +2056,10 @@ class _DeviceDetailState extends State<DeviceDetail> {
         'dafit' => () => _syncDafitWatch(c),
         'zetime' => () => _syncZeTime(c),
         'wearfit' => () => _syncSensor(c, WearFitLink.instance.sync),
-        'withings_steel_hr' =>
-          () => _syncSensor(c, WithingsSteelHrLink.instance.sync),
+        'withings_steel_hr' => () => _syncSensor(
+          c,
+          WithingsSteelHrLink.instance.sync,
+        ),
         'dt78' => () => _syncDt78(c),
         'hplus' => () => _syncHPlus(c),
         'id115' => () => _syncId115(c),
@@ -1925,8 +2080,8 @@ class _DeviceDetailState extends State<DeviceDetail> {
       onForget: s.deviceId != null
           ? () => _confirmForgetSensor(c, s)
           : app == null
-              ? null
-              : () => _confirmForget(c, app, s.name),
+          ? null
+          : () => _confirmForget(c, app, s.name),
     );
   }
 }
@@ -1942,7 +2097,12 @@ Future<void> _syncRing(BuildContext c, String? family) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesSyncingTheRing ?? 'Syncing the ring…')));
+    SnackBar(
+      content: Text(
+        profileText(c, l?.devicesSyncingTheRing ?? 'Syncing the ring…'),
+      ),
+    ),
+  );
   final ok = switch (family) {
     'o2ring' => await O2RingLink.instance.sync(),
     'ringconn' => await RingConnLink.instance.sync(),
@@ -1950,13 +2110,20 @@ Future<void> _syncRing(BuildContext c, String? family) async {
     _ => await OuraLink.instance.sync(),
   };
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : (l?.devicesCouldNotReachRing ??
-            'Could not reach the ring. It has to be nearby, and not connected '
-                'to another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : (l?.devicesCouldNotReachRing ??
+                    'Could not reach the ring. It has to be nearby, and not connected '
+                        'to another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Hold a session with the paired watch, now, because the user asked. There
@@ -1966,18 +2133,25 @@ Future<void> _syncRing(BuildContext c, String? family) async {
 Future<void> _syncCorosWatch(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await CorosLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        // Its OWN string, not the ring's — `devicesCouldNotReachRing` names
-        // the device in its text, and a watch synced through here is not one.
-        : (l?.devicesCouldNotReachCorosWatch ??
-            'Could not reach it. It has to be nearby, and not connected to '
-                'another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              // Its OWN string, not the ring's — `devicesCouldNotReachRing` names
+              // the device in its text, and a watch synced through here is not one.
+              : (l?.devicesCouldNotReachCorosWatch ??
+                    'Could not reach it. It has to be nearby, and not connected to '
+                        'another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Hold a session with the paired watch, now, because the user asked. There
@@ -1987,16 +2161,23 @@ Future<void> _syncCorosWatch(BuildContext c) async {
 Future<void> _syncGarminWatch(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await GarminLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : (l?.devicesCouldNotReachRing ??
-            'Could not reach it. It has to be nearby, and not connected to '
-                'another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : (l?.devicesCouldNotReachRing ??
+                    'Could not reach it. It has to be nearby, and not connected to '
+                        'another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Drain the Ultrahuman ring, now, because the user asked. Same shape as
@@ -2007,16 +2188,28 @@ Future<void> _syncUltrahumanRing(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesSyncingTheRing ?? 'Syncing the ring…')));
+    SnackBar(
+      content: Text(
+        profileText(c, l?.devicesSyncingTheRing ?? 'Syncing the ring…'),
+      ),
+    ),
+  );
   final ok = await UltrahumanLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : (l?.devicesCouldNotReachRing ??
-            'Could not reach the ring. It has to be nearby, and not connected '
-                'to another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : (l?.devicesCouldNotReachRing ??
+                    'Could not reach the ring. It has to be nearby, and not connected '
+                        'to another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Drain the Mi Band, now, because the user asked. Same shape as
@@ -2027,15 +2220,23 @@ Future<void> _syncMiband(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesSyncing ?? 'Syncing')));
+    SnackBar(content: Text(profileText(c, l?.devicesSyncing ?? 'Syncing'))),
+  );
   final ok = await MiBand234Link.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : 'Could not reach the band. It has to be nearby, and not '
-            'connected to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : 'Could not reach the band. It has to be nearby, and not '
+                    'connected to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Drain the watch, now, because the user asked. Nothing decodes yet — see
@@ -2044,105 +2245,156 @@ Future<void> _syncMiband(BuildContext c) async {
 Future<void> _syncPebble(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing the watch…')));
+  messenger?.showSnackBar(
+    SnackBar(content: Text(profileText(c, 'Syncing the watch…'))),
+  );
   final ok = await PebbleLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : 'Could not reach the watch. It has to be nearby, and not '
-            'connected to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : 'Could not reach the watch. It has to be nearby, and not '
+                    'connected to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Pull whatever a paired Makibes HR3 has sent since the last connect, now,
 /// because the user asked. Same shape as [_syncRing] one function up.
 Future<void> _syncMakibesHr3(BuildContext c) async {
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await MakibesHr3Link.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? 'Synced.'
-        : 'Could not reach the board. It has to be nearby, and not '
-            'connected to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? 'Synced.'
+              : 'Could not reach the board. It has to be nearby, and not '
+                    'connected to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Pull whatever a paired ID115 has sent since the last connect, now,
 /// because the user asked. Same shape as [_syncRing] one function up.
 Future<void> _syncId115(BuildContext c) async {
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await Id115Link.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? 'Synced.'
-        : 'Could not reach the board. It has to be nearby, and not '
-            'connected to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? 'Synced.'
+              : 'Could not reach the board. It has to be nearby, and not '
+                    'connected to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Pull whatever a paired SMA-Q2-OSS has sent since the last connect, now,
 /// because the user asked. Same shape as [_syncRing] one function up.
 Future<void> _syncSmaq2oss(BuildContext c) async {
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await Smaq2ossLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? 'Synced.'
-        : 'Could not reach the watch. It has to be nearby, and not '
-            'connected to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? 'Synced.'
+              : 'Could not reach the watch. It has to be nearby, and not '
+                    'connected to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Pull whatever a paired XWatch has sent since the last connect, now,
 /// because the user asked. Same shape as [_syncRing] one function up.
 Future<void> _syncXWatch(BuildContext c) async {
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await XWatchLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? 'Synced.'
-        : 'Could not reach the board. It has to be nearby, and not '
-            'connected to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? 'Synced.'
+              : 'Could not reach the board. It has to be nearby, and not '
+                    'connected to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Pull whatever a paired Watch9 has sent since the last connect, now,
 /// because the user asked. Same shape as [_syncRing] one function up.
 Future<void> _syncWatch9(BuildContext c) async {
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await Watch9Link.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? 'Synced.'
-        : 'Could not reach the board. It has to be nearby, and not '
-            'connected to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? 'Synced.'
+              : 'Could not reach the board. It has to be nearby, and not '
+                    'connected to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Pull whatever a paired NO1-family band has sent since the last connect,
 /// now, because the user asked. Same shape as [_syncRing] one function up.
 Future<void> _syncNo1Band(BuildContext c) async {
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await Tlw64Link.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? 'Synced.'
-        : 'Could not reach the band. It has to be nearby, and not connected '
-            'to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? 'Synced.'
+              : 'Could not reach the band. It has to be nearby, and not connected '
+                    'to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Hold a session with the paired watch, now, because the user asked. There
@@ -2155,15 +2407,22 @@ Future<void> _syncDafitWatch(BuildContext c) async {
   // blurb, and for the same reason. Deliberately NOT `devicesCouldNotReachRing`
   // below either: that key is ring-specific text in every translated locale,
   // and this device is a watch, not a ring.
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await DafitLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : 'Could not reach it. It has to be nearby, and not connected to '
-            'another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : 'Could not reach it. It has to be nearby, and not connected to '
+                    'another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Connect to the ZeTime, ask its battery level, disconnect — the whole of
@@ -2173,17 +2432,29 @@ Future<void> _syncDafitWatch(BuildContext c) async {
 Future<void> _syncZeTime(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(SnackBar(
-      content: Text(l?.devicesConnectingZeTime ?? 'Connecting…')));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(c, l?.devicesConnectingZeTime ?? 'Connecting…'),
+      ),
+    ),
+  );
   final ok = await ZeTimeLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesConnectedZeTime ?? 'Connected.')
-        : (l?.devicesCouldNotReachZeTime ??
-            'Could not reach the watch. It has to be nearby, and not '
-                'connected to another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesConnectedZeTime ?? 'Connected.')
+              : (l?.devicesCouldNotReachZeTime ??
+                    'Could not reach the watch. It has to be nearby, and not '
+                        'connected to another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Connect to the paired watch and give it a window to say whatever it is
@@ -2193,17 +2464,29 @@ Future<void> _syncZeTime(BuildContext c) async {
 Future<void> _syncBangleJs(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(SnackBar(
-      content: Text(l?.devicesSyncingTheWatch ?? 'Syncing the watch…')));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(c, l?.devicesSyncingTheWatch ?? 'Syncing the watch…'),
+      ),
+    ),
+  );
   final ok = await BangleJsLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : (l?.devicesCouldNotReachWatch ??
-            'Could not reach the watch. It has to be nearby, and not '
-                'connected to another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : (l?.devicesCouldNotReachWatch ??
+                    'Could not reach the watch. It has to be nearby, and not '
+                        'connected to another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Drain any other paired sensor family, now, because the user asked. Same
@@ -2212,18 +2495,27 @@ Future<void> _syncBangleJs(BuildContext c) async {
 Future<void> _syncSensor(BuildContext c, Future<bool> Function() sync) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(SnackBar(
-      content:
-          Text(l?.devicesSyncingTheSensor ?? 'Syncing the sensor…')));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(l?.devicesSyncingTheSensor ?? 'Syncing the sensor…'),
+    ),
+  );
   final ok = await sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : (l?.devicesCouldNotReachSensor ??
-            'Could not reach the sensor. It has to be nearby, and not '
-                'connected to another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : (l?.devicesCouldNotReachSensor ??
+                    'Could not reach the sensor. It has to be nearby, and not '
+                        'connected to another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Connect and bank the watch's raw bytes, now, because the user asked. Same
@@ -2236,7 +2528,9 @@ Future<void> _syncDt78(BuildContext c) async {
   // syncing" and "could not reach the watch" alike — a real distinction the
   // snack bar should not blur into one failure sentence.
   if (Dt78Link.instance.busy) {
-    messenger?.showSnackBar(const SnackBar(content: Text('Already syncing.')));
+    messenger?.showSnackBar(
+      SnackBar(content: Text(profileText(c, 'Already syncing.'))),
+    );
     return;
   }
   // `devicesSyncing`/`devicesSynced` are genuinely generic ("Syncing"/
@@ -2245,15 +2539,23 @@ Future<void> _syncDt78(BuildContext c) async {
   // device in the snack bar, so the failure sentence stays untranslated
   // rather than borrowing one that says the wrong thing.
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesSyncing ?? 'Syncing')));
+    SnackBar(content: Text(profileText(c, l?.devicesSyncing ?? 'Syncing'))),
+  );
   final ok = await Dt78Link.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : 'Could not reach the watch. It has to be nearby, and not connected '
-            'to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : 'Could not reach the watch. It has to be nearby, and not connected '
+                    'to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Connect to the band, now, because the user asked. Same "one sentence
@@ -2263,30 +2565,45 @@ Future<void> _syncHPlus(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesSyncing ?? 'Syncing')));
+    SnackBar(content: Text(profileText(c, l?.devicesSyncing ?? 'Syncing'))),
+  );
   final ok = await HPlusLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : 'Could not reach the band. It has to be nearby, and not connected '
-            'to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : 'Could not reach the band. It has to be nearby, and not connected '
+                    'to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Pull whatever a Jyou band has streamed since the last connect, now,
 /// because the user asked. Same shape as [_syncRing] one function up.
 Future<void> _syncJyou(BuildContext c) async {
   final messenger = ScaffoldMessenger.maybeOf(c);
-  messenger?.showSnackBar(const SnackBar(content: Text('Syncing…')));
+  messenger?.showSnackBar(SnackBar(content: Text(profileText(c, 'Syncing…'))));
   final ok = await JyouLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? 'Synced.'
-        : 'Could not reach the band. It has to be nearby, and not connected '
-            'to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? 'Synced.'
+              : 'Could not reach the band. It has to be nearby, and not connected '
+                    'to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Connect and bank the watch's raw bytes, now, because the user asked. Same
@@ -2302,16 +2619,24 @@ Future<void> _syncPineTime(BuildContext c) async {
   // device in the snack bar, so the failure sentence stays untranslated
   // rather than borrowing one that says the wrong thing.
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesSyncing ?? 'Syncing')));
+    SnackBar(content: Text(profileText(c, l?.devicesSyncing ?? 'Syncing'))),
+  );
   final ok = await PineTimeLink.instance.sync();
   if (!c.mounted) return;
   messenger?.hideCurrentSnackBar();
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : 'Could not reach the watch. It has to be nearby, and not connected '
-            'to another app.'),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : 'Could not reach the watch. It has to be nearby, and not connected '
+                    'to another app.',
+        ),
+      ),
+    ),
+  );
 }
 
 /// Hold a session with the paired watch, now, because the user asked. There
@@ -2322,16 +2647,26 @@ Future<void> _syncQHybrid(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesConnectingWatch ?? 'Connecting…')));
+    SnackBar(
+      content: Text(profileText(c, l?.devicesConnectingWatch ?? 'Connecting…')),
+    ),
+  );
   final ok = await QHybridLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : (l?.devicesCouldNotReachWatch ??
-            'Could not reach the watch. It has to be nearby, and not '
-                'connected to another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : (l?.devicesCouldNotReachWatch ??
+                    'Could not reach the watch. It has to be nearby, and not '
+                        'connected to another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Same as [_syncRing], for a paired Colmi ring — the "sync now" affordance
@@ -2342,16 +2677,28 @@ Future<void> _syncColmiRing(BuildContext c) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesSyncingTheRing ?? 'Syncing the ring…')));
+    SnackBar(
+      content: Text(
+        profileText(c, l?.devicesSyncingTheRing ?? 'Syncing the ring…'),
+      ),
+    ),
+  );
   final ok = await ColmiLink.instance.sync();
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : (l?.devicesCouldNotReachRing ??
-            'Could not reach the ring. It has to be nearby, and not connected '
-                'to another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : (l?.devicesCouldNotReachRing ??
+                    'Could not reach the ring. It has to be nearby, and not connected '
+                        'to another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Same shape as [_syncRing] — a separate family behind a separate link, same
@@ -2362,16 +2709,24 @@ Future<void> _syncCasio(BuildContext c, String? deviceId) async {
   final l = AppLocalizations.of(c);
   final messenger = ScaffoldMessenger.maybeOf(c);
   messenger?.showSnackBar(
-      SnackBar(content: Text(l?.devicesSyncing ?? 'Syncing')));
+    SnackBar(content: Text(profileText(c, l?.devicesSyncing ?? 'Syncing'))),
+  );
   final ok = await CasioLink.instance.sync(deviceId: deviceId);
   if (!c.mounted) return;
-  messenger?.showSnackBar(SnackBar(
-    content: Text(ok
-        ? (l?.devicesSynced ?? 'Synced.')
-        : (l?.devicesCouldNotReachWatch ??
-            'Could not reach the watch. It has to be nearby, and not '
-                'connected to another app.')),
-  ));
+  messenger?.showSnackBar(
+    SnackBar(
+      content: Text(
+        profileText(
+          c,
+          ok
+              ? (l?.devicesSynced ?? 'Synced.')
+              : (l?.devicesCouldNotReachWatch ??
+                    'Could not reach the watch. It has to be nearby, and not '
+                        'connected to another app.'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Forget a paired sensor. Same promise as forgetting the band — the source
@@ -2394,11 +2749,13 @@ Future<void> _confirmForgetSensor(BuildContext c, HealthSource s) async {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.of(d).pop(false),
-            child: Text(l?.devicesKeepItPaired ?? 'Keep it paired')),
+          onPressed: () => Navigator.of(d).pop(false),
+          child: Text(l?.devicesKeepItPaired ?? 'Keep it paired'),
+        ),
         TextButton(
-            onPressed: () => Navigator.of(d).pop(true),
-            child: Text(l?.devicesForgetIt ?? 'Forget it')),
+          onPressed: () => Navigator.of(d).pop(true),
+          child: Text(l?.devicesForgetIt ?? 'Forget it'),
+        ),
       ],
     ),
   );
@@ -2429,33 +2786,39 @@ Future<void> _renameBand(BuildContext c, AppState app, String current) async {
     context: c,
     builder: (d) => AlertDialog(
       title: Text(l?.devicesNameThisBand ?? 'Name this band'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        ValueListenableBuilder<String?>(
-          valueListenable: err,
-          builder: (_, e, _) => TextField(
-            controller: ctl,
-            autofocus: true,
-            maxLength: 20,
-            decoration: InputDecoration(
-              hintText: l?.devicesYourBand ?? 'Your band',
-              errorText: e,
-              helperText: l?.devicesNameCharset ??
-                  "Letters, numbers, space, and ' . _ -",
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ValueListenableBuilder<String?>(
+            valueListenable: err,
+            builder: (_, e, _) => TextField(
+              controller: ctl,
+              autofocus: true,
+              maxLength: 20,
+              decoration: InputDecoration(
+                hintText: l?.devicesYourBand ?? 'Your band',
+                errorText: e,
+                helperText:
+                    l?.devicesNameCharset ??
+                    "Letters, numbers, space, and ' . _ -",
+              ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.of(d).pop(),
-            child: Text(l?.actionCancel ?? 'Cancel')),
+          onPressed: () => Navigator.of(d).pop(),
+          child: Text(l?.actionCancel ?? 'Cancel'),
+        ),
         TextButton(
           onPressed: () {
             final v = ctl.text.trim();
             if (v.isEmpty) {
               err.value = l?.devicesGiveItAName ?? 'Give it a name';
             } else if (cleanDeviceLabel(v) == null) {
-              err.value = l?.devicesNameCharsetError ??
+              err.value =
+                  l?.devicesNameCharsetError ??
                   "Only letters, numbers, space, and ' . _ -";
             } else {
               Navigator.of(d).pop(v);
@@ -2472,13 +2835,19 @@ Future<void> _renameBand(BuildContext c, AppState app, String current) async {
   try {
     await app.renameStrap(name);
     messenger?.showSnackBar(
-        SnackBar(content: Text(l?.devicesRenamedTo(name) ?? 'Renamed to $name')));
+      SnackBar(content: Text(l?.devicesRenamedTo(name) ?? 'Renamed to $name')),
+    );
   } catch (e) {
     // The write goes to the strap, so a dropped link loses it. Say that,
     // rather than leaving the old name on screen with no explanation.
-    messenger?.showSnackBar(SnackBar(
-        content: Text(l?.devicesCouldNotRename(e.toString()) ??
-            'Could not rename the band: $e')));
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(
+          l?.devicesCouldNotRename(e.toString()) ??
+              'Could not rename the band: $e',
+        ),
+      ),
+    );
   }
 }
 
@@ -2503,11 +2872,13 @@ Future<void> _confirmForget(BuildContext c, AppState app, String name) async {
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.of(d).pop(false),
-            child: Text(l?.devicesKeepItPaired ?? 'Keep it paired')),
+          onPressed: () => Navigator.of(d).pop(false),
+          child: Text(l?.devicesKeepItPaired ?? 'Keep it paired'),
+        ),
         TextButton(
-            onPressed: () => Navigator.of(d).pop(true),
-            child: Text(l?.devicesForgetIt ?? 'Forget it')),
+          onPressed: () => Navigator.of(d).pop(true),
+          child: Text(l?.devicesForgetIt ?? 'Forget it'),
+        ),
       ],
     ),
   );
@@ -2542,249 +2913,321 @@ class DeviceDetailView extends StatelessWidget {
   /// nothing.
   final BatteryForecast? forecast;
 
-  const DeviceDetailView(this.s,
-      {super.key,
-      this.onFind,
-      this.onForget,
-      this.onSync,
-      this.onRename,
-      this.liveHr,
-      this.status,
-      this.health,
-      this.forecast});
+  const DeviceDetailView(
+    this.s, {
+    super.key,
+    this.onFind,
+    this.onForget,
+    this.onSync,
+    this.onRename,
+    this.liveHr,
+    this.status,
+    this.health,
+    this.forecast,
+  });
 
   @override
   Widget build(BuildContext c) {
     final p = P.of(c);
     final l = AppLocalizations.of(c);
-    final localizedStatus =
-        status == null ? null : localizedBandStatus(c, status!);
+    final localizedStatus = status == null
+        ? null
+        : localizedBandStatus(c, status!);
     final battery = s.batteryPct;
     final last = s.lastData;
-    final fault =
-        localizedStatus?.isFault == true ? localizedStatus : null;
+    final fault = localizedStatus?.isFault == true ? localizedStatus : null;
     final calibration = calibrationDisclosure(s);
     return Scaffold(
       backgroundColor: p.bg,
       body: SafeArea(
-        child: Column(children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(''),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
-              children: [
-                Center(
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    alignment: Alignment.center,
-                    decoration:
-                        BoxDecoration(color: p.card2, borderRadius: R.rXxl),
-                    child: Icon(s.icon, size: 54, color: p.ink2),
-                  ),
-                ),
-                const SizedBox(height: S.x5),
-                Center(child: Text(s.name, style: F.t2.copyWith(color: p.ink))),
-                const SizedBox(height: S.x2),
-                // A fault names itself in the card below; repeating its title
-                // here would say the same thing twice in two type sizes.
-                if (fault == null)
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: S.x4),
+              child: NavBar(''),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(S.x4, 0, S.x4, S.x10),
+                children: [
                   Center(
-                      child: Text(
-                          localizedStatus?.title ?? _localizedSourceState(c, s),
-                          style: F.cap.copyWith(
-                              color: s.connected ? p.on(C.green) : p.ink3))),
-                const SizedBox(height: S.x6),
-                if (fault != null) ...[
-                  StatusCard(fault.title, fault.reason,
-                      fix: fault.fix ?? '', icon: LucideIcons.bluetoothOff),
-                  const SizedBox(height: S.x5),
-                ],
-                if (s.tier case final t?) ...[
-                  TierRow(t, filled: true),
-                  const SizedBox(height: S.x5),
-                ],
-                // A PAIRED SENSOR'S OWN CARD, not the band block below. It has
-                // no advertising name it owns, no battery this app reads and
-                // nothing to buzz — and it has the one thing a user needs
-                // before they trust the row at all: what is captured, and what
-                // is calculated from it. Today the answer to the second is
-                // NOTHING, for every sensor, and that has to be on the screen
-                // rather than inferred from a metric quietly still abstaining.
-                if (!s.isBand && s.deviceId != null) ...[
-                  Surface(
-                    pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: Column(children: [
-                      SetRow(LucideIcons.flaskConical, C.orange,
-                          l?.devicesSupport ?? 'Support',
-                          value: l?.devicesExperimental ?? 'Experimental',
-                          sub: l?.devicesSensorExperimentalSub ??
-                              'Decoded from the protocol, never checked '
-                                  'against the hardware — nobody here owns one.',
-                          chevron: false),
-                      Divider(color: p.line, height: 1),
-                      SetRow(LucideIcons.database, C.teal,
-                          l?.devicesWhatItDoes ?? 'What it does',
-                          sub: s.tier == null
-                              ? (l?.devicesWhatItDoesUnranked ??
-                                  'Everything it sends is stored and attributed '
-                                      'to it. Nothing in the app is calculated '
-                                      'from it yet.')
-                              : (l?.devicesWhatItDoesRanked ??
-                                  'Beat timing is stored and attributed to it '
-                                      'during a workout. Nothing in the app is '
-                                      'calculated from it yet.'),
-                          chevron: false),
-                      Divider(color: p.line, height: 1),
-                      SetRow(LucideIcons.refreshCw, C.purple,
-                          l?.devicesLastData ?? 'Last data',
-                          value: last == null ? '' : formatDayTime(last, l),
-                          sub: last == null
-                              ? (l?.devicesNothingBankedYet ?? 'Nothing banked yet')
-                              : '',
-                          chevron: false),
-                      // MANUAL, and only for a sensor that holds history.
-                      // A strap has no flash and nothing to fetch; a ring
-                      // does, and putting it on a schedule would have it
-                      // contending for the radio with the band's own link
-                      // for no reason a user asked for.
-                      if (onSync != null) ...[
-                        Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.downloadCloud, C.blue,
-                            l?.devicesSyncNow ?? 'Sync now',
-                            // Only Oura genuinely fetches held history off a
-                            // cursor; every other `onSync` wired today is a
-                            // bounded listen window with no request and no
-                            // stored-history drain — see e.g.
-                            // `Id115Link.sync()`, `MakibesHr3Link.sync()`,
-                            // `Smaq2ossLink.sync()`, `Tlw64Link.sync()`,
-                            // `Watch9Link.sync()` and `XWatchLink.sync()`.
-                            // Claiming a "fetch" for those would be a promise
-                            // the connect does not keep.
-                            sub: s.family == 'oura'
-                                ? (l?.devicesSyncNowSub ??
-                                    'Fetch whatever it has been holding')
-                                : (l?.devicesSyncNowSubListen ??
-                                    'Listen for whatever it sends right now'),
-                            onTap: onSync),
-                      ],
-                    ]),
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: p.card2,
+                        borderRadius: R.rXxl,
+                      ),
+                      child: Icon(s.icon, size: 54, color: p.ink2),
+                    ),
                   ),
                   const SizedBox(height: S.x5),
-                ],
-                // Band rows only. The phone has no radio link and no battery
-                // this app can read, so "Not reported since the last
-                // connection" named a connection it does not have — on the
-                // exact screen someone lands on when phone steps are silently
-                // failing, where the answer is the permission, not a battery.
-                if (s.isBand)
-                  Surface(
-                    pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: Column(children: [
-                      // The name is the band's own advertising name, written
-                      // to the strap — not a phone-side label. So it is only
-                      // editable on a live link, and the row says so rather
-                      // than opening an editor whose save cannot land.
-                      SetRow(LucideIcons.tag, C.blue, l?.devicesName ?? 'Name',
-                          value: s.name,
-                          sub: onRename == null
-                              ? (l?.devicesConnectToRename ??
-                                  'Connect to the band to change it')
-                              : '',
-                          chevron: onRename != null,
-                          onTap: onRename),
-                      Divider(color: p.line, height: 1),
-                      SetRow(LucideIcons.batteryMedium, C.green,
-                          l?.devicesBattery ?? 'Battery',
-                          value: battery == null ? '' : '${battery.round()}%',
-                          // L11 — the band's own charge history, on the row
-                          // that already exists rather than a new one. Within
-                          // THIS band only: `charge_cycles` counts times it went
-                          // on the charger, not full cycles, and the millivolts
-                          // are the highest reading seen while charging — so
-                          // neither is ever put against a cell spec, turned
-                          // into a percentage of original capacity, or read as
-                          // "replace the battery".
-                          //
-                          // Both were structurally blank until schema 45: the
-                          // voltage had no writer at all, so this line has shown
-                          // nothing on every install there has ever been.
-                          sub: battery == null
-                              ? (l?.devicesBatteryNotReported ??
-                                  'Not reported since the last connection')
-                              : [
-                                  if (s.charging) (l?.devicesCharging ?? 'Charging'),
-                                  ?_timeLeft(forecast),
-                                  ?_chargeHistory(health),
-                                ].join(' · '),
-                          chevron: false),
-                      Divider(color: p.line, height: 1),
-                      // Live, not a stored reading: present only while the
-                      // band is actually streaming, and gone the moment it
-                      // stops.
-                      if (liveHr != null) ...[
-                        SetRow(LucideIcons.heartPulse, C.red,
-                            l?.devicesHeartRate ?? 'Heart rate',
-                            value: '$liveHr bpm',
-                            sub: l?.devicesRightNow ?? 'Right now',
-                            chevron: false),
-                        Divider(color: p.line, height: 1),
-                      ],
-                      SetRow(LucideIcons.refreshCw, C.purple,
-                          l?.devicesLastData ?? 'Last data',
-                          value: last == null ? '' : formatDayTime(last, l),
-                          sub: last == null
-                              ? (l?.devicesNothingBankedYet ?? 'Nothing banked yet')
-                              : '',
-                          chevron: false),
-                      if (calibration != null) ...[
-                        Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.sliders, C.teal,
-                            l?.devicesCalibration ?? 'Calibration',
-                            value: calibration.$1,
-                            sub: calibration.$2,
-                            chevron: false),
-                      ],
-                      // WHO HAS CHECKED, not how good the numbers are. Said
-                      // here rather than only as a word on the list row,
-                      // because "experimental" without the reason reads as a
-                      // disclaimer instead of a fact about this band.
-                      if (s.experimental) ...[
-                        Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.flaskConical, C.orange,
+                  Center(
+                    child: Text(
+                      profileText(c, s.name),
+                      style: F.t2.copyWith(color: p.ink),
+                    ),
+                  ),
+                  const SizedBox(height: S.x2),
+                  // A fault names itself in the card below; repeating its title
+                  // here would say the same thing twice in two type sizes.
+                  if (fault == null)
+                    Center(
+                      child: Text(
+                        localizedStatus?.title ?? _localizedSourceState(c, s),
+                        style: F.cap.copyWith(
+                          color: s.connected ? p.on(C.green) : p.ink3,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: S.x6),
+                  if (fault != null) ...[
+                    StatusCard(
+                      fault.title,
+                      fault.reason,
+                      fix: fault.fix ?? '',
+                      icon: LucideIcons.bluetoothOff,
+                    ),
+                    const SizedBox(height: S.x5),
+                  ],
+                  if (s.tier case final t?) ...[
+                    TierRow(t, filled: true),
+                    const SizedBox(height: S.x5),
+                  ],
+                  // A PAIRED SENSOR'S OWN CARD, not the band block below. It has
+                  // no advertising name it owns, no battery this app reads and
+                  // nothing to buzz — and it has the one thing a user needs
+                  // before they trust the row at all: what is captured, and what
+                  // is calculated from it. Today the answer to the second is
+                  // NOTHING, for every sensor, and that has to be on the screen
+                  // rather than inferred from a metric quietly still abstaining.
+                  if (!s.isBand && s.deviceId != null) ...[
+                    Surface(
+                      pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                      child: Column(
+                        children: [
+                          SetRow(
+                            LucideIcons.flaskConical,
+                            C.orange,
                             l?.devicesSupport ?? 'Support',
                             value: l?.devicesExperimental ?? 'Experimental',
-                            sub: l?.devicesBandExperimentalSub ??
-                                'This band is decoded but nobody here has worn '
-                                    'one. Its numbers have not been checked against '
-                                    'the hardware, only against the protocol.',
-                            chevron: false),
-                      ],
-                      if (onFind != null) ...[
-                        Divider(color: p.line, height: 1),
-                        SetRow(LucideIcons.bellRing, C.orange,
-                            l?.devicesBuzzTheBand ?? 'Buzz the band',
-                            sub: l?.devicesFindItByFeel ?? 'Find it by feel',
+                            sub:
+                                l?.devicesSensorExperimentalSub ??
+                                'Decoded from the protocol, never checked '
+                                    'against the hardware — nobody here owns one.',
                             chevron: false,
-                            onTap: onFind),
-                      ],
-                    ]),
-                  ),
-                const SizedBox(height: S.x5),
-                if (onForget != null)
-                  Surface(
-                    pad: const EdgeInsets.symmetric(horizontal: S.x4),
-                    child: SetRow(LucideIcons.trash2, C.red,
+                          ),
+                          Divider(color: p.line, height: 1),
+                          SetRow(
+                            LucideIcons.database,
+                            C.teal,
+                            l?.devicesWhatItDoes ?? 'What it does',
+                            sub: s.tier == null
+                                ? (l?.devicesWhatItDoesUnranked ??
+                                      'Everything it sends is stored and attributed '
+                                          'to it. Nothing in the app is calculated '
+                                          'from it yet.')
+                                : (l?.devicesWhatItDoesRanked ??
+                                      'Beat timing is stored and attributed to it '
+                                          'during a workout. Nothing in the app is '
+                                          'calculated from it yet.'),
+                            chevron: false,
+                          ),
+                          Divider(color: p.line, height: 1),
+                          SetRow(
+                            LucideIcons.refreshCw,
+                            C.purple,
+                            l?.devicesLastData ?? 'Last data',
+                            value: last == null ? '' : formatDayTime(last, l),
+                            sub: last == null
+                                ? (l?.devicesNothingBankedYet ??
+                                      'Nothing banked yet')
+                                : '',
+                            chevron: false,
+                          ),
+                          // MANUAL, and only for a sensor that holds history.
+                          // A strap has no flash and nothing to fetch; a ring
+                          // does, and putting it on a schedule would have it
+                          // contending for the radio with the band's own link
+                          // for no reason a user asked for.
+                          if (onSync != null) ...[
+                            Divider(color: p.line, height: 1),
+                            SetRow(
+                              LucideIcons.downloadCloud,
+                              C.blue,
+                              l?.devicesSyncNow ?? 'Sync now',
+                              // Only Oura genuinely fetches held history off a
+                              // cursor; every other `onSync` wired today is a
+                              // bounded listen window with no request and no
+                              // stored-history drain — see e.g.
+                              // `Id115Link.sync()`, `MakibesHr3Link.sync()`,
+                              // `Smaq2ossLink.sync()`, `Tlw64Link.sync()`,
+                              // `Watch9Link.sync()` and `XWatchLink.sync()`.
+                              // Claiming a "fetch" for those would be a promise
+                              // the connect does not keep.
+                              sub: s.family == 'oura'
+                                  ? (l?.devicesSyncNowSub ??
+                                        'Fetch whatever it has been holding')
+                                  : (l?.devicesSyncNowSubListen ??
+                                        'Listen for whatever it sends right now'),
+                              onTap: onSync,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: S.x5),
+                  ],
+                  // Band rows only. The phone has no radio link and no battery
+                  // this app can read, so "Not reported since the last
+                  // connection" named a connection it does not have — on the
+                  // exact screen someone lands on when phone steps are silently
+                  // failing, where the answer is the permission, not a battery.
+                  if (s.isBand)
+                    Surface(
+                      pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                      child: Column(
+                        children: [
+                          // The name is the band's own advertising name, written
+                          // to the strap — not a phone-side label. So it is only
+                          // editable on a live link, and the row says so rather
+                          // than opening an editor whose save cannot land.
+                          SetRow(
+                            LucideIcons.tag,
+                            C.blue,
+                            l?.devicesName ?? 'Name',
+                            value: profileText(c, s.name),
+                            sub: onRename == null
+                                ? (l?.devicesConnectToRename ??
+                                      'Connect to the band to change it')
+                                : '',
+                            chevron: onRename != null,
+                            onTap: onRename,
+                          ),
+                          Divider(color: p.line, height: 1),
+                          SetRow(
+                            LucideIcons.batteryMedium,
+                            C.green,
+                            l?.devicesBattery ?? 'Battery',
+                            value: battery == null ? '' : '${battery.round()}%',
+                            // L11 — the band's own charge history, on the row
+                            // that already exists rather than a new one. Within
+                            // THIS band only: `charge_cycles` counts times it went
+                            // on the charger, not full cycles, and the millivolts
+                            // are the highest reading seen while charging — so
+                            // neither is ever put against a cell spec, turned
+                            // into a percentage of original capacity, or read as
+                            // "replace the battery".
+                            //
+                            // Both were structurally blank until schema 45: the
+                            // voltage had no writer at all, so this line has shown
+                            // nothing on every install there has ever been.
+                            sub: battery == null
+                                ? (l?.devicesBatteryNotReported ??
+                                      'Not reported since the last connection')
+                                : [
+                                    if (s.charging)
+                                      (l?.devicesCharging ?? 'Charging'),
+                                    ?profileNullableText(
+                                      c,
+                                      _timeLeft(forecast),
+                                    ),
+                                    ?profileNullableText(
+                                      c,
+                                      _chargeHistory(health),
+                                    ),
+                                  ].join(' · '),
+                            chevron: false,
+                          ),
+                          Divider(color: p.line, height: 1),
+                          // Live, not a stored reading: present only while the
+                          // band is actually streaming, and gone the moment it
+                          // stops.
+                          if (liveHr != null) ...[
+                            SetRow(
+                              LucideIcons.heartPulse,
+                              C.red,
+                              l?.devicesHeartRate ?? 'Heart rate',
+                              value: profileText(c, '$liveHr bpm'),
+                              sub: l?.devicesRightNow ?? 'Right now',
+                              chevron: false,
+                            ),
+                            Divider(color: p.line, height: 1),
+                          ],
+                          SetRow(
+                            LucideIcons.refreshCw,
+                            C.purple,
+                            l?.devicesLastData ?? 'Last data',
+                            value: last == null ? '' : formatDayTime(last, l),
+                            sub: last == null
+                                ? (l?.devicesNothingBankedYet ??
+                                      'Nothing banked yet')
+                                : '',
+                            chevron: false,
+                          ),
+                          if (calibration != null) ...[
+                            Divider(color: p.line, height: 1),
+                            SetRow(
+                              LucideIcons.sliders,
+                              C.teal,
+                              l?.devicesCalibration ?? 'Calibration',
+                              value: profileText(c, calibration.$1),
+                              sub: profileText(c, calibration.$2),
+                              chevron: false,
+                            ),
+                          ],
+                          // WHO HAS CHECKED, not how good the numbers are. Said
+                          // here rather than only as a word on the list row,
+                          // because "experimental" without the reason reads as a
+                          // disclaimer instead of a fact about this band.
+                          if (s.experimental) ...[
+                            Divider(color: p.line, height: 1),
+                            SetRow(
+                              LucideIcons.flaskConical,
+                              C.orange,
+                              l?.devicesSupport ?? 'Support',
+                              value: l?.devicesExperimental ?? 'Experimental',
+                              sub:
+                                  l?.devicesBandExperimentalSub ??
+                                  'This band is decoded but nobody here has worn '
+                                      'one. Its numbers have not been checked against '
+                                      'the hardware, only against the protocol.',
+                              chevron: false,
+                            ),
+                          ],
+                          if (onFind != null) ...[
+                            Divider(color: p.line, height: 1),
+                            SetRow(
+                              LucideIcons.bellRing,
+                              C.orange,
+                              l?.devicesBuzzTheBand ?? 'Buzz the band',
+                              sub: l?.devicesFindItByFeel ?? 'Find it by feel',
+                              chevron: false,
+                              onTap: onFind,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: S.x5),
+                  if (onForget != null)
+                    Surface(
+                      pad: const EdgeInsets.symmetric(horizontal: S.x4),
+                      child: SetRow(
+                        LucideIcons.trash2,
+                        C.red,
                         l?.devicesForgetThisBand ?? 'Forget this band',
-                        danger: true, chevron: false, onTap: onForget),
-                  ),
-              ],
+                        danger: true,
+                        chevron: false,
+                        onTap: onForget,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -2826,7 +3269,8 @@ String? _chargeHistory(Map<String, dynamic>? h) {
 /// It used to render `4/9, 07:12`, which a US reader reads as 9 April. The
 /// month name is the whole point; `formatDay` already writes one.
 String formatDayTime(DateTime d, [AppLocalizations? l]) {
-  final t = '${d.hour.toString().padLeft(2, '0')}:'
+  final t =
+      '${d.hour.toString().padLeft(2, '0')}:'
       '${d.minute.toString().padLeft(2, '0')}';
   return '${formatDay(d, l)}, $t';
 }

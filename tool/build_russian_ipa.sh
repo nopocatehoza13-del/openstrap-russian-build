@@ -7,7 +7,7 @@ if [[ "$(uname -s)" != Darwin ]]; then
 fi
 python3 tool/check_russian.py
 flutter gen-l10n
-flutter test --no-pub test/russian_localization_test.dart test/russian_count_labels_test.dart test/russian_metric_notes_test.dart test/russian_metric_specs_test.dart test/russian_screens_test.dart test/widget_russian_locale_test.dart test/widget_service_sentinels_test.dart test/battery_audit_policy_test.dart test/absence_reason_test.dart test/wear_gap_reason_test.dart --reporter=expanded --concurrency=1 --timeout=60s
+flutter test --no-pub test/russian_runtime_screens_test.dart test/russian_observations_extra_test.dart test/russian_activity_extra_test.dart test/russian_core_extra_test.dart test/profile_russian_extra_test.dart test/notification_russian_copy_test.dart test/native_russian_localization_test.dart test/russian_localization_test.dart test/russian_count_labels_test.dart test/russian_metric_notes_test.dart test/russian_metric_specs_test.dart test/russian_screens_test.dart test/widget_russian_locale_test.dart test/widget_service_sentinels_test.dart test/battery_audit_policy_test.dart test/absence_reason_test.dart test/wear_gap_reason_test.dart --reporter=expanded --concurrency=1 --timeout=60s
 flutter build ios --release --no-codesign --dart-define-from-file=.env
 APP="$PWD/build/ios/iphoneos/Runner.app"
 [[ -f "$APP/Info.plist" && -f "$APP/Runner" ]]
@@ -24,7 +24,7 @@ STAGING=$(mktemp -d "$PWD/build/ru-ipa.XXXXXX")
 mkdir -p "$STAGING/Payload"
 ditto "$APP" "$STAGING/Payload/Runner.app"
 mkdir -p dist
-IPA="$PWD/dist/OpenStrap-RU-0.9.29-unsigned.ipa"
+IPA="$PWD/dist/OpenStrap-RU-0.9.29-r2-unsigned.ipa"
 (cd "$STAGING" && zip -qry -y "$STAGING/fresh.ipa" Payload)
 mv "$STAGING/fresh.ipa" "$IPA"
 python3 tool/verify_russian_ipa.py "$IPA"

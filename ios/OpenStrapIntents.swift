@@ -23,6 +23,22 @@ enum OpenStrapShared {
 
   static func defaults() -> UserDefaults? { UserDefaults(suiteName: appGroup) }
 
+  // WidgetService mirrors the app language override to this same group.
+  // Spoken answers follow it even when the iPhone itself is set to English.
+  static var isRussian: Bool {
+    let language = defaults()?.string(forKey: "widget_language")
+      ?? Locale.preferredLanguages.first ?? "en"
+    return language.lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" }).first == "ru"
+  }
+  static func text(_ english: String, _ russian: String) -> String {
+    isRussian ? russian : english
+  }
+  static func counted(_ count: Int, _ one: String, _ few: String, _ many: String) -> String {
+    let tens = count % 100, units = count % 10
+    let word = (11...14).contains(tens) ? many : (units == 1 ? one : ((2...4).contains(units) ? few : many))
+    return "\(count) \(word)"
+  }
+
   /// `has_data` is the phone saying the snapshot is non-empty and describes a
   /// recent day — but it is a bool frozen when the phone last pushed, so on a
   /// phone that stopped syncing it stays true forever. Siri answers in the
@@ -53,13 +69,23 @@ enum OpenStrapShared {
   /// Spoken, so it is words rather than the phone's "7h 05m" — but a 45-minute
   /// nap is not "0 hours 45 minutes".
   static var sleepText: String {
-    guard sleepMin >= 0 else { return "no sleep data yet" }
+    guard sleepMin >= 0 else { return text("no sleep data yet", "данных о сне пока нет") }
     let h = sleepMin / 60, m = sleepMin % 60
+    if isRussian {
+      let hours = counted(h, "час", "часа", "часов")
+      let minutes = counted(m, "минута", "минуты", "минут")
+      if h == 0 { return minutes }
+      if m == 0 { return hours }
+      return "\(hours) \(minutes)"
+    }
     if h == 0 { return "\(m) minutes" }
     if m == 0 { return h == 1 ? "1 hour" : "\(h) hours" }
     return "\(h) \(h == 1 ? "hour" : "hours") \(m) minutes"
   }
-  static var noData: String { "I don't have today's numbers yet. Open OpenStrap and sync your band." }
+  static var noData: String {
+    text("I don't have today's numbers yet. Open OpenStrap and sync your band.",
+         "Сегодняшних показателей пока нет. Откройте OpenStrap и синхронизируйте браслет.")
+  }
 }
 
 // MARK: - Intents
@@ -77,7 +103,9 @@ struct RecoveryIntent: AppIntent {
     // "Readiness, out of 100" — the app's own name and unit. It is not a
     // percentage and it is not called Recovery anywhere else in the product.
     let band = OpenStrapShared.readinessBand
-    let line = "Your readiness is \(OpenStrapShared.readiness) out of 100."
+    let line = OpenStrapShared.text(
+      "Your readiness is \(OpenStrapShared.readiness) out of 100.",
+      "Ваша готовность к нагрузке — \(OpenStrapShared.readiness) из 100.")
     return .result(dialog: IntentDialog(
       stringLiteral: band.isEmpty ? line : "\(line) \(band)."))
   }
@@ -94,7 +122,9 @@ struct StrainIntent: AppIntent {
       return .result(dialog: IntentDialog(stringLiteral: OpenStrapShared.noData))
     }
     let s = String(format: "%.1f", OpenStrapShared.strain)
-    return .result(dialog: "Today's strain so far is \(s) out of twenty-one.")
+    return .result(dialog: IntentDialog(stringLiteral: OpenStrapShared.text(
+      "Today's strain so far is \(s) out of twenty-one.",
+      "На данный момент нагрузка за сегодня — \(s) из 21.")))
   }
 }
 
@@ -108,7 +138,9 @@ struct SleepIntent: AppIntent {
     guard OpenStrapShared.hasData, OpenStrapShared.sleepMin >= 0 else {
       return .result(dialog: IntentDialog(stringLiteral: OpenStrapShared.noData))
     }
-    return .result(dialog: "You slept \(OpenStrapShared.sleepText) last night.")
+    return .result(dialog: IntentDialog(stringLiteral: OpenStrapShared.text(
+      "You slept \(OpenStrapShared.sleepText) last night.",
+      "Прошлой ночью ваш сон длился \(OpenStrapShared.sleepText).")))
   }
 }
 
@@ -131,7 +163,8 @@ struct StartBreathingIntent: AppIntent {
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
     OpenStrapShared.defaults()?.set("/breathing", forKey: "pending_route")
-    return .result(dialog: "Starting your breathing session.")
+    return .result(dialog: IntentDialog(stringLiteral: OpenStrapShared.text(
+      "Starting your breathing session.", "Запускаю дыхательную практику.")))
   }
 }
 
@@ -167,7 +200,8 @@ struct EnableTomorrowAlarmIntent: AppIntent {
     // on the Alarm screen and can see the toggle actually flipped rather than
     // wondering whether Siri did anything.
     OpenStrapShared.defaults()?.set("/alarm", forKey: "pending_route")
-    return .result(dialog: "Turning on tomorrow's alarm.")
+    return .result(dialog: IntentDialog(stringLiteral: OpenStrapShared.text(
+      "Turning on tomorrow's alarm.", "Включаю будильник на завтра.")))
   }
 }
 

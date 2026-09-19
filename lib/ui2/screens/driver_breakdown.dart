@@ -24,6 +24,7 @@
 // says them out loud. The arithmetic of a score, never an account of a person:
 // a driver is a term in a formula we control, and the footer says so.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -329,7 +330,7 @@ class _DriverBreakdownState extends State<DriverBreakdown> {
       if (rows.isNotEmpty) rows.add(Divider(color: p.line, height: 1));
       rows.add(Padding(
         padding: const EdgeInsets.only(top: S.x3, bottom: S.x1),
-        child: Text(title, style: F.cap.copyWith(color: p.ink3)),
+        child: Text(coreText(c, title), style: F.cap.copyWith(color: p.ink3)),
       ));
       for (final f in items) {
         rows.add(_DriverTile(
@@ -359,11 +360,11 @@ class _DriverBreakdownState extends State<DriverBreakdown> {
         elevation: 0,
         color: p.card2,
         child: Text(
-          l?.driverBreakdownFooter ??
+          coreText(c, l?.driverBreakdownFooter ??
               'Each input is ranked against your own history — a parallel view of '
                   'the same inputs, not slices of the score itself. "Measurement '
                   'noise" is how far a reading can move on its own without '
-                  'anything having changed. Patterns in your own logs, not causes.',
+                  'anything having changed. Patterns in your own logs, not causes.'),
           style: F.cap.copyWith(color: p.ink3, height: 1.5),
         ),
       ),
@@ -395,13 +396,13 @@ class _DriverTile extends StatelessWidget {
       child: Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(f.label, style: F.body.copyWith(color: p.ink)),
+            Text(coreText(c, f.label), style: F.body.copyWith(color: p.ink)),
             if (value != null)
-              Text(value, style: F.cap.copyWith(color: p.ink2, height: 1.4)),
+              Text(coreText(c, value), style: F.cap.copyWith(color: p.ink2, height: 1.4)),
             if (quals.isNotEmpty)
-              Text(quals, style: F.over.copyWith(color: p.ink3, height: 1.4)),
+              Text(coreText(c, quals), style: F.over.copyWith(color: p.ink3, height: 1.4)),
             if (why != null)
-              Text(why, style: F.over.copyWith(color: p.ink3, height: 1.4)),
+              Text(coreText(c, why), style: F.over.copyWith(color: p.ink3, height: 1.4)),
           ]),
         ),
         // No contribution number means no number — never a bare em-dash. The
@@ -409,8 +410,8 @@ class _DriverTile extends StatelessWidget {
         if (contribution != null) ...[
           const SizedBox(width: S.x3),
           Text(
-            '${contribution >= 0 ? '+' : '−'}'
-            '${contribution.abs().toStringAsFixed(1)}',
+            coreText(c, '${contribution >= 0 ? '+' : '−'}'
+            '${contribution.abs().toStringAsFixed(1)}'),
             style: F.n17
                 .copyWith(color: p.on(contribution >= 0 ? C.green : C.orange)),
           ),

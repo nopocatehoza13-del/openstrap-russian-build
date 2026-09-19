@@ -26,6 +26,7 @@
 // data layer. They live here rather than in a fourth file because there are
 // only three of them and they are read together.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -236,7 +237,7 @@ Widget? batteryLine(BuildContext c) {
     Icon(charging ? LucideIcons.batteryCharging : LucideIcons.battery,
         size: 13, color: color),
     const SizedBox(width: 3),
-    Text('${pct.round()}%', style: F.cap.copyWith(color: color)),
+    Text(coreText(c, '${pct.round()}%'), style: F.cap.copyWith(color: color)),
   ]);
 }
 
@@ -246,7 +247,7 @@ Widget? batteryLine(BuildContext c) {
 Widget syncedThroughLine(BuildContext c, String? todayId,
     [AppLocalizations? l]) {
   return Text(
-    syncedThroughLabel(lastDataAtOf(c), todayId, l),
+    coreText(c, syncedThroughLabel(lastDataAtOf(c), todayId, l)),
     style: F.cap.copyWith(color: P.of(c).ink3),
   );
 }
@@ -536,9 +537,12 @@ StatusCard? staleInsightsCard(
 
 // ── formatting ──
 
-String hm(num? minutes) {
+String hm(num? minutes, [AppLocalizations? l]) {
   if (minutes == null) return '';
   final m = minutes.round();
+  if (l?.localeName.split(RegExp('[-_]')).first == 'ru') {
+    return m < 60 ? '$m мин' : '${m ~/ 60} ч ${(m % 60).toString().padLeft(2, '0')} мин';
+  }
   return m < 60 ? '${m}m' : '${m ~/ 60}h ${(m % 60).toString().padLeft(2, '0')}m';
 }
 
@@ -595,13 +599,22 @@ String unitBeside(String unit) => unit == 'min' ? '' : unit;
 /// and `10:40 PM` two screens away. Both now go through the journal layer's
 /// [formatMinuteOfDay], which is the format the rest of the app already uses
 /// and the one that already has a test.
-String clock(num? minOfDay) =>
-    minOfDay == null ? '' : formatMinuteOfDay(minOfDay.round());
+String clock(num? minOfDay, [AppLocalizations? l]) {
+  if (minOfDay == null) return '';
+  if (l?.localeName.split(RegExp('[-_]')).first == 'ru') {
+    final m = minOfDay.round() % (24 * 60);
+    return '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+  }
+  return formatMinuteOfDay(minOfDay.round());
+}
 
 /// Epoch seconds → "11:08 PM" in the device zone.
-String clockOfTs(num? ts) {
+String clockOfTs(num? ts, [AppLocalizations? l]) {
   if (ts == null) return '';
   final d = DateTime.fromMillisecondsSinceEpoch(ts.round() * 1000);
+  if (l?.localeName.split(RegExp('[-_]')).first == 'ru') {
+    return clock(d.hour * 60 + d.minute, l);
+  }
   final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
   return '$h:${d.minute.toString().padLeft(2, '0')} ${d.hour < 12 ? 'AM' : 'PM'}';
 }
@@ -840,14 +853,14 @@ class RingTrio extends StatelessWidget {
             // Top-aligned: at an accessibility size the driver list is three
             // lines and "Why?" was centred against the middle of them.
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(l?.homeWhyLabel ?? 'Why?', style: F.cap.copyWith(color: p.ink3)),
+              Text(coreText(c, l?.homeWhyLabel ?? 'Why?'), style: F.cap.copyWith(color: p.ink3)),
               const SizedBox(width: S.x2),
               Expanded(
                 child: Text(
-                  d.drivers
+                  coreText(c, d.drivers
                       .take(3)
                       .map((e) => driverLabel(e['label'], l))
-                      .join(' · '),
+                      .join(' · ')),
                   style: F.cap.copyWith(color: p.ink2),
                 ),
               ),
@@ -948,13 +961,13 @@ _RingState _ringOf(HomeRingKind k, HomeData d, AppLocalizations? l) {
               fallbackWhy: l?.homeSleepGapFallback ??
                   'No night long enough to score was recorded.')
           : _RingState(k, l?.homeRingSleep ?? 'Sleep', LucideIcons.moon, C.blue,
-              value: hm(v),
+              value: hm(v, l),
               // No computed need means no denominator. The hardcoded 480 in
               // the sleep bundle is not this user's need and must never be
               // shown as one, so the ring stays open and says so.
               sub: need == null
                   ? (l?.homeSleepNoTarget ?? 'No target yet')
-                  : (l?.homeOfSpan(hm(need)) ?? 'of ${hm(need)}'),
+                  : (l?.homeOfSpan(hm(need, l)) ?? 'of ${hm(need)}'),
               frac: need == null || need <= 0 ? null : v / need);
   }
 }
@@ -1085,19 +1098,19 @@ class _RingText extends StatelessWidget {
         ? CrossAxisAlignment.center
         : CrossAxisAlignment.start;
     return Column(crossAxisAlignment: cross, children: [
-      Text(r.label.toUpperCase(),
+      Text(coreText(c, r.label.toUpperCase()),
           style: F.over.copyWith(color: p.ink3), textAlign: align),
       const SizedBox(height: S.x1),
       // Absent reads as words, never as a dash and never as a zero — so it
       // takes the sentence weight rather than the numeral one.
-      Text(r.value,
+      Text(coreText(c, r.value),
           style: r.measured
               ? F.n24.copyWith(color: p.ink)
               : F.body.copyWith(color: p.ink2),
           textAlign: align),
       if (r.sub.isNotEmpty) ...[
         const SizedBox(height: 2),
-        Text(r.sub, style: F.cap.copyWith(color: p.ink3), textAlign: align),
+        Text(coreText(c, r.sub), style: F.cap.copyWith(color: p.ink3), textAlign: align),
       ],
     ]);
   }
@@ -1127,10 +1140,10 @@ class _GapRow extends StatelessWidget {
             child: Text.rich(
               TextSpan(children: [
                 TextSpan(
-                    text: '${r.label} · ',
+                    text: coreText(c, '${r.label} · '),
                     style: F.cap.copyWith(
                         color: p.ink2, fontWeight: FontWeight.w600)),
-                TextSpan(text: r.why, style: F.cap.copyWith(color: p.ink3)),
+                TextSpan(text: r.why == null ? null : coreText(c, r.why!), style: F.cap.copyWith(color: p.ink3)),
               ]),
             ),
           ),
@@ -1659,9 +1672,9 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
               Row(children: [
                 Flexible(
                   child: Text(
-                    d.name == null || d.name!.isEmpty
+                    coreText(c, d.name == null || d.name!.isEmpty
                         ? g.word
-                        : '${g.word}, ${d.name}',
+                        : '${g.word}, ${d.name}'),
                     style: F.t2.copyWith(color: p.ink),
                   ),
                 ),
@@ -1669,7 +1682,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
                 Icon(g.icon, size: 17, color: p.on(g.color)),
               ]),
               const SizedBox(height: 2),
-              Text(prettyDay(d.dayId, l), style: F.cap.copyWith(color: p.ink3)),
+              Text(coreText(c, prettyDay(d.dayId, l)), style: F.cap.copyWith(color: p.ink3)),
               // How far the band's data reaches, always — the question "am I
               // looking at today, or at last night?" used to be answerable
               // only by opening Profile > Devices.
@@ -2044,11 +2057,11 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           p,
           LucideIcons.bedDouble,
           C.blue,
-          l?.homeSleepNeedRow(hm(need)) ?? '${hm(need)} of sleep',
+          l?.homeSleepNeedRow(hm(need, l)) ?? '${hm(need)} of sleep',
           l?.homeTonight ?? 'Tonight',
           d.bedtime.value == null
               ? (l?.homeNeed ?? 'Need')
-              : (l?.homeBedTime(clock(d.bedtime.value)) ?? 'Bed ${clock(d.bedtime.value)}'),
+              : (l?.homeBedTime(clock(d.bedtime.value, l)) ?? 'Bed ${clock(d.bedtime.value)}'),
           false));
     }
 
@@ -2091,13 +2104,13 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(kind, style: F.over.copyWith(color: p.ink3)),
+                  Text(coreText(context, kind), style: F.over.copyWith(color: p.ink3)),
                   const SizedBox(height: 2),
-                  Text(title, style: F.body.copyWith(color: p.ink)),
+                  Text(coreText(context, title), style: F.body.copyWith(color: p.ink)),
                 ]),
           ),
           const SizedBox(width: S.x2),
-          Text(meta,
+          Text(coreText(context, meta),
               textAlign: TextAlign.right,
               style: F.cap.copyWith(
                   color: done ? p.on(C.green) : p.ink3,

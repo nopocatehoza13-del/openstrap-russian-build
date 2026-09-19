@@ -24,6 +24,7 @@
 // an estimate — it gets no confidence, because dressing it in the detector's
 // scale would imply it was inferred.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -294,8 +295,8 @@ class _NapsScreenState extends State<NapsScreen> {
               // The number that MOVES, said plainly, because that is why the
               // edit is a recompute: these minutes come off tonight's sleep
               // need and your sleep debt one for one.
-              l?.napsCountsToward(hm(d.napMin)) ??
-                  '${hm(d.napMin)} of nap counts toward tonight’s sleep need.',
+              coreText(c, l?.napsCountsToward(hm(d.napMin)) ??
+                  '${hm(d.napMin)} of nap counts toward tonight’s sleep need.'),
               style: F.cap.copyWith(color: p.ink3, height: 1.5),
             ),
           ],
@@ -326,8 +327,8 @@ class _NapsScreenState extends State<NapsScreen> {
                     Row(children: [
                       Expanded(
                         child: Text(
-                          '${clockOfTs(r['start_ts'] as num)} – '
-                          '${clockOfTs(r['end_ts'] as num)}',
+                          coreText(c, '${clockOfTs(r['start_ts'] as num)} – '
+                          '${clockOfTs(r['end_ts'] as num)}'),
                           style: F.body.copyWith(color: p.ink2),
                         ),
                       ),
@@ -338,7 +339,7 @@ class _NapsScreenState extends State<NapsScreen> {
                                 day!, (r['start_ts'] as num).toInt()),
                         semanticLabel:
                             l?.napsPutBackSemantic ?? 'Put this nap back',
-                        child: Text(l?.napsPutBackLabel ?? 'Put it back',
+                        child: Text(coreText(c, l?.napsPutBackLabel ?? 'Put it back'),
                             style: F.cap.copyWith(
                                 color: p.on(C.blue),
                                 fontWeight: FontWeight.w600)),
@@ -351,9 +352,9 @@ class _NapsScreenState extends State<NapsScreen> {
           ),
           const SizedBox(height: S.x2),
           Text(
-            l?.napsRemovalKept ??
+            coreText(c, l?.napsRemovalKept ??
                 'A removal is kept as a window rather than an id, so it still '
-                    'applies after the detector’s edges move.',
+                    'applies after the detector’s edges move.'),
             style: F.cap.copyWith(color: p.ink3, height: 1.5),
           ),
         ],
@@ -377,8 +378,8 @@ class _NapsScreenState extends State<NapsScreen> {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(
-              '${clockOfTs(nap['start'] as num)} – '
-              '${clockOfTs(nap['end'] as num)}',
+              coreText(c, '${clockOfTs(nap['start'] as num)} – '
+              '${clockOfTs(nap['end'] as num)}'),
               style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: S.x1),
@@ -387,7 +388,7 @@ class _NapsScreenState extends State<NapsScreen> {
               // what it is instead of borrowing the detector's language.
               // `hm(null)` is the empty string, and a row whose only caption
               // is ' · detected' is the silent nothing this app does not do.
-              mins == null
+              coreText(c, mins == null
                   ? (mine
                       ? (l?.napsYouLoggedThis ?? 'You logged this')
                       : (l?.napsDetected ?? 'Detected'))
@@ -395,7 +396,7 @@ class _NapsScreenState extends State<NapsScreen> {
                       ? (l?.napsLoggedWithMins(hm(mins)) ??
                           '${hm(mins)} · you logged this')
                       : (l?.napsDetectedWithMins(hm(mins)) ??
-                          '${hm(mins)} asleep · detected')),
+                          '${hm(mins)} asleep · detected'))),
               style: F.cap.copyWith(color: p.ink3),
             ),
           ]),
@@ -407,9 +408,9 @@ class _NapsScreenState extends State<NapsScreen> {
               ? (l?.napsDeleteSemantic ?? 'Delete this nap')
               : (l?.napsNotANapSemantic ?? 'This was not a nap'),
           child: Text(
-              mine
+              coreText(c, mine
                   ? (l?.napsDeleteLabel ?? 'Delete')
-                  : (l?.napsNotANapLabel ?? 'Not a nap'),
+                  : (l?.napsNotANapLabel ?? 'Not a nap')),
               style: F.cap
                   .copyWith(color: p.on(C.blue), fontWeight: FontWeight.w600)),
         ),

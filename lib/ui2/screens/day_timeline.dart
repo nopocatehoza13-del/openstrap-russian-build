@@ -21,6 +21,7 @@
 // one fact the entry is missing. They go in their own block underneath, which
 // says what it is.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'dart:convert' show jsonDecode;
 
 import 'package:flutter/material.dart';
@@ -35,6 +36,8 @@ import '../../data/local_repository.dart';
 import '../../data/med_store.dart';
 import '../../data/nutrition_store.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_observations_extra.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../state/app_state.dart';
 import '../../state/locale_controller.dart';
 import '../activity/catalogue.dart' show activityByName;
@@ -101,14 +104,17 @@ Map<int, (String, IconData)> _events(AppLocalizations? l) => {
 /// forty that mean the strap moved.
 const int kMinOffWristMin = 15;
 
-String _dur(num? minutes) {
+String _dur(num? minutes, [AppLocalizations? l]) {
   if (minutes == null) return '';
   final m = minutes.round();
+  if (l?.localeName.split(RegExp('[-_]')).first == 'ru') {
+    return m < 60 ? '$m мин' : '${m ~/ 60} ч ${m % 60} мин';
+  }
   return m < 60 ? '${m}m' : '${m ~/ 60}h ${m % 60}m';
 }
 
-String _span(int from, int? to) =>
-    to == null ? clockOfTs(from) : '${clockOfTs(from)} – ${clockOfTs(to)}';
+String _span(int from, int? to, [AppLocalizations? l]) =>
+    to == null ? clockOfTs(from,l) : '${clockOfTs(from,l)} – ${clockOfTs(to,l)}';
 
 /// THE JOIN. Pure, so the ordering and the placement rules are testable
 /// without a database or a frame.
@@ -139,7 +145,7 @@ List<Moment> dayMoments({
       at: on,
       until: off,
       title: l?.dayTimelineAsleep ?? 'Asleep',
-      detail: '${_span(on, off)} · ${_dur((off - on) / 60)}',
+      detail: '${_span(on, off,l)} · ${_dur((off - on) / 60,l)}',
       icon: LucideIcons.moon,
       color: C.blue,
     ));
@@ -153,7 +159,7 @@ List<Moment> dayMoments({
       at: on,
       until: off,
       title: l?.dayTimelineNap ?? 'Nap',
-      detail: '${_span(on, off)} · ${_dur(n['duration_min'] as num?)}',
+      detail: '${_span(on, off,l)} · ${_dur(n['duration_min'] as num?,l)}',
       icon: LucideIcons.bedDouble,
       color: C.indigo,
     ));
@@ -166,14 +172,14 @@ List<Moment> dayMoments({
     final type = s['type']?.toString();
     final act = activityByName(type);
     final bits = <String>[
-      _span(on, asInt(s['end_ts'])),
-      if (s['duration_min'] != null) _dur(s['duration_min'] as num?),
+      _span(on, asInt(s['end_ts']),l),
+      if (s['duration_min'] != null) _dur(s['duration_min'] as num?,l),
       if (s['avg_hr'] != null) '${s['avg_hr']} bpm avg',
     ];
     out.add(Moment(
       at: on,
       until: asInt(s['end_ts']),
-      title: act?.name ??
+      title: act?.displayName(l?.localeName) ??
           (type == null
               ? (l?.dayTimelineWorkout ?? 'Workout')
               : type.replaceAll('_', ' ')),
@@ -195,7 +201,7 @@ List<Moment> dayMoments({
       at: on,
       until: off,
       title: l?.dayTimelineBandOffWrist ?? 'Band off your wrist',
-      detail: '${_span(on, off)} · ${_dur(len)}',
+      detail: '${_span(on, off,l)} · ${_dur(len,l)}',
       icon: LucideIcons.watch,
     ));
   }
@@ -216,8 +222,8 @@ List<Moment> dayMoments({
       out.add(Moment(
         at: t,
         title: e.$2,
-        detail: l?.dayTimelineBpmAt(v.round(), clockOfTs(t)) ??
-            '${v.round()} bpm at ${clockOfTs(t)}',
+        detail: l?.dayTimelineBpmAt(v.round(), clockOfTs(t,l)) ??
+            '${v.round()} bpm at ${clockOfTs(t,l)}',
         icon: e.$3,
         color: C.red,
       ));
@@ -236,7 +242,7 @@ List<Moment> dayMoments({
     out.add(Moment(
       at: t,
       title: def.$1,
-      detail: clockOfTs(t),
+      detail: clockOfTs(t,l),
       icon: def.$2,
     ));
   }
@@ -247,10 +253,10 @@ List<Moment> dayMoments({
     final kcal = m.kcal;
     out.add(Moment(
       at: t,
-      title: m.label.isEmpty ? m.meal : m.label,
+      title: m.label.isEmpty ? ruActivityText(m.meal, locale: l?.localeName) : m.label,
       detail: [
-        clockOfTs(t),
-        if (m.meal.isNotEmpty) m.meal,
+        clockOfTs(t,l),
+        if (m.meal.isNotEmpty) ruActivityText(m.meal, locale: l?.localeName),
         // A bare occasion is complete as a log. It just has no energy on it,
         // and printing "0 kcal" for one is the fabrication this app refuses.
         if (kcal != null) '${kcal.round()} kcal',
@@ -264,7 +270,7 @@ List<Moment> dayMoments({
     out.add(Moment(
       at: d.at,
       title: d.label,
-      detail: l?.dayTimelineTakenAt(clockOfTs(d.at)) ?? 'Taken at ${clockOfTs(d.at)}',
+      detail: l?.dayTimelineTakenAt(clockOfTs(d.at,l)) ?? 'Taken at ${clockOfTs(d.at,l)}',
       icon: LucideIcons.pill,
       color: C.purple,
     ));
@@ -283,11 +289,11 @@ List<Moment> dayMoments({
         : v.value.toStringAsFixed(1);
     out.add(Moment(
       at: dayStart + min * 60,
-      title: spec?.label ?? key.replaceAll('_', ' '),
+      title: spec == null ? key.replaceAll('_', ' ') : journalFieldLabel(spec, l?.localeName),
       // "last one at" is the stored meaning, and saying just "at" would turn a
       // total plus one timestamp into a single event that never happened.
-      detail: '$n${spec == null || spec.unit.isEmpty ? '' : ' ${spec.unit}'} · '
-          '${l?.dayTimelineLastAt(clockOfTs(dayStart + min * 60)) ?? 'last at ${clockOfTs(dayStart + min * 60)}'}',
+      detail: '$n${spec == null || spec.unit.isEmpty ? '' : ' ${observationUnit(spec.unit, l?.localeName)}'} · '
+          '${l?.dayTimelineLastAt(clockOfTs(dayStart + min * 60,l)) ?? 'last at ${clockOfTs(dayStart + min * 60,l)}'}',
       icon: LucideIcons.notebookPen,
       color: C.domMind,
     ));
@@ -319,7 +325,7 @@ List<DayNote> dayNotes({
     if (note.isEmpty && tags.isEmpty) continue;
     out.add(DayNote(
       note.isEmpty ? (l?.dayTimelineTaggedTitle ?? 'Tagged') : note,
-      tags.join(' · '),
+      tags.map((t) => journalTagLabel(t, l?.localeName)).join(' · '),
       LucideIcons.notebookPen,
     ));
   }
@@ -331,17 +337,17 @@ List<DayNote> dayNotes({
         ? v.value.round().toString()
         : v.value.toStringAsFixed(1);
     out.add(DayNote(
-      spec?.label ?? key.replaceAll('_', ' '),
-      '$n${spec == null || spec.unit.isEmpty ? '' : ' ${spec.unit}'}',
+      spec == null ? key.replaceAll('_', ' ') : journalFieldLabel(spec, l?.localeName),
+      '$n${spec == null || spec.unit.isEmpty ? '' : ' ${observationUnit(spec.unit, l?.localeName)}'}',
       LucideIcons.clipboardList,
     ));
   });
   for (final m in meals) {
     if (m.atTs != null) continue;
     out.add(DayNote(
-      m.label.isEmpty ? m.meal : m.label,
+      m.label.isEmpty ? ruActivityText(m.meal, locale: l?.localeName) : m.label,
       [
-        if (m.meal.isNotEmpty) m.meal,
+        if (m.meal.isNotEmpty) ruActivityText(m.meal, locale: l?.localeName),
         if (m.kcal != null) '${m.kcal!.round()} kcal',
       ].join(' · '),
       LucideIcons.utensils,
@@ -826,10 +832,10 @@ class _DayTimelineScreenState extends State<DayTimelineScreen> {
             Padding(
               padding: const EdgeInsets.only(top: S.x2),
               child: Text(
-                l?.dayTimelineDeviceBounded(_deviceOldest ?? '') ??
+                coreText(c, l?.dayTimelineDeviceBounded(_deviceOldest ?? '') ??
                     'Per-device detail is kept for recent days only. Before '
                         '${_deviceOldest ?? ''} we know which device recorded, '
-                        'not what it said.',
+                        'not what it said.'),
                 style: F.over.copyWith(color: P.of(c).ink3),
               ),
             ),
@@ -971,7 +977,7 @@ List<Widget> timelineBody(BuildContext c, TimelineData d) {
                               Text(n.title,
                                   style: F.body.copyWith(color: p.ink)),
                               if (n.detail.isNotEmpty)
-                                Text(n.detail,
+                                Text(coreText(c, n.detail),
                                     style: F.cap.copyWith(color: p.ink2)),
                             ],
                           ),
@@ -987,18 +993,18 @@ List<Widget> timelineBody(BuildContext c, TimelineData d) {
         Padding(
           padding: const EdgeInsets.only(top: S.x2, left: S.x1),
           child: Text(
-            l?.dayTimelineNoTimeNote ??
+            coreText(c, l?.dayTimelineNoTimeNote ??
                 'These were recorded against the day and carry no time of day, so '
-                    'they are not placed on it.',
+                    'they are not placed on it.'),
             style: F.over.copyWith(color: p.ink3, height: 1.5),
           ),
         ),
     ],
     const SizedBox(height: S.x4),
     Text(
-      l?.dayTimelinePatternsNote ??
+      coreText(c, l?.dayTimelinePatternsNote ??
           'Patterns in your own logs, not causes. Two things next to each other '
-              'here happened near each other, which is all this page claims.',
+              'here happened near each other, which is all this page claims.'),
       style: F.over.copyWith(color: p.ink3, height: 1.5),
     ),
   ];
@@ -1015,7 +1021,7 @@ class MomentRow extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     return Semantics(
-      label: '${clockOfTs(m.at)}, ${m.title}. ${m.detail}',
+      label: coreText(c, '${clockOfTs(m.at,AppLocalizations.of(c))}, ${m.title}. ${m.detail}'),
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: S.x3),
@@ -1027,7 +1033,7 @@ class MomentRow extends StatelessWidget {
             // the phones whose owners chose 3.1x.
             SizedBox(
               width: MediaQuery.textScalerOf(c).scale(58),
-              child: Text(clockOfTs(m.at), style: F.n17.copyWith(color: p.ink3)),
+              child: Text(coreText(c, clockOfTs(m.at,AppLocalizations.of(c))), style: F.n17.copyWith(color: p.ink3)),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 2),
@@ -1045,7 +1051,7 @@ class MomentRow extends StatelessWidget {
                         .copyWith(color: p.ink, fontWeight: FontWeight.w600),
                   ),
                   if (m.detail.isNotEmpty)
-                    Text(m.detail,
+                    Text(coreText(c, m.detail),
                         style: F.cap.copyWith(color: p.ink2, height: 1.4)),
                 ],
               ),

@@ -235,7 +235,7 @@ private final class Impl {
     let services = info["NSAccessorySetupBluetoothServices"] as? [String] ?? []
     let labels = info["OSBandLabels"] as? [String: String] ?? [:]
     var items = services.map { svc in
-      makeItem(labels[svc.uppercased()] ?? "Band") {
+      makeItem(labels[svc.uppercased()] ?? OpenStrapShared.text("Band", "Браслет")) {
         $0.bluetoothServiceUUID = CBUUID(string: svc)
       }
     }

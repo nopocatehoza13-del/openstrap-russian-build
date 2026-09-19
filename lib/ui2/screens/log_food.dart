@@ -33,6 +33,7 @@ import '../../data/day_label.dart';
 import '../../data/nutrition_store.dart';
 import '../../data/off_lookup.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../profile/profile.dart' show SetRow;
 import '../ui2.dart';
 import 'journal_compose.dart' show OsTextField;
@@ -286,7 +287,7 @@ class _LogFoodSheetState extends State<LogFoodSheet> {
             'the numbers follow.';
     if (p.servingLabel.isEmpty && p.servingG == null) return base;
     final serving =
-        p.servingLabel.isNotEmpty ? p.servingLabel : '${_plain(p.servingG)} g';
+        p.servingLabel.isNotEmpty ? p.servingLabel : activityText(c, '${_plain(p.servingG)} g');
     return l?.logFoodPortionNoteServing(serving) ?? '$base The pack’s own serving is $serving.';
   }
 
@@ -669,7 +670,7 @@ class _OffCredit extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(kOffAttribution,
+        Text(activityText(c, kOffAttribution),
             style: F.cap.copyWith(color: p.ink3, height: 1.45)),
         const SizedBox(height: S.x1),
         // Wrap, not Row: "Open Database License" beside a URL runs off the
@@ -694,12 +695,12 @@ class _Link extends StatelessWidget {
 
   @override
   Widget build(BuildContext c) => Pressable(
-        semanticLabel: AppLocalizations.of(c)?.logFoodOpensInBrowser(label) ??
+        semanticLabel: AppLocalizations.of(c)?.logFoodOpensInBrowser(activityText(c, label)) ??
             '$label, opens in your browser',
         onTap: () => launchUrl(Uri.parse(url),
             mode: LaunchMode.externalApplication),
         child: Text(
-          label,
+          activityText(c, label),
           style: F.cap.copyWith(
             color: P.of(c).on(C.domFood),
             decoration: TextDecoration.underline,
@@ -790,11 +791,12 @@ class FoodRow extends StatelessWidget {
       return AppLocalizations.of(c)?.logFoodBareOccasion ??
           'LOGGED · ENERGY NOT RECORDED';
     }
+    final ru = Localizations.maybeLocaleOf(c)?.languageCode == 'ru';
     final parts = <String>['${e.kcal!.round()} kcal'];
-    if (e.proteinG != null) parts.add('${e.proteinG!.round()}P');
-    if (e.carbsG != null) parts.add('${e.carbsG!.round()}C');
-    if (e.fatG != null) parts.add('${e.fatG!.round()}F');
-    return parts.join(' · ');
+    if (e.proteinG != null) parts.add('${e.proteinG!.round()}${ru ? ' г Б' : 'P'}');
+    if (e.carbsG != null) parts.add('${e.carbsG!.round()}${ru ? ' г У' : 'C'}');
+    if (e.fatG != null) parts.add('${e.fatG!.round()}${ru ? ' г Ж' : 'F'}');
+    return activityText(c, parts.join(' · '));
   }
 }
 
@@ -811,8 +813,8 @@ class _NumberRow extends StatelessWidget {
         Expanded(
           child: OsTextField(
             controller: fields[i].$3,
-            label: '${fields[i].$1} (${fields[i].$2})',
-            hint: hint,
+            label: '${fields[i].$1} (${activityText(c, fields[i].$2)})',
+            hint: activityText(c, hint),
             keyboard: const TextInputType.numberWithOptions(decimal: true),
           ),
         ),

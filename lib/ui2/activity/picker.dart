@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../grammar.dart';
 import '../theme.dart';
 import 'catalogue.dart';
@@ -70,7 +71,7 @@ class _ActivityPickerState extends State<ActivityPicker> {
     final results = searching
         ? [
             for (final a in allActivities)
-              if (a.name.toLowerCase().contains(needle)) a,
+              if (activityNameMatches(a.name, needle, locale: l?.localeName)) a,
           ]
         : const <Activity>[];
 
@@ -186,7 +187,7 @@ class _ActivityPickerState extends State<ActivityPicker> {
                               size: 18, color: p.ink2),
                           const SizedBox(width: S.x3),
                           Expanded(
-                              child: Text(activityLibrary[gi].name,
+                              child: Text(activityText(c, activityLibrary[gi].name),
                                   style: F.head.copyWith(color: p.ink))),
                           Text('${activityLibrary[gi].items.length}',
                               style: F.cap.copyWith(color: p.ink3)),
@@ -233,7 +234,7 @@ class _ActivityPickerState extends State<ActivityPicker> {
                     StatusCard(
                       l?.activityPickerCalorieEstimatesTitle ??
                           'Calorie figures are estimates',
-                      kCalorieWhy,
+                      activityText(c, kCalorieWhy),
                       icon: LucideIcons.flame,
                     ),
                   ],
@@ -280,7 +281,7 @@ class ActivityRow extends StatelessWidget {
           Expanded(
             child: Row(children: [
               Flexible(
-                  child: Text(a.name,
+                  child: Text(activityText(c, a.name),
                       style: F.body.copyWith(color: p.ink),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis)),
@@ -326,7 +327,7 @@ class _Quick extends StatelessWidget {
     final p = P.of(c);
     return Pressable(
       onTap: onTap,
-      semanticLabel: a.name,
+      semanticLabel: activityText(c, a.name),
       child: Container(
         width: 84,
         decoration: BoxDecoration(
@@ -342,7 +343,7 @@ class _Quick extends StatelessWidget {
           const SizedBox(height: S.x2),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: S.x1),
-            child: Text(a.name,
+            child: Text(activityText(c, a.name),
                 style: F.over.copyWith(color: p.ink2),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),

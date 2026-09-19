@@ -25,6 +25,7 @@ import 'coach_actions.dart';
 import 'coach_config.dart';
 import 'coach_db.dart';
 import 'coach_prompt.dart';
+import '../l10n/ai_response_language.dart';
 
 // ── value types ──────────────────────────────────────────────────────────────
 
@@ -631,6 +632,11 @@ class CoachEngine {
     Map<String, dynamic> body, {
     http.Client? client,
   }) async {
+    final language = await savedAiResponseLanguage();
+    if (body['messages'] is List) {
+      body = {...body, 'messages': aiMessagesForLanguage(
+        (body['messages'] as List).cast<Map<String, dynamic>>(), language)};
+    }
     final c = client ?? http.Client();
     // Recent Claude models reject sampling params with a 400, on Anthropic's
     // own endpoint and through any pass-through provider alike. Strip them for

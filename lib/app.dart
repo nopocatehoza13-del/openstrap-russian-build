@@ -1,3 +1,4 @@
+import 'l10n/ru_core_extra.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -282,13 +283,13 @@ class _InitFailed extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('OpenStrap could not start',
+                Text(coreText(c, 'OpenStrap could not start'),
                     style: F.t2.copyWith(color: p.ink)),
                 const SizedBox(height: 8),
                 Text(
-                  'Your data is still on this device — nothing was deleted. '
+                  coreText(c, 'Your data is still on this device — nothing was deleted. '
                   'This is a start-up step failing, and it will fail the same '
-                  'way each launch until it is fixed.',
+                  'way each launch until it is fixed.'),
                   style: F.body.copyWith(color: p.ink2, height: 1.5),
                 ),
                 const SizedBox(height: 16),
@@ -300,14 +301,14 @@ class _InitFailed extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: SelectableText(
-                    app.initError ?? 'No error was recorded.',
+                    app.initError ?? coreText(c, 'No error was recorded.'),
                     style: F.cap.copyWith(color: p.ink2),
                   ),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
                   onPressed: app.retryInit,
-                  child: const Text('Try again'),
+                  child: Text(coreText(c, 'Try again')),
                 ),
               ],
             ),
@@ -629,7 +630,7 @@ class _LiveSessionBar extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x3),
             child: Row(children: [
               Expanded(
-                child: Text('Session running — tap to finish',
+                child: Text(coreText(c, 'Session running — tap to finish'),
                     style: F.body.copyWith(color: p.ink)),
               ),
               Icon(LucideIcons.square, size: 18, color: p.ink3),
@@ -644,7 +645,7 @@ class _LiveSessionBar extends StatelessWidget {
         border: Border(top: BorderSide(color: p.line)),
       ),
       child: Pressable(
-        semanticLabel: 'Back to your ${a.name.toLowerCase()} session',
+        semanticLabel: Localizations.maybeLocaleOf(c)?.languageCode == 'ru' ? 'Вернуться к тренировке: ${a.displayName('ru')}' : 'Back to your ${a.name.toLowerCase()} session',
         onTap: () => _resume(c),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -662,12 +663,12 @@ class _LiveSessionBar extends StatelessWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(a.name,
+                    Text(a.displayName(Localizations.maybeLocaleOf(c)?.languageCode),
                         style: F.body.copyWith(
                             color: p.ink, fontWeight: FontWeight.w600),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
-                    Text('Session running',
+                    Text(coreText(c, 'Session running'),
                         style: F.over.copyWith(color: p.ink3)),
                   ]),
             ),

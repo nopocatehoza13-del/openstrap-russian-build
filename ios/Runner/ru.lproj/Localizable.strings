@@ -1,0 +1,16 @@
+// Russian localization / English development fallback.
+"Check Readiness" = "Узнать готовность к нагрузке";
+"Ask OpenStrap for today's readiness." = "Узнайте в OpenStrap свою готовность к нагрузке на сегодня.";
+"Check Strain" = "Узнать нагрузку";
+"Ask OpenStrap for today's strain." = "Узнайте в OpenStrap свою нагрузку за сегодня.";
+"Check Sleep" = "Узнать данные о сне";
+"Ask OpenStrap how you slept." = "Узнайте в OpenStrap, как вы спали.";
+"Start Breathing Session" = "Начать дыхательную практику";
+"Start a guided resonance-breathing session in OpenStrap." = "Начните практику резонансного дыхания с подсказками в OpenStrap.";
+"Enable Tomorrow's Alarm" = "Включить будильник на завтра";
+"Turn on tomorrow's alarm at whatever time you already set for that weekday in OpenStrap." = "Включите будильник на завтра на время, уже заданное для этого дня недели в OpenStrap.";
+"Readiness" = "Готовность к нагрузке";
+"Strain" = "Нагрузка";
+"Sleep" = "Сон";
+"Breathe" = "Дыхание";
+"Tomorrow's Alarm" = "Будильник на завтра";

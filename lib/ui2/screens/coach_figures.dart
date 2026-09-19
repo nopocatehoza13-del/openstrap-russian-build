@@ -13,6 +13,7 @@
 // the house form for "the number exists but the series behind the picture does
 // not".
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -122,7 +123,7 @@ class CoachFigure extends StatelessWidget {
       children: [
         body,
         const SizedBox(height: S.x2),
-        Text(note, style: F.cap.copyWith(color: p.ink3, height: 1.4)),
+        Text(coreText(c, note), style: F.cap.copyWith(color: p.ink3, height: 1.4)),
       ],
     );
   }
@@ -439,9 +440,9 @@ class CoachFigure extends StatelessWidget {
                   painter: Ring(frac, p.on(C.blue), p.track, stroke: 8),
                 ),
                 Text(
-                  v == v.roundToDouble()
+                  coreText(c, v == v.roundToDouble()
                       ? v.round().toString()
-                      : v.toStringAsFixed(1),
+                      : v.toStringAsFixed(1)),
                   style: F.n24.copyWith(color: p.ink),
                 ),
               ],
@@ -453,15 +454,15 @@ class CoachFigure extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title.isEmpty
+                  coreText(c, title.isEmpty
                       ? (label.isEmpty ? (l?.coachFiguresGauge ?? 'Gauge') : label)
-                      : title,
+                      : title),
                   style: F.head.copyWith(color: p.ink),
                 ),
                 const SizedBox(height: S.x1),
                 Text(
-                  '${lo.round()}–${hi.round()}'
-                  '${unit.isEmpty ? '' : ' $unit'}',
+                  coreText(c, '${lo.round()}–${hi.round()}'
+                  '${unit.isEmpty ? '' : ' $unit'}'),
                   style: F.cap.copyWith(color: p.ink3),
                 ),
               ],
@@ -516,7 +517,7 @@ class CoachFigure extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: F.head.copyWith(color: p.ink)),
+        Text(coreText(c, title), style: F.head.copyWith(color: p.ink)),
         const SizedBox(height: S.x3),
         grid,
       ],
@@ -566,14 +567,14 @@ class CoachFigure extends StatelessWidget {
     final n = rows.fold<int>(cols.length, (a, r) => r.length > a ? r.length : a);
     Widget cell(String s, TextStyle st) => Padding(
       padding: const EdgeInsets.symmetric(vertical: S.x2, horizontal: S.x2),
-      child: Text(s, style: st),
+      child: Text(coreText(c, s), style: st),
     );
     return Surface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (title.isNotEmpty) ...[
-            Text(title, style: F.head.copyWith(color: p.ink)),
+            Text(coreText(c, title), style: F.head.copyWith(color: p.ink)),
             const SizedBox(height: S.x2),
           ],
           // A wide table scrolls inside itself rather than overflowing the

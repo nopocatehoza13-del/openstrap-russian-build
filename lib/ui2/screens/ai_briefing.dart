@@ -11,6 +11,7 @@
 // not a nicety. It is the thing that makes choosing a cloud key a decision
 // rather than a leap, and it is why the local presets come first in setup.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
@@ -124,13 +125,13 @@ class _AiBriefingScreenState extends State<AiBriefingScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            b.oneLiner,
+                            coreText(c, b.oneLiner),
                             style: F.body.copyWith(color: p.ink, height: 1.5),
                           ),
                           if (b.breakdownMd.isNotEmpty) ...[
                             const SizedBox(height: S.x3),
                             Text(
-                              b.breakdownMd,
+                              coreText(c, b.breakdownMd),
                               style: F.cap.copyWith(color: p.ink2, height: 1.6),
                             ),
                           ],
@@ -244,7 +245,7 @@ class SentPayload extends StatelessWidget {
                 const SizedBox(width: S.x3),
                 Expanded(
                   child: Text(
-                    none
+                    coreText(c, none
                         ? (l?.aiBriefingNoneBody ??
                             'Nothing. There was no request — the note above was '
                                 'written on this phone.')
@@ -255,7 +256,7 @@ class SentPayload extends StatelessWidget {
                             : (l?.aiBriefingCloudBody(host, config.model) ??
                                 'These numbers, and nothing else, were sent to '
                                     '$host as ${config.model}. No raw '
-                                    'recordings, no name, no identifier.'),
+                                    'recordings, no name, no identifier.')),
                     style: F.cap.copyWith(color: p.ink, height: 1.5),
                   ),
                 ),
@@ -295,14 +296,14 @@ class SentPayload extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              _label(k),
+                              coreText(c, _label(k)),
                               style: F.cap.copyWith(color: p.ink3),
                             ),
                           ),
                           const SizedBox(width: S.x3),
                           Flexible(
                             child: Text(
-                              _value(inputs[k]),
+                              coreText(c, _value(inputs[k])),
                               textAlign: TextAlign.right,
                               style: F.cap.copyWith(color: p.ink),
                             ),

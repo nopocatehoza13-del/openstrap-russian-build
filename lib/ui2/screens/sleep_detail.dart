@@ -12,6 +12,7 @@
 // constants — it is the user's own distribution, so it cannot be wrong about
 // somebody it was never fitted to.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -128,8 +129,8 @@ String _pts(double v) => '${v.round()} points';
 
 /// A stage interval as one label. Seconds in, because that is what the analytics
 /// interval carries; `hm` wants minutes.
-String _rangeText(ana.StageInterval i) =>
-    '${hm(i.loSec / 60)}–${hm(i.hiSec / 60)}';
+String _rangeText(ana.StageInterval i, [AppLocalizations? l]) =>
+    '${hm(i.loSec / 60, l)}–${hm(i.hiSec / 60, l)}';
 
 String _capitalise(String s) =>
     s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
@@ -460,7 +461,7 @@ class _SleepDetailState extends State<SleepDetail> {
           TextButton(
             onPressed: _saving ? null : () => _clearWindow(rejectedDay),
             child: Text(
-                l?.sleepDetailUndoRejection ?? 'Undo — go back to automatic'),
+                coreText(c, l?.sleepDetailUndoRejection ?? 'Undo — go back to automatic')),
           ),
         ],
         // A day with no main-sleep window can still have naps — worn all
@@ -536,8 +537,8 @@ class _SleepDetailState extends State<SleepDetail> {
     final tst = n['duration_min'] as num?;
     final eff = n['efficiency'] as num?;
     final inBed = n['in_bed_min'] as num?;
-    final from = clockOfTs(n['onset_ts'] as num?);
-    final to = clockOfTs(n['wake_ts'] as num?);
+    final from = clockOfTs(n['onset_ts'] as num?, l);
+    final to = clockOfTs(n['wake_ts'] as num?, l);
     // Wall clock minus the minutes nobody watched. `efficiency_pct` has always
     // divided by this, so on a night with a hole the honest denominator just
     // read as a worse night unless the screen says which window it is.
@@ -547,9 +548,9 @@ class _SleepDetailState extends State<SleepDetail> {
         : math.max(0, inBed - unobserved);
     return Surface(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(hm(tst), style: F.n48.copyWith(color: p.ink)),
+        Text(coreText(c, hm(tst, l)), style: F.n48.copyWith(color: p.ink)),
         const SizedBox(height: S.x1),
-        Text(l?.sleepDetailTotalSleep ?? 'Total sleep',
+        Text(coreText(c, l?.sleepDetailTotalSleep ?? 'Total sleep'),
             style: F.cap.copyWith(color: p.ink3)),
         if (from.isNotEmpty && to.isNotEmpty) ...[
           const SizedBox(height: S.x4),
@@ -557,7 +558,7 @@ class _SleepDetailState extends State<SleepDetail> {
             Icon(LucideIcons.moon, size: 15, color: p.ink3),
             const SizedBox(width: S.x2),
             Flexible(
-              child: Text('$from → $to',
+              child: Text(coreText(c, '$from → $to'),
                   style: F.body
                       .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
             ),
@@ -566,9 +567,9 @@ class _SleepDetailState extends State<SleepDetail> {
         if (inBed != null || eff != null) ...[
           const SizedBox(height: S.x4),
           InlineMetrics([
-            if (inBed != null) (l?.sleepDetailInBed ?? 'IN BED', hm(inBed), C.indigo),
+            if (inBed != null) (l?.sleepDetailInBed ?? 'IN BED', hm(inBed, l), C.indigo),
             if (watched != null)
-              (l?.sleepDetailWatched ?? 'WATCHED', hm(watched), C.sky),
+              (l?.sleepDetailWatched ?? 'WATCHED', hm(watched, l), C.sky),
             if (eff != null)
               (watched == null
                   ? (l?.sleepDetailAsleepOfThat ?? 'ASLEEP OF THAT')
@@ -579,10 +580,10 @@ class _SleepDetailState extends State<SleepDetail> {
         if (watched != null) ...[
           const SizedBox(height: S.x3),
           Text(
-            l?.sleepDetailWatchedExplain(hm(watched), hm(inBed!)) ??
+            coreText(c, l?.sleepDetailWatchedExplain(hm(watched, l), hm(inBed!, l)) ??
                 'We watched ${hm(watched)} of your ${hm(inBed!)} in bed; the rest '
                     'is not a measurement. Asleep, and the stage shares below, are out '
-                    'of the time we watched.',
+                    'of the time we watched.'),
             style: F.over.copyWith(color: p.ink3, height: 1.5),
           ),
         ],
@@ -619,7 +620,7 @@ class _SleepDetailState extends State<SleepDetail> {
         // open naps for the day you just navigated away from.
         onPressed:
             _saving || _loading ? null : () => go(c, NapsScreen(day: day)),
-        child: Text(l?.sleepDetailEditNaps ?? 'Naps'),
+        child: Text(coreText(c, l?.sleepDetailEditNaps ?? 'Naps')),
       ),
     ];
   }
@@ -646,13 +647,13 @@ class _SleepDetailState extends State<SleepDetail> {
             const SizedBox(width: S.x2),
             Expanded(
               child: Text(
-                mine
+                coreText(c, mine
                     ? (l?.sleepDetailWindowMine ?? 'You set this window')
                     : fallback
                         ? (l?.sleepDetailWindowFallback ??
                             'This window was inferred from heart rate')
                         : (l?.sleepDetailWindowAuto ??
-                            'This window was staged from the signals'),
+                            'This window was staged from the signals')),
                 style: F.body.copyWith(color: p.ink),
               ),
             ),
@@ -660,9 +661,9 @@ class _SleepDetailState extends State<SleepDetail> {
           if (fallback) ...[
             const SizedBox(height: S.x2),
             Text(
-              l?.sleepDetailWindowFallbackBody ??
+              coreText(c, l?.sleepDetailWindowFallbackBody ??
                   'Staging could not find the edges, so the times are a best '
-                      'guess.',
+                      'guess.'),
               style: F.cap.copyWith(color: p.ink3),
             ),
           ],
@@ -676,9 +677,9 @@ class _SleepDetailState extends State<SleepDetail> {
           if (mine && d.solMin != null) ...[
             const SizedBox(height: S.x2),
             Text(
-              l?.sleepDetailWindowSol(_solBand(c, d.solMin!)) ??
+              coreText(c, l?.sleepDetailWindowSol(_solBand(c, d.solMin!)) ??
                   'From the start of your window to asleep: '
-                      '${_solBand(c, d.solMin!)}.',
+                      '${_solBand(c, d.solMin!)}.'),
               style: F.cap.copyWith(color: p.ink3),
             ),
           ],
@@ -687,31 +688,31 @@ class _SleepDetailState extends State<SleepDetail> {
             if (fallback)
               TextButton(
                 onPressed: busy ? null : () => _confirmWindow(day),
-                child: Text(l?.sleepDetailConfirmTimes ?? 'These times are right'),
+                child: Text(coreText(c, l?.sleepDetailConfirmTimes ?? 'These times are right')),
               ),
             TextButton(
               onPressed: busy ? null : () => _editWindow(day, t0, t1),
-              child: Text(mine
+              child: Text(coreText(c, mine
                   ? (l?.sleepDetailChangeTimes ?? 'Change the times')
-                  : (l?.sleepDetailSetTimesMyself ?? 'Set the times myself')),
+                  : (l?.sleepDetailSetTimesMyself ?? 'Set the times myself'))),
             ),
             if (mine)
               TextButton(
                 onPressed: busy ? null : () => _clearWindow(day),
                 child:
-                    Text(l?.sleepDetailBackToAutomatic ?? 'Back to automatic'),
+                    Text(coreText(c, l?.sleepDetailBackToAutomatic ?? 'Back to automatic')),
               ),
             // The missing third answer next to "Looks right"/"Edit": naps
             // already have a reject action (sleep_nap source='rejected');
             // a whole-night main-sleep session didn't (edge#248).
             TextButton(
               onPressed: busy ? null : () => _rejectWindow(day),
-              child: Text(l?.sleepDetailNotSleep ?? 'Not sleep'),
+              child: Text(coreText(c, l?.sleepDetailNotSleep ?? 'Not sleep')),
             ),
           ]),
           if (busy) ...[
             const SizedBox(height: S.x2),
-            Text(l?.sleepDetailReanalysing ?? 'Re-analysing the night…',
+            Text(coreText(c, l?.sleepDetailReanalysing ?? 'Re-analysing the night…'),
                 style: F.cap.copyWith(color: p.ink3)),
           ],
           if (!busy && _overrideFailed != null) ...[
@@ -839,10 +840,10 @@ class _SleepDetailState extends State<SleepDetail> {
           unit: l?.sleepDetailUnitStage ?? 'stage',
           height: 132,
           xLabels: [
-            clockOfTs(t0),
+            clockOfTs(t0, l),
             if (t0 != null && t1 != null && t1 > t0)
-              clockOfTs(t0 + (t1 - t0) ~/ 2),
-            clockOfTs(t1),
+              clockOfTs(t0 + (t1 - t0) ~/ 2, l),
+            clockOfTs(t1, l),
           ],
           // Driven by the night, not by the enum: a night with no REM in
           // it used to still print REM in its key.
@@ -854,22 +855,22 @@ class _SleepDetailState extends State<SleepDetail> {
         ),
         const SizedBox(height: S.x2),
         Text(
-          cycles > 0
+          coreText(c, cycles > 0
               ? (mean == null
                   ? (l?.sleepDetailTapDragCycles(cycles) ??
                       'Tap or drag the chart for any moment. $cycles '
                           '${cycles == 1 ? 'cycle' : 'cycles'}.')
-                  : (l?.sleepDetailTapDragCyclesAvg(cycles, hm(mean)) ??
+                  : (l?.sleepDetailTapDragCyclesAvg(cycles, hm(mean, l)) ??
                       'Tap or drag the chart for any moment. $cycles '
                           '${cycles == 1 ? 'cycle' : 'cycles'}, ${hm(mean)} '
                           'on average.'))
               : (l?.sleepDetailTapDragNone ??
-                  'Tap or drag the chart for any moment of the night.'),
+                  'Tap or drag the chart for any moment of the night.')),
           style: F.over.copyWith(color: p.ink3, height: 1.5),
         ),
         if (_shape(c, d) case final shape?) ...[
           const SizedBox(height: S.x2),
-          Text(shape, style: F.over.copyWith(color: p.ink3, height: 1.5)),
+          Text(coreText(c, shape), style: F.over.copyWith(color: p.ink3, height: 1.5)),
         ],
       ]),
     );
@@ -897,7 +898,7 @@ class _SleepDetailState extends State<SleepDetail> {
                 'At least $w wake-up${w == 1 ? '' : 's'} of 5 minutes or more; '
                     'shorter ones are invisible to a wrist.'),
       if (longest != null)
-        l?.sleepDetailLongestStretch(hm(longest)) ??
+        l?.sleepDetailLongestStretch(hm(longest, l)) ??
             'Longest unbroken stretch ${hm(longest)}.',
     ];
     return parts.isEmpty ? null : parts.join(' ');
@@ -946,7 +947,7 @@ class _SleepDetailState extends State<SleepDetail> {
           final at = (t0 == null || t1 == null || t1 <= t0)
               ? (l?.sleepDetailPercentThroughNight((v * 100).round()) ??
                   '${(v * 100).round()}% through the night')
-              : clockOfTs(t0 + ((t1 - t0) * v).round());
+              : clockOfTs(t0 + ((t1 - t0) * v).round(), l);
           final stageName = st == null
               ? (l?.sleepDetailNotMeasured ?? 'not measured')
               : _stageName(c, st);
@@ -1032,7 +1033,7 @@ class _SleepDetailState extends State<SleepDetail> {
         elevation: 0,
         child: Column(children: [
           Row(children: [
-            Text(clockOfTs(t),
+            Text(coreText(c, clockOfTs(t, l)),
                 style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
             const Spacer(),
             if (stage != null)
@@ -1040,12 +1041,12 @@ class _SleepDetailState extends State<SleepDetail> {
             else if (stages.isNotEmpty)
               // Not a stage, so not a Pill: this instant has no colour because
               // the band was not recording it.
-              Text(l?.sleepDetailNotMeasuredCap ?? 'Not measured',
+              Text(coreText(c, l?.sleepDetailNotMeasuredCap ?? 'Not measured'),
                   style: F.cap.copyWith(color: p.ink3)),
           ]),
           if (items.isEmpty) ...[
             const SizedBox(height: S.x3),
-            Text(l?.sleepDetailNoSignalAtMoment ?? 'No signal recorded at this moment.',
+            Text(coreText(c, l?.sleepDetailNoSignalAtMoment ?? 'No signal recorded at this moment.'),
                 style: F.cap.copyWith(color: p.ink3)),
           ] else ...[
             const SizedBox(height: S.x4),
@@ -1077,8 +1078,8 @@ class _SleepDetailState extends State<SleepDetail> {
         width: 10,
         height: 10,
         decoration: BoxDecoration(color: s.$3, shape: BoxShape.circle));
-    final name = Text(s.$1, style: F.body.copyWith(color: p.ink));
-    final value = Text(s.$2,
+    final name = Text(coreText(c, s.$1), style: F.body.copyWith(color: p.ink));
+    final value = Text(coreText(c, s.$2),
         textAlign: TextAlign.right,
         style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600));
     if (!bigText(c)) {
@@ -1097,7 +1098,7 @@ class _SleepDetailState extends State<SleepDetail> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           name,
           const SizedBox(height: S.x1),
-          Text(s.$2, style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
+          Text(coreText(c, s.$2), style: F.cap.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
         ]),
       ),
     ]);
@@ -1120,11 +1121,11 @@ class _SleepDetailState extends State<SleepDetail> {
     final r = _ranges(n);
     final awake = n['awake_min'] as num?;
     final rows = <(String, String, Color)>[
-      if (r != null) (l?.sleepDetailDeep ?? 'Deep', _rangeText(r.deep), C.blue),
-      if (r != null) (l?.sleepDetailStageRem ?? 'REM', _rangeText(r.rem), C.teal),
-      if (r != null) (l?.sleepDetailLight ?? 'Light', _rangeText(r.light), C.sky),
+      if (r != null) (l?.sleepDetailDeep ?? 'Deep', _rangeText(r.deep, l), C.blue),
+      if (r != null) (l?.sleepDetailStageRem ?? 'REM', _rangeText(r.rem, l), C.teal),
+      if (r != null) (l?.sleepDetailLight ?? 'Light', _rangeText(r.light, l), C.sky),
       if (awake != null)
-        (l?.sleepDetailStageAwake ?? 'Awake', hm(awake), C.orange),
+        (l?.sleepDetailStageAwake ?? 'Awake', hm(awake, l), C.orange),
     ];
     if (rows.isEmpty) {
       return StatusCard(
@@ -1154,10 +1155,10 @@ class _SleepDetailState extends State<SleepDetail> {
         // The width is this night's own — better coverage, narrower range —
         // rather than one published figure applied to every night.
         Text(
-            l?.sleepDetailStageRangeExplain ??
+            coreText(c, l?.sleepDetailStageRangeExplain ??
                 'Each stage is a range, not a count — the better we saw the night, '
                     'the narrower it is. Deep is the widest. Awake stays one figure. '
-                    'Nerd stats has the exact counts.',
+                    'Nerd stats has the exact counts.'),
             style: F.over.copyWith(color: p.ink3, height: 1.5)),
       ],
     ]);
@@ -1183,14 +1184,14 @@ class _SleepDetailState extends State<SleepDetail> {
     if (tst != null) {
       rows.add(_Compare(
         label: l?.sleepDetailTimeAsleep ?? 'Time asleep',
-        value: hm(tst),
+        value: hm(tst, l),
         tonight: tst,
         history: d.tstHistory,
         color: C.indigo,
         low: l?.sleepDetailShorterThanUsual ?? 'shorter than usual',
         high: l?.sleepDetailLongerThanUsual ?? 'longer than usual',
-        fmt: (v) => hm(v),
-        dfmt: (v) => hm(v),
+        fmt: (v) => hm(v, l),
+        dfmt: (v) => hm(v, l),
       ));
     }
 
@@ -1205,15 +1206,15 @@ class _SleepDetailState extends State<SleepDetail> {
       final deep = deepRange.pointSec / 60;
       rows.add(_Compare(
         label: l?.sleepDetailStageDeep ?? 'Deep sleep',
-        value: _rangeText(deepRange),
+        value: _rangeText(deepRange, l),
         tonight: deep,
         blur: (deepRange.hiSec - deepRange.loSec) / 120,
         history: d.deepHistory,
         color: C.blue,
         low: l?.sleepDetailLessThanUsual ?? 'less than usual',
         high: l?.sleepDetailMoreThanUsual ?? 'more than usual',
-        fmt: (v) => hm(v),
-        dfmt: (v) => hm(v),
+        fmt: (v) => hm(v, l),
+        dfmt: (v) => hm(v, l),
       ));
     }
 
@@ -1228,7 +1229,7 @@ class _SleepDetailState extends State<SleepDetail> {
         low: l?.sleepDetailLowerThanUsual ?? 'lower than usual',
         high: l?.sleepDetailHigherThanUsual ?? 'higher than usual',
         fmt: _pct,
-        dfmt: _pts,
+        dfmt: (v) => coreText(c, _pts(v)),
       ));
     }
 
@@ -1242,14 +1243,14 @@ class _SleepDetailState extends State<SleepDetail> {
       final rel = [for (final o in d.onsetHistory) _relMinutes(o, onset)];
       rows.add(_Compare(
         label: l?.sleepDetailFellAsleep ?? 'Fell asleep',
-        value: clockOfTs(onset),
+        value: clockOfTs(onset, l),
         tonight: 0,
         history: rel,
         color: C.purple,
         low: l?.sleepDetailEarlierThanUsual ?? 'earlier than usual',
         high: l?.sleepDetailLaterThanUsual ?? 'later than usual',
-        fmt: (v) => clockOfTs(onset + (v * 60).round()),
-        dfmt: (v) => hm(v),
+        fmt: (v) => clockOfTs(onset + (v * 60).round(), l),
+        dfmt: (v) => hm(v, l),
       ));
     }
 
@@ -1285,8 +1286,8 @@ class _SleepDetailState extends State<SleepDetail> {
       ),
       const SizedBox(height: S.x2),
       Text(
-          l?.sleepDetailBarExplain ??
-              'The bar is the middle half of your own nights.',
+          coreText(c, l?.sleepDetailBarExplain ??
+              'The bar is the middle half of your own nights.'),
           style: F.over.copyWith(color: p.ink3, height: 1.5)),
     ]);
   }
@@ -1407,7 +1408,7 @@ class _SleepDetailState extends State<SleepDetail> {
           Icon(LucideIcons.check, size: 16, color: p.on(C.green)),
           const SizedBox(width: S.x3),
           Expanded(
-            child: Text(l?.sleepDetailNothingStoodOut ?? 'Nothing stood out.',
+            child: Text(coreText(c, l?.sleepDetailNothingStoodOut ?? 'Nothing stood out.'),
                 style: F.cap.copyWith(color: p.ink2, height: 1.5)),
           ),
         ]),
@@ -1559,9 +1560,9 @@ class _SleepDetailState extends State<SleepDetail> {
       if (present.length < 2) return;
       series.add(g);
       colors.add(col);
-      legend.add(('$label ($unit)', col));
+      legend.add(('$label (${coreText(c, unit)})', col));
       axes.add(AxisSpec.of(present, ticks: 2, format: format));
-      units.add(unit);
+      units.add(coreText(c, unit));
     }
 
     // Solved against the card, like every other mark: raw pigment measures
@@ -1591,8 +1592,8 @@ class _SleepDetailState extends State<SleepDetail> {
           unit: units.join(' · '),
           height: 44.0 * series.length + 20,
           xLabels: [
-            clockOfTs(n['onset_ts'] as num?),
-            clockOfTs(n['wake_ts'] as num?),
+            clockOfTs(n['onset_ts'] as num?, loc),
+            clockOfTs(n['wake_ts'] as num?, loc),
           ],
           legend: legend,
           // No footnote. The legend already names each lane and its unit, and
@@ -1626,9 +1627,9 @@ class _SleepDetailState extends State<SleepDetail> {
     }
 
     final reason = [
-      if (need != null) l?.sleepDetailYourNeedIs(hm(need)) ?? 'Your need is ${hm(need)}',
+      if (need != null) l?.sleepDetailYourNeedIs(hm(need, l)) ?? 'Your need is ${hm(need)}',
       if (debt != null && debt >= 1)
-        l?.sleepDetailYouAreDown(hm(debt)) ?? 'you are ${hm(debt)} down',
+        l?.sleepDetailYouAreDown(hm(debt, l)) ?? 'you are ${hm(debt)} down',
     ].join(', ');
 
     return Surface(
@@ -1638,21 +1639,21 @@ class _SleepDetailState extends State<SleepDetail> {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Flexible(
-                child: Text(bed != null ? clock(bed) : hm(need),
+                child: Text(coreText(c, bed != null ? clock(bed, l) : hm(need, l)),
                     style: F.n34.copyWith(color: p.ink)),
               ),
               const SizedBox(width: S.x2),
               Flexible(
                 child: Text(
-                    bed != null
+                    coreText(c, bed != null
                         ? (l?.sleepDetailLightsOut ?? 'lights out')
-                        : (l?.sleepDetailToAimFor ?? 'to aim for'),
+                        : (l?.sleepDetailToAimFor ?? 'to aim for')),
                     style: F.cap.copyWith(color: p.ink3)),
               ),
             ]),
         if (reason.isNotEmpty) ...[
           const SizedBox(height: S.x3),
-          Text('$reason.', style: F.body.copyWith(color: p.ink2, height: 1.5)),
+          Text(coreText(c, '$reason.'), style: F.body.copyWith(color: p.ink2, height: 1.5)),
         ],
       ]),
     );
@@ -1706,10 +1707,10 @@ class _Compare extends StatelessWidget {
     final band = _band(history);
 
     final head = Row(children: [
-      Expanded(child: Text(label, style: F.body.copyWith(color: p.ink))),
+      Expanded(child: Text(coreText(c, label), style: F.body.copyWith(color: p.ink))),
       const SizedBox(width: S.x2),
       Flexible(
-        child: Text(value,
+        child: Text(coreText(c, value),
             textAlign: TextAlign.right,
             style: F.n17.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
       ),
@@ -1722,8 +1723,8 @@ class _Compare extends StatelessWidget {
         head,
         const SizedBox(height: S.x1),
         Text(
-            l?.sleepDetailNoPersonalRangeYet(history.length, _minNights) ??
-                'No personal range yet — ${history.length} of $_minNights nights.',
+            coreText(c, l?.sleepDetailNoPersonalRangeYet(history.length, _minNights) ??
+                'No personal range yet — ${history.length} of $_minNights nights.'),
             style: F.over.copyWith(color: p.ink3)),
       ]);
     }
@@ -1757,10 +1758,10 @@ class _Compare extends StatelessWidget {
           color: color),
       const SizedBox(height: S.x2),
       Text(
-          l?.sleepDetailVerdictSummary(
+          coreText(c, l?.sleepDetailVerdictSummary(
                   verdict, fmt(band.lo), fmt(band.hi), band.n) ??
               '$verdict · usual ${fmt(band.lo)}–${fmt(band.hi)} over ${band.n} '
-                  'nights',
+                  'nights'),
           style: F.over.copyWith(color: p.ink3, height: 1.5)),
     ]);
   }

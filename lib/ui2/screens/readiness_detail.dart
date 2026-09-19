@@ -5,6 +5,7 @@
 // parallel percentile view of the same four inputs. Presenting the second as
 // if it decomposed the first would be a small lie that is very hard to catch.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'dart:convert' show jsonDecode;
 
 import 'package:flutter/material.dart';
@@ -205,8 +206,8 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
                         stroke: 14, t: animate(c, 1)),
                   ),
                   Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text('${v.round()}', style: F.n48.copyWith(color: p.ink)),
-                    Text(band.label, style: F.cap.copyWith(color: p.ink3)),
+                    Text(coreText(c, '${v.round()}'), style: F.n48.copyWith(color: p.ink)),
+                    Text(coreText(c, band.label), style: F.cap.copyWith(color: p.ink3)),
                   ]),
                 ]),
               ),
@@ -223,11 +224,11 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
             child: Row(children: [
               Expanded(
                 child: Text(
-                  l?.readinessDetailInputsFooter(
+                  coreText(c, l?.readinessDetailInputsFooter(
                           d.inputsUsed, d.breakdown.length) ??
                       '${d.inputsUsed}/${d.breakdown.length} inputs. Each one is '
                           'ranked against your own history — a parallel view of the '
-                          'same inputs, not slices of the number above.',
+                          'same inputs, not slices of the number above.'),
                   style: F.cap.copyWith(color: p.ink3, height: 1.5),
                 ),
               ),
@@ -344,8 +345,8 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(rows[i].$1, style: F.body.copyWith(color: p.ink)),
-                      Text(rows[i].$2,
+                      Text(coreText(c, rows[i].$1), style: F.body.copyWith(color: p.ink)),
+                      Text(coreText(c, rows[i].$2),
                           style: F.over.copyWith(color: p.ink3)),
                     ]),
               ),
@@ -354,7 +355,7 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
         ),
       const SizedBox(height: S.x3),
       Text(
-        need != null
+        coreText(c, need != null
             ? (l?.readinessDetailNeedSuffix(need) ??
                 '$need. Each input is ranked against your own nights, so the '
                     'score cannot start before there are enough of them.')
@@ -362,7 +363,7 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
                 ? note
                 : (l?.readinessDetailNoNoteFallback ??
                     'Everything above was present, and the comparison against '
-                        'your own history still could not be made.')),
+                        'your own history still could not be made.'))),
         style: F.cap.copyWith(color: p.ink3, height: 1.5),
       ),
     ]);
@@ -421,8 +422,8 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
       child: Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(driverLabel(key), style: F.body.copyWith(color: p.ink)),
-            Text(parts.join(' · '),
+            Text(coreText(c, driverLabel(key)), style: F.body.copyWith(color: p.ink)),
+            Text(coreText(c, parts.join(' · ')),
                 style: F.over.copyWith(color: p.ink3)),
           ]),
         ),
@@ -431,8 +432,8 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
         if (used && contribution != null) ...[
           const SizedBox(width: S.x3),
           Text(
-            '${contribution >= 0 ? '+' : '−'}'
-            '${contribution.abs().toStringAsFixed(1)}',
+            coreText(c, '${contribution >= 0 ? '+' : '−'}'
+            '${contribution.abs().toStringAsFixed(1)}'),
             style: F.n17.copyWith(
                 color: p.on(contribution >= 0 ? C.green : C.orange)),
           ),

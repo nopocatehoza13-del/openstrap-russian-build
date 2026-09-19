@@ -31,6 +31,7 @@
 // renders it at a real phone width instead, which is where those three defects
 // actually became visible.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -124,16 +125,16 @@ class StartCard extends StatelessWidget {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(label,
+                        Text(coreText(c, label),
                             style: F.over.copyWith(
                                 color: C.white.withValues(alpha: .75))),
                         const Spacer(),
-                        Text('$count $noun',
+                        Text(coreText(c, '$count $noun'),
                             style: F.t2.copyWith(color: C.white),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: S.x1),
-                        Text(subText,
+                        Text(coreText(c, subText),
                             style: F.cap.copyWith(
                                 color: C.white.withValues(alpha: .8)),
                             maxLines: 1,

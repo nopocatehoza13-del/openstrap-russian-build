@@ -18,6 +18,7 @@ import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../theme.dart';
 
 /// How a session is tracked — which decides which live screen it opens, and
@@ -90,6 +91,9 @@ class Activity {
       ? null
       : (met! * 3.5 * kg / 200 * minutes).round();
 
+  /// Display only; [name] remains the stable storage vocabulary.
+  String displayName([String? locale]) => ruActivityText(name, locale: locale);
+
   /// The stored `sessions.type` for this activity.
   String get typeKey => name.toLowerCase().replaceAll(' ', '_');
 }
@@ -99,6 +103,8 @@ class ActGroup {
   final IconData icon;
   final List<Activity> items;
   const ActGroup(this.name, this.icon, this.items);
+
+  String displayName([String? locale]) => ruActivityText(name, locale: locale);
 }
 
 const activityLibrary = <ActGroup>[
@@ -351,6 +357,8 @@ class ExerciseDef {
   final double step;
 
   const ExerciseDef(this.key, this.label, this.muscles, {this.step = 2.5});
+
+  String displayLabel([String? locale]) => ruActivityText(label, locale: locale);
 }
 
 const exerciseLibrary = <ExerciseDef>[

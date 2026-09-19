@@ -10,6 +10,7 @@
 // a screen can do on its own. Anything that feels like a sixth destination is
 // a `SubTabs` inside the domain that owns it.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -178,7 +179,7 @@ class _Tab extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Text(
-              domain.label,
+              coreText(c, domain.label),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: F.over.copyWith(

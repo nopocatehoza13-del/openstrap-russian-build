@@ -26,6 +26,7 @@
 //   · It repaints ALONE. A 1 Hz stream hung off a `watch` in a parent would
 //     rebuild that whole tree once a second for the life of the connection.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
@@ -119,9 +120,9 @@ class LiveHrCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text('$hr', style: F.n48.copyWith(color: p.ink)),
+                  Text(coreText(c, '$hr'), style: F.n48.copyWith(color: p.ink)),
                   const SizedBox(width: S.x2),
-                  Text('bpm', style: F.body.copyWith(color: p.ink3)),
+                  Text(coreText(c, 'bpm'), style: F.body.copyWith(color: p.ink3)),
                 ],
               ),
             ),
@@ -163,9 +164,9 @@ class LiveHrCard extends StatelessWidget {
           ),
           const SizedBox(height: S.x2),
           Text(
-            'The last ${trace.length} readings — ${trace.reduce(math.min)}'
+            coreText(c, 'The last ${trace.length} readings — ${trace.reduce(math.min)}'
             '–${trace.reduce(math.max)} bpm. Not stored; this is '
-            'the live stream, not a record of your day.',
+            'the live stream, not a record of your day.'),
             style: F.over.copyWith(color: p.ink3),
           ),
         ],

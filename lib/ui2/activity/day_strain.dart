@@ -24,6 +24,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../data/day_label.dart';
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../models/metric.dart' show whyFromNote;
 import '../screens/home_screen.dart' show repoOf, monthName;
 import '../screens/metric_detail.dart' show detailScaffold;
@@ -300,9 +301,9 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
                 (l?.dayStrainTitle ?? 'Day strain', d.strain!.toStringAsFixed(1),
                     C.purple),
               if (d.peakHr != null)
-                (l?.dayStrainPeakHr ?? 'Peak HR', '${d.peakHr} bpm', C.red),
+                (l?.dayStrainPeakHr ?? 'Peak HR', ruActivityText('${d.peakHr} bpm', locale: l?.localeName), C.red),
               if (d.wornMin != null)
-                (l?.dayStrainWorn ?? 'Worn', '${d.wornMin} min', C.teal),
+                (l?.dayStrainWorn ?? 'Worn', ruActivityText('${d.wornMin} min', locale: l?.localeName), C.teal),
             ]),
           ],
         ]),
@@ -335,11 +336,11 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
         Surface(
           child: ChartFrame(
             title: l?.dayStrainZonesChartTitle ?? 'TIME IN ZONES',
-            unit: 'minutes',
+            unit: ruActivityText('minutes', locale: l?.localeName),
             height: 10,
             legend: [
               for (var i = 0; i < 5; i++)
-                ('Z${i + 1} · ${z[i]}m', ZoneBar.cols(p)[i]),
+                ('Z${i + 1} · ${z[i]}${l?.localeName == 'ru' ? ' мин' : 'm'}', ZoneBar.cols(p)[i]),
             ],
             // TS-03/TS-04 — the edges, and where THIS day's came from. Stated
             // per day, not as a standing hedge: the same screen tomorrow can be

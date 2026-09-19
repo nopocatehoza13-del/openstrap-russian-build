@@ -28,6 +28,7 @@ import 'package:provider/provider.dart';
 import '../../compute/hr_max.dart' show validManualZoneBounds;
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../models/metric.dart' show whyFromNote;
 import '../../state/app_state.dart';
 import '../screens/home_screen.dart' show repoOf, monthName;
@@ -247,7 +248,9 @@ class _ZonesDetailState extends State<ZonesDetail> {
             for (var i = 0; i < 5; i++) ...[
               OsTextField(
                 controller: ctrls[i],
-                label: 'Z${i + 1} · ${names[i]} starts at',
+                label: l?.localeName == 'ru'
+                    ? 'Z${i + 1} · ${activityText(c, names[i])}: нижняя граница'
+                    : 'Z${i + 1} · ${names[i]} starts at',
                 hint: l?.activityZonesBpmUnit ?? 'bpm',
                 keyboard: TextInputType.number,
               ),
@@ -373,7 +376,7 @@ class _ZonesDetailState extends State<ZonesDetail> {
             'on ${_prettyDay(d.ceilingDate!, l)}',
       if (d.ceilingSession != null)
         l?.activityZonesCeilingDuringSession(
-                d.ceilingSession!.toLowerCase()) ??
+                ruActivityText(d.ceilingSession!.toLowerCase(), locale: l.localeName)) ??
             'during ${d.ceilingSession!.toLowerCase()}',
     ].join(', ');
     return Surface(
@@ -456,7 +459,7 @@ class _ZonesDetailState extends State<ZonesDetail> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Z${z.zone} · ${z.name}',
+                        'Z${z.zone} · ${ruActivityText(z.name, locale: l?.localeName)}',
                         style: F.body.copyWith(color: p.ink),
                       ),
                     ],
@@ -556,11 +559,11 @@ class _ZonesDetailState extends State<ZonesDetail> {
           child: ChartFrame(
             title: l?.activityZonesSessionMinutesChartTitle ??
                 'SESSION MINUTES, LAST 28 DAYS',
-            unit: 'minutes',
+            unit: ruActivityText('minutes', locale: l?.localeName),
             height: 10,
             legend: [
               for (var i = 0; i < 5; i++)
-                ('Z${i + 1} · ${mins[i]}m', ZoneBar.cols(p)[i]),
+                ('Z${i + 1} · ${mins[i]}${l?.localeName == 'ru' ? ' мин' : 'm'}', ZoneBar.cols(p)[i]),
             ],
             footnote: _shapeCopy(l, d),
             child: CustomPaint(

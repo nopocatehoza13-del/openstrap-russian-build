@@ -37,6 +37,7 @@ import '../../data/db.dart';
 import '../../data/journal_fields.dart' show formatMinuteOfDay;
 import '../../health/health_export.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../notify/notification_prefs.dart';
 import '../../state/app_state.dart';
 import '../activity/catalogue.dart';
@@ -366,7 +367,7 @@ class _SuggestionCard extends StatelessWidget {
           if (s.peakBpm != null)
             (l?.logWorkoutPeakHr ?? 'Peak HR', '${s.peakBpm} bpm',
                 p.on(C.orange)),
-          if (a != null) (l?.logWorkoutLooksLike ?? 'Looks like', a.name, p.on(colour)),
+          if (a != null) (l?.logWorkoutLooksLike ?? 'Looks like', a.displayName(l?.localeName), p.on(colour)),
         ]),
         const SizedBox(height: S.x4),
         BigButton(l?.logWorkoutLogIt ?? 'Log it',
@@ -646,7 +647,7 @@ class _LogWorkoutState extends State<LogWorkout> {
                   if (!retime)
                     SetRow(_activity.icon, _activity.color,
                         l?.logWorkoutActivityLabel ?? 'Activity',
-                        value: _activity.name, onTap: _pickActivity),
+                        value: activityText(c, _activity.name), onTap: _pickActivity),
                   SetRow(LucideIcons.calendar, C.blue,
                       l?.logWorkoutDateLabel ?? 'Date',
                       value: dayLabel(_start, now: widget.now, l: l),
@@ -665,7 +666,7 @@ class _LogWorkoutState extends State<LogWorkout> {
                       onTap: () => _pickTime(isStart: false)),
                   SetRow(LucideIcons.timer, C.purple,
                       l?.logWorkoutLengthLabel ?? 'Length',
-                      value: mins > 0 ? '$mins min' : '—',
+                      value: mins > 0 ? activityText(c, '$mins min') : '—',
                       chevron: false),
                 ]),
                 const SizedBox(height: S.x4),
@@ -728,7 +729,7 @@ class _TypeSheetState extends State<_TypeSheet> {
         ? allActivities
         : [
             for (final a in allActivities)
-              if (a.name.toLowerCase().contains(q)) a,
+              if (activityNameMatches(a.name, q, locale: l?.localeName)) a,
           ];
     return SafeArea(
       child: Padding(
@@ -766,7 +767,7 @@ class _TypeSheetState extends State<_TypeSheet> {
                     itemCount: items.length,
                     itemBuilder: (_, i) {
                       final a = items[i];
-                      return SetRow(a.icon, a.color, a.name,
+                      return SetRow(a.icon, a.color, activityText(c, a.name),
                           chevron: false,
                           onTap: () => Navigator.of(c).pop(a));
                     },

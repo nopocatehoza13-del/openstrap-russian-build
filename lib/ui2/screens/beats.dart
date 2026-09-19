@@ -49,6 +49,7 @@
 //   binned at half an hour. Anything that starts using `beat_ts_ms` has to
 //   carry the null era, which is most of this database.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -664,7 +665,7 @@ class _BeatsState extends State<Beats> {
 
   Widget _note(P p, String s) => Align(
         alignment: Alignment.centerLeft,
-        child: Text(s, style: F.cap.copyWith(color: p.ink3, height: 1.55)),
+        child: Text(coreText(context, s), style: F.cap.copyWith(color: p.ink3, height: 1.55)),
       );
 }
 

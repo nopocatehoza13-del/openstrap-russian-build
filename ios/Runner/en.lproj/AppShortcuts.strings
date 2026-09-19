@@ -1,0 +1,16 @@
+// Russian localization / English development fallback.
+"${applicationName} readiness" = "${applicationName} readiness";
+"What's my readiness in ${applicationName}" = "What's my readiness in ${applicationName}";
+"${applicationName} recovery" = "${applicationName} recovery";
+"How recovered am I in ${applicationName}" = "How recovered am I in ${applicationName}";
+"${applicationName} strain" = "${applicationName} strain";
+"What's my strain in ${applicationName}" = "What's my strain in ${applicationName}";
+"${applicationName} sleep" = "${applicationName} sleep";
+"How did I sleep in ${applicationName}" = "How did I sleep in ${applicationName}";
+"Start breathing in ${applicationName}" = "Start breathing in ${applicationName}";
+"${applicationName} breathe" = "${applicationName} breathe";
+"Start a breathing session in ${applicationName}" = "Start a breathing session in ${applicationName}";
+"Breathe with ${applicationName}" = "Breathe with ${applicationName}";
+"Enable tomorrow's alarm in ${applicationName}" = "Enable tomorrow's alarm in ${applicationName}";
+"Turn on tomorrow's alarm in ${applicationName}" = "Turn on tomorrow's alarm in ${applicationName}";
+"${applicationName} enable tomorrow's alarm" = "${applicationName} enable tomorrow's alarm";

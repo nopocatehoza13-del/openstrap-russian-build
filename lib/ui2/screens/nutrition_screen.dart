@@ -19,6 +19,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../data/db.dart';
 import '../../data/day_label.dart';
 import '../../data/nutrition_store.dart';
@@ -343,15 +344,15 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
                   child: Column(
                     children: [
                       _Mean(l?.nutritionLabelEnergy ?? 'Energy', w.meanKcal,
-                          'kcal', C.domFood),
+                          activityText(c, 'kcal'), C.domFood),
                       _Mean(l?.nutritionLabelProtein ?? 'Protein',
-                          w.meanProtein, 'g', C.red),
+                          w.meanProtein, activityText(c, 'g'), C.red),
                       _Mean(l?.nutritionLabelCarbs ?? 'Carbs', w.meanCarbs,
-                          'g', C.orange),
-                      _Mean(l?.nutritionLabelFat ?? 'Fat', w.meanFat, 'g',
+                          activityText(c, 'g'), C.orange),
+                      _Mean(l?.nutritionLabelFat ?? 'Fat', w.meanFat, activityText(c, 'g'),
                           C.yellow),
                       _Mean(l?.nutritionLabelFibre ?? 'Fibre', w.meanFibre,
-                          'g', C.green),
+                          activityText(c, 'g'), C.green),
                     ],
                   ),
                 ),
@@ -365,12 +366,12 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
                 children: [
                   InlineMetrics([
                     (l?.nutritionLabelEaten ?? 'EATEN',
-                        '${w.meanKcal.value!.round()} kcal', C.domFood),
+                        '${w.meanKcal.value!.round()} ${activityText(c, 'kcal')}', C.domFood),
                     (l?.nutritionLabelBurned ?? 'BURNED',
-                        '${_burned!.value!.round()} kcal', C.purple),
+                        '${_burned!.value!.round()} ${activityText(c, 'kcal')}', C.purple),
                     (
                       l?.nutritionLabelBalance ?? 'BALANCE',
-                      '${(w.meanKcal.value! - _burned!.value!).round()} kcal',
+                      '${(w.meanKcal.value! - _burned!.value!).round()} ${activityText(c, 'kcal')}',
                       C.teal,
                     ),
                   ]),
@@ -410,7 +411,7 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
     return Surface(
       child: ChartFrame(
         title: l?.nutritionEnergyLoggedTitle ?? 'Energy logged',
-        unit: 'kcal',
+        unit: activityText(c, 'kcal'),
         height: 120,
         yAxis: axis,
         // The window is built oldest-first ending today, so these labels are
@@ -454,8 +455,8 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
   static List<(String, String, String, Color)> _goalSpecs(BuildContext c) {
     final l = AppLocalizations.of(c);
     return [
-      ('kcal_target', l?.nutritionDailyEnergy ?? 'Daily energy', 'kcal', C.domFood),
-      ('protein_target', l?.nutritionDailyProtein ?? 'Daily protein', 'g', C.red),
+      ('kcal_target', l?.nutritionDailyEnergy ?? 'Daily energy', activityText(c, 'kcal'), C.domFood),
+      ('protein_target', l?.nutritionDailyProtein ?? 'Daily protein', activityText(c, 'g'), C.red),
     ];
   }
 
@@ -593,7 +594,7 @@ class _NutritionScreenState extends State<NutritionScreen> with RevisionReload {
                 _burned?.value == null
                     ? (l?.nutritionNotMeasured ?? 'Not measured')
                     : '${_burned!.value!.round()}',
-                unit: _burned?.value == null ? '' : 'kcal',
+                unit: _burned?.value == null ? '' : activityText(c, 'kcal'),
                 sub: l?.nutritionExpenditureSub ?? 'TODAY, FROM HEART RATE AND YOUR PROFILE',
               ),
             ],
@@ -736,7 +737,7 @@ class DayEnergyCard extends StatelessWidget {
                 k.value == null
                     ? (l?.nutritionOccasionsUnit(day.entries.length) ??
                         'occasion${day.entries.length == 1 ? '' : 's'}')
-                    : 'kcal',
+                    : activityText(c, 'kcal'),
                 style: F.cap.copyWith(color: p.ink3),
               ),
               if (k.value != null)
@@ -752,7 +753,7 @@ class DayEnergyCard extends StatelessWidget {
             const SizedBox(height: S.x4),
             InlineMetrics([
               (l?.nutritionLabelBurned ?? 'BURNED',
-                  '${burned!.value!.round()} kcal', C.purple),
+                  '${burned!.value!.round()} ${activityText(c, 'kcal')}', C.purple),
               if (k.value != null)
                 (
                   // Eaten is a FLOOR when occasions were logged without an
@@ -762,7 +763,7 @@ class DayEnergyCard extends StatelessWidget {
                   k.isFloor
                       ? (l?.nutritionLabelBalanceAtLeast ?? 'BALANCE AT LEAST')
                       : (l?.nutritionLabelBalance ?? 'BALANCE'),
-                  '${(k.value! - burned!.value!).round()} kcal',
+                  '${(k.value! - burned!.value!).round()} ${activityText(c, 'kcal')}',
                   C.teal,
                 ),
             ]),
@@ -837,7 +838,7 @@ class MealRow extends StatelessWidget {
                         ? (l?.nutritionLoggedNoEnergy(entries.length) ??
                             '${entries.length} logged · energy not recorded')
                         : '${anyUnknown ? (l?.nutritionAtLeastPrefix ?? 'at least ') : ''}'
-                              '${total.round()} kcal',
+                              '${total.round()} ${activityText(c, 'kcal')}',
                     style: F.over.copyWith(color: p.ink3),
                   ),
                 ],
@@ -897,7 +898,7 @@ class _Mean extends StatelessWidget {
               ? (l?.nutritionNotCounted ?? 'Not counted')
               : (l?.nutritionNotRecorded ?? 'Not recorded'))
           : mean.value!.round().toString(),
-      unit: mean.value == null ? '' : unit,
+      unit: mean.value == null ? '' : activityText(c, unit),
       sub: mean.value == null
           ? (floors > 0
                 ? (l?.nutritionEveryDayNoFigure(label.toUpperCase()) ??
@@ -959,7 +960,7 @@ class _WaterRow extends StatelessWidget {
             // shrug the reader has to interpret, and the suite pins this.
             ml == null
                 ? (l?.nutritionNoneYet ?? 'None yet')
-                : '${(ml! / 1000).toStringAsFixed(1)} L',
+                : '${(ml! / 1000).toStringAsFixed(1)} ${activityText(c, 'L')}',
             textAlign: TextAlign.center,
             style: ml == null
                 ? F.cap.copyWith(color: p.ink3)

@@ -9,6 +9,8 @@
 // Every metric goes through THIS screen. Forty bespoke detail screens is how
 // the old UI ended up with forty different opinions about what a chart is.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
+import '../../l10n/ru_observations_extra.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -780,7 +782,7 @@ class _MetricDetailState extends State<MetricDetail> {
           color: color),
       if (note != null) ...[
         const SizedBox(height: S.x2),
-        Text(note, style: F.over.copyWith(color: p.ink3)),
+        Text(coreText(c, note), style: F.over.copyWith(color: p.ink3)),
       ],
     ]);
   }
@@ -1189,23 +1191,23 @@ class _MetricDetailState extends State<MetricDetail> {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(_fmt(spec, mean), style: F.n48.copyWith(color: p.ink)),
+              Text(coreText(c, _fmt(spec, mean)), style: F.n48.copyWith(color: p.ink)),
               const SizedBox(width: S.x2),
               // NOT `spec.unit`. `metricValue('min', 443)` is already "7h 23m",
               // so every min-unit metric — Time asleep, Deep, REM, Wear time —
               // rendered its headline as "7h 23m min".
-              Text(metricDisplayUnit(spec.unit,
-                      locale: l?.localeName, besideValue: true),
+              Text(coreText(c, metricDisplayUnit(spec.unit,
+                      locale: l?.localeName, besideValue: true)),
                   style: F.body.copyWith(color: p.ink3)),
             ]),
         const SizedBox(height: S.x1),
         Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            win == 1
+            coreText(c, win == 1
                 ? (l?.metricDetailToday ?? 'Today')
                 : (l?.metricDetailDailyAverage(vals.length, win) ??
-                    'Daily average · ${vals.length} of $win days'),
+                    'Daily average · ${vals.length} of $win days')),
             style: F.cap.copyWith(color: p.ink3),
           ),
         ),
@@ -1217,11 +1219,11 @@ class _MetricDetailState extends State<MetricDetail> {
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-                (l?.metricDetailLatestReading(
+                coreText(c, (l?.metricDetailLatestReading(
                             _fmt(spec, latest), metricDisplayUnit(spec.unit,
                                 locale: l.localeName, besideValue: true), asOf) ??
                         'Latest ${_fmt(spec, latest)} ${metricDisplayUnit(spec.unit, locale: l?.localeName, besideValue: true)} · $asOf')
-                    .replaceAll('  ', ' '),
+                    .replaceAll('  ', ' ')),
                 style: F.cap.copyWith(color: p.ink3)),
           ),
         ],
@@ -1240,7 +1242,7 @@ class _MetricDetailState extends State<MetricDetail> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   for (final s in _usingLines(c, l, spec, d))
-                    Text(s, style: F.over.copyWith(color: p.ink3)),
+                    Text(coreText(c, s), style: F.over.copyWith(color: p.ink3)),
                 ],
               ),
             ),
@@ -1252,7 +1254,7 @@ class _MetricDetailState extends State<MetricDetail> {
                 onTap: () => _prefer(o),
                 semanticLabel: _preferLabel(l, o),
                 child: Text(
-                  _preferLabel(l, o),
+                  coreText(c, _preferLabel(l, o)),
                   style: F.cap.copyWith(
                       color: p.on(spec.color), fontWeight: FontWeight.w600),
                 ),
@@ -1260,9 +1262,9 @@ class _MetricDetailState extends State<MetricDetail> {
           ]),
           const SizedBox(height: S.x1),
           Text(
-            l?.metricDetailHistoryKeepsSource ??
+            coreText(c, l?.metricDetailHistoryKeepsSource ??
                 'Days already finished keep the source they were calculated '
-                    'with.',
+                    'with.'),
             style: F.over.copyWith(color: p.ink3),
           ),
         ],
@@ -1410,7 +1412,7 @@ class _MetricDetailState extends State<MetricDetail> {
           Padding(
             padding: const EdgeInsets.only(top: S.x2),
             child: Text(
-              l?.metricDetailDimmedCaption(
+              coreText(c, l?.metricDetailDimmedCaption(
                       d.sources
                               .firstWhereOrNull((o) => o.deviceId == _device)
                               ?.label ??
@@ -1418,7 +1420,7 @@ class _MetricDetailState extends State<MetricDetail> {
                     ) ??
                   'These are the days '
                       '${d.sources.firstWhereOrNull((o) => o.deviceId == _device)?.label ?? ''} '
-                      'was involved. The line is your merged reading.',
+                      'was involved. The line is your merged reading.'),
               style: F.over.copyWith(color: p.ink3),
             ),
           ),
@@ -1574,7 +1576,7 @@ class _MetricDetailState extends State<MetricDetail> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(
-              child: Text(dayNavLabel(day),
+              child: Text(coreText(c, dayNavLabel(day)),
                   style: F.body
                       .copyWith(color: p.ink, fontWeight: FontWeight.w600),
                   maxLines: 1,
@@ -1582,9 +1584,9 @@ class _MetricDetailState extends State<MetricDetail> {
             ),
             const SizedBox(width: S.x3),
             Text(
-              v == null
+              coreText(c, v == null
                   ? (l?.metricDetailNoRecordLabel ?? 'No record')
-                  : '${_fmt(spec, v)} ${metricDisplayUnit(spec.unit, locale: l?.localeName, besideValue: true)}'.trimRight(),
+                  : '${_fmt(spec, v)} ${metricDisplayUnit(spec.unit, locale: l?.localeName, besideValue: true)}'.trimRight()),
               style: v == null
                   ? F.cap.copyWith(color: p.ink3)
                   : F.n17.copyWith(color: p.ink),
@@ -1599,7 +1601,7 @@ class _MetricDetailState extends State<MetricDetail> {
           // SET (final-plan §4.4) and never picks one of two.
           if (attributed) ...[
             const SizedBox(height: S.x1),
-            Text(who, style: F.over.copyWith(color: p.ink3)),
+            Text(coreText(c, who), style: F.over.copyWith(color: p.ink3)),
           ],
         ]),
       ),
@@ -1631,7 +1633,8 @@ class _MetricDetailState extends State<MetricDetail> {
     final sorted = [...win]..sort();
     final lo = sorted.first, hi = sorted.last;
     final mid = sorted[sorted.length ~/ 2];
-    final band = pct?['label']?.toString();
+    final rawBand = pct?['label']?.toString();
+    final band = rawBand == null ? null : coreText(c, rawBand);
     final rank = (pct?['percentile_of_you'] as num?);
     final isToday = (daysBehind(latestTs) ?? 0) <= 0;
     final ordinal = rank == null ? '' : _ordinal(rank.round(), l);
@@ -1650,7 +1653,7 @@ class _MetricDetailState extends State<MetricDetail> {
         ]),
         const SizedBox(height: S.x4),
         Text(
-          rank == null
+          coreText(c, rank == null
               ? (l?.metricDetailFromDaysCount(win.length) ??
                   'From ${win.length} of your own days.')
               : (isToday
@@ -1670,7 +1673,7 @@ class _MetricDetailState extends State<MetricDetail> {
                               axisDay(latestTs), ordinal, band) ??
                           'Your reading from ${axisDay(latestTs)} sits at the '
                               '$ordinal percentile of your own history — '
-                              '$band.'))),
+                              '$band.')))),
           style: F.cap.copyWith(color: p.ink3, height: 1.5),
         ),
       ]),
@@ -1704,9 +1707,9 @@ class _MetricDetailState extends State<MetricDetail> {
   }
 
   Widget _stat(P p, String v, String l) => Column(children: [
-        Text(v, style: F.n24.copyWith(color: p.ink)),
+        Text(coreText(context, v), style: F.n24.copyWith(color: p.ink)),
         const SizedBox(height: 3),
-        Text(l, style: F.over.copyWith(color: p.ink3)),
+        Text(coreText(context, l), style: F.over.copyWith(color: p.ink3)),
       ]);
 
   /// Journal ↔ metric rank correlations. These are ASSOCIATIONS in your own
@@ -1729,19 +1732,19 @@ class _MetricDetailState extends State<MetricDetail> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(rows[i]['tag']?.toString() ?? '',
+                        Text(journalTagLabel(rows[i]['tag']?.toString() ?? '', l?.localeName),
                             style: F.body.copyWith(color: p.ink)),
                         Text(
-                            l?.metricDetailDaysWithWithout(
+                            coreText(c, l?.metricDetailDaysWithWithout(
                                     (rows[i]['n_with'] as num? ?? 0).toInt(),
                                     (rows[i]['n_without'] as num? ?? 0).toInt()) ??
                                 '${rows[i]['n_with'] ?? 0} days with · '
-                                    '${rows[i]['n_without'] ?? 0} without',
+                                    '${rows[i]['n_without'] ?? 0} without'),
                             style: F.over.copyWith(color: p.ink3)),
                       ]),
                 ),
                 Text(
-                  _signed(rows[i]['delta'] as num?, rows[i]['unit']?.toString()),
+                  coreText(c, _signed(rows[i]['delta'] as num?, rows[i]['unit']?.toString())),
                   style: F.body.copyWith(
                       color: p.on(rows[i]['helped'] == true ? C.green : C.orange),
                       fontWeight: FontWeight.w600),
@@ -1753,8 +1756,8 @@ class _MetricDetailState extends State<MetricDetail> {
       ),
       const SizedBox(height: S.x3),
       Text(
-          l?.metricDetailPatternsNotCauses ??
-              'Patterns in your own logs, not causes.',
+          coreText(c, l?.metricDetailPatternsNotCauses ??
+              'Patterns in your own logs, not causes.'),
           style: F.over.copyWith(color: p.ink3, height: 1.5)),
     ]);
   }
@@ -1824,9 +1827,9 @@ class _StepGoalGaugeState extends State<_StepGoalGauge> {
       return;
     }
     if (typed < 500 || typed > 100000) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar( SnackBar(
         content:
-            Text('A step goal of 500–100,000 is a real one. Nothing was saved.'),
+            Text(coreText(context, 'A step goal of 500–100,000 is a real one. Nothing was saved.')),
       ));
       return;
     }
@@ -1858,7 +1861,7 @@ class _StepGoalGaugeState extends State<_StepGoalGauge> {
             // No steps recorded yet is absent, not zero — the track alone
             // says that; a percentage here would fabricate a reading.
             if (frac != null)
-              Text('${(frac * 100).clamp(0, 999).round()}%',
+              Text(coreText(c, '${(frac * 100).clamp(0, 999).round()}%'),
                   style: F.over.copyWith(color: p.ink)),
           ]),
         ),
@@ -1886,11 +1889,11 @@ class _StepGoalGaugeState extends State<_StepGoalGauge> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        Text('Goal', style: F.over.copyWith(color: p.ink3)),
+                        Text(coreText(c, 'Goal'), style: F.over.copyWith(color: p.ink3)),
                         const SizedBox(width: S.x1),
                         Icon(LucideIcons.pencil, size: 12, color: p.ink3),
                       ]),
-                      Text('${thousands(widget.goal)} steps',
+                      Text(coreText(c, '${thousands(widget.goal)} steps'),
                           style: F.body.copyWith(color: p.ink)),
                     ],
                   ),
@@ -2035,7 +2038,7 @@ class DayNav extends StatelessWidget {
             semanticLabel: l?.metricDetailChooseDayShowing(dayNavLabel(day)) ??
                 'Choose a day. Showing ${dayNavLabel(day)}',
             child: Text(
-              dayNavLabel(day),
+              coreText(c, dayNavLabel(day)),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -2077,9 +2080,9 @@ Widget detailLinkRow(BuildContext c, IconData icon, String title, String sub,
         const SizedBox(width: S.x3),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title,
+            Text(coreText(c, title),
                 style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600)),
-            Text(sub, style: F.over.copyWith(color: p.ink3)),
+            Text(coreText(c, sub), style: F.over.copyWith(color: p.ink3)),
           ]),
         ),
         Icon(LucideIcons.chevronRight, size: 18, color: p.ink3),
@@ -2125,7 +2128,7 @@ class Legend extends StatelessWidget {
                 height: 8,
                 decoration: BoxDecoration(color: e.$2, shape: BoxShape.circle)),
             const SizedBox(width: 5),
-            Text(e.$1, style: F.over.copyWith(color: p.ink2)),
+            Text(coreText(c, e.$1), style: F.over.copyWith(color: p.ink2)),
           ]),
       ],
     );
@@ -2149,7 +2152,7 @@ class MonoTable extends StatelessWidget {
     if (present.isEmpty) return const SizedBox.shrink();
     return Surface(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title.toUpperCase(), style: F.over.copyWith(color: p.ink3)),
+        Text(coreText(c, title.toUpperCase()), style: F.over.copyWith(color: p.ink3)),
         const SizedBox(height: S.x3),
         for (final r in present)
           Padding(
@@ -2158,13 +2161,13 @@ class MonoTable extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(r.$1,
+                    child: Text(coreText(c, r.$1),
                         style: F.cap
                             .copyWith(color: p.ink3, fontFamily: 'Menlo')),
                   ),
                   const SizedBox(width: S.x3),
                   Flexible(
-                    child: Text(r.$2,
+                    child: Text(coreText(c, r.$2),
                         textAlign: TextAlign.right,
                         style: F.cap.copyWith(
                             color: p.ink,

@@ -36,6 +36,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../state/units_controller.dart';
 import '../screens/home_screen.dart' show unitsOf;
 import '../theme.dart';
@@ -271,7 +272,7 @@ class PosterCard extends StatelessWidget {
                 top: 0,
                 bottom: 0,
                 width: kPosterColW,
-                child: _column(accent, stats, posterHero(r, u)),
+                child: _column(accent, stats, posterHero(r, u), c),
               ),
               // The credit. On the card because the map is on the card, and
               // absent when no tiles are DRAWN — crediting OpenStreetMap for
@@ -283,7 +284,7 @@ class PosterCard extends StatelessWidget {
                 Positioned(
                   right: S.x2,
                   bottom: S.x1,
-                  child: Text(kOsmAttribution,
+                  child: Text(activityText(c, kOsmAttribution),
                       style: F.over.copyWith(
                           color: C.white.withValues(alpha: .55),
                           letterSpacing: 0)),
@@ -306,6 +307,7 @@ class PosterCard extends StatelessWidget {
     Color accent,
     List<(String, String)> stats,
     (String, String, String) hero,
+    BuildContext c,
   ) =>
       Padding(
         padding: EdgeInsets.fromLTRB(
@@ -315,17 +317,17 @@ class PosterCard extends StatelessWidget {
           children: [
             _wordmark(accent),
             SizedBox(height: _compact ? S.x2 : S.x4),
-            _activity(accent),
+            _activity(accent, c),
             const SizedBox(height: S.x2),
-            _hero(hero),
+            _hero(hero, c),
             // The slack lives here, so the stats and the stamp stay pinned to
             // the bottom whether the session printed six or none. The map is
             // not in this column at all — it is behind everything, or in the
             // opposite corner.
             const Spacer(),
-            _statGrid(accent, stats),
+            _statGrid(accent, stats, c),
             if (stats.isNotEmpty) SizedBox(height: _compact ? S.x2 : S.x3),
-            _stamp(accent),
+            _stamp(accent, c),
           ],
         ),
       );
@@ -352,12 +354,12 @@ class PosterCard extends StatelessWidget {
 
   /// The activity, set large. It is the card's subject — what this picture is
   /// OF — and it spent a long time as an 11pt caption next to a 48pt number.
-  Widget _activity(Color accent) => Row(children: [
+  Widget _activity(Color accent, BuildContext c) => Row(children: [
         Flexible(
           child: FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(r.activity.name.toUpperCase(),
+            child: Text(activityText(c, r.activity.name).toUpperCase(),
                 style: F.n17.copyWith(color: accent, letterSpacing: .6),
                 maxLines: 1),
           ),
@@ -372,7 +374,7 @@ class PosterCard extends StatelessWidget {
   /// PICTURE, so a long value has nowhere to wrap to, and a truncated distance
   /// ('12.4…') on a card somebody else receives is worse than the same
   /// distance a few points smaller.
-  Widget _hero((String, String, String) hero) => SizedBox(
+  Widget _hero((String, String, String) hero, BuildContext c) => SizedBox(
         height: _compact ? _heroHCompact : _heroH,
         child: FittedBox(
           fit: BoxFit.scaleDown,
@@ -381,11 +383,11 @@ class PosterCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(hero.$1,
+              Text(activityText(c, hero.$1),
                   style: F.n48.copyWith(color: C.white), maxLines: 1),
               if (hero.$2.isNotEmpty) ...[
                 const SizedBox(width: S.x2),
-                Text(hero.$2,
+                Text(activityText(c, hero.$2),
                     style: F.cap
                         .copyWith(color: C.white.withValues(alpha: .70))),
               ],
@@ -402,7 +404,7 @@ class PosterCard extends StatelessWidget {
   /// part that does not survive the width, so the cell drops it and keeps what
   /// carries the meaning: the name above the number, same caps, same muted
   /// label, same tabular value. Nothing else on the card changes shape.
-  Widget _statGrid(Color accent, List<(String, String)> stats) => Column(
+  Widget _statGrid(Color accent, List<(String, String)> stats, BuildContext c) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < stats.length; i += _statCols) ...[
@@ -416,7 +418,7 @@ class PosterCard extends StatelessWidget {
                   if (j > 0) const SizedBox(width: S.x3),
                   Expanded(
                     child: i + j < stats.length
-                        ? _statCell(stats[i + j], accent)
+                        ? _statCell(stats[i + j], accent, c)
                         : const SizedBox.shrink(),
                   ),
                 ],
@@ -426,7 +428,7 @@ class PosterCard extends StatelessWidget {
         ],
       );
 
-  Widget _statCell((String, String) s, Color accent) {
+  Widget _statCell((String, String) s, Color accent, BuildContext c) {
     final (value, unit) = splitStatUnit(s.$2);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,7 +442,7 @@ class PosterCard extends StatelessWidget {
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
-          child: Text(s.$1.toUpperCase(),
+          child: Text(activityText(c, s.$1).toUpperCase(),
               style: F.over
                   .copyWith(color: accent, letterSpacing: 1.1, height: 1.2),
               maxLines: 1),
@@ -455,12 +457,12 @@ class PosterCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(value,
+              Text(activityText(c, value),
                   style: (_compact ? F.n17 : F.n24).copyWith(color: C.white),
                   maxLines: 1),
               if (unit != null && unit.isNotEmpty) ...[
                 const SizedBox(width: 2),
-                Text(unit,
+                Text(activityText(c, unit),
                     style: F.cap.copyWith(
                         color: C.white.withValues(alpha: .60),
                         letterSpacing: 0)),
@@ -472,7 +474,7 @@ class PosterCard extends StatelessWidget {
     );
   }
 
-  Widget _stamp(Color accent) => Row(children: [
+  Widget _stamp(Color accent, BuildContext c) => Row(children: [
         Icon(LucideIcons.calendar, size: 11, color: accent),
         const SizedBox(width: S.x2),
         // The longest string on the card relative to its slot — it shrinks to
@@ -481,7 +483,7 @@ class PosterCard extends StatelessWidget {
           child: FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text(posterDate(r.start),
+            child: Text(posterDate(r.start, locale: Localizations.maybeLocaleOf(c)?.languageCode),
                 style: F.over.copyWith(color: C.white, letterSpacing: 0),
                 maxLines: 1),
           ),
@@ -552,7 +554,7 @@ class PosterStatRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label.toUpperCase(),
+            Text(activityText(c, label).toUpperCase(),
                 style: F.over.copyWith(color: muted, letterSpacing: 1),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
@@ -566,10 +568,10 @@ class PosterStatRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(value, style: F.n17.copyWith(color: on), maxLines: 1),
+                  Text(activityText(c, value), style: F.n17.copyWith(color: on), maxLines: 1),
                   if (unit != null) ...[
                     const SizedBox(width: S.x1),
-                    Text(unit!, style: F.cap.copyWith(color: muted)),
+                    Text(activityText(c, unit!), style: F.cap.copyWith(color: muted)),
                   ],
                 ],
               ),
@@ -921,7 +923,8 @@ void drawPin(Canvas canvas, Offset o, Color col) {
 }
 
 /// `20 May 2026 • 7:15 AM`, in the reader's own clock terms.
-String posterDate(DateTime t) {
+String posterDate(DateTime t, {String? locale}) {
+  if (locale == 'ru') return russianActivityDate(t);
   const m = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',

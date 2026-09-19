@@ -25,6 +25,7 @@ import '../../health/health_import_state.dart';
 import '../../health/auto_workout_import.dart';
 import '../../health/health_workout_import.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../models/metric.dart';
 import '../../state/app_state.dart';
 import '../../state/units_controller.dart';
@@ -439,7 +440,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
       ],
       for (final g in activityLibrary)
         Section(
-          g.name,
+          activityText(c, g.name),
           Surface(
             pad: const EdgeInsets.symmetric(horizontal: S.x4),
             child: Column(children: [
@@ -627,7 +628,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
     final loc = AppLocalizations.of(c);
     final ok = await confirmRemove(
       c,
-      title: loc?.workoutConfirmDeleteTitle(w.activity.name.toLowerCase()) ??
+      title: loc?.workoutConfirmDeleteTitle(w.activity.displayName(loc.localeName).toLowerCase()) ??
           'Delete this ${w.activity.name.toLowerCase()}?',
       body: w.importedFrom == null
           ? (loc?.workoutDeleteBodyOwn(storeName) ??
@@ -865,12 +866,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
     return MetricRow(
       a?.icon ?? LucideIcons.activity,
       a?.color ?? C.purple,
-      loc?.workoutAfterActivity(a?.name ?? e.type) ??
+      loc?.workoutAfterActivity(ruActivityText(a?.name ?? e.type, locale: loc.localeName)) ??
           'After ${a?.name ?? e.type}',
       e.exceedsMdc
           ? '$sign${e.delta.abs().toStringAsFixed(1)}'
           : (loc?.workoutUnchangedLabel ?? 'Unchanged'),
-      unit: e.exceedsMdc ? (rhr ? 'bpm' : 'ms') : '',
+      unit: e.exceedsMdc ? ruActivityText(rhr ? 'bpm' : 'ms', locale: loc?.localeName) : '',
       sub: () {
         final metricLabel = rhr
             ? (loc?.workoutRestingHeartRateLabel ?? 'Resting heart rate')
@@ -909,7 +910,7 @@ class _QuickTile extends StatelessWidget {
     return Surface(
       pad: const EdgeInsets.symmetric(vertical: S.x4, horizontal: S.x2),
       onTap: onTap,
-      semanticLabel: a.name,
+      semanticLabel: activityText(c, a.name),
       child: Column(children: [
         Container(
           width: 40,
@@ -919,7 +920,7 @@ class _QuickTile extends StatelessWidget {
           child: Icon(a.icon, size: 19, color: p.on(a.color)),
         ),
         const SizedBox(height: S.x2),
-        Text(a.name,
+        Text(activityText(c, a.name),
             style: F.over.copyWith(color: p.ink2),
             maxLines: 1,
             overflow: TextOverflow.ellipsis),
@@ -985,7 +986,7 @@ class _HistoryRow extends StatelessWidget {
                       // The store's own word for it when it is not ours: the
                       // catalogue knows the ~40 types this app can start, and
                       // "Workout" over a surf loses the one thing we were told.
-                      child: Text(w.importedTitle ?? a.name,
+                      child: Text(activityText(c, w.importedTitle ?? a.name),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: F.body.copyWith(
@@ -1043,7 +1044,7 @@ class _HistoryRow extends StatelessWidget {
             height: 8,
             legend: [
               for (var i = 0; i < 5; i++)
-                ('Z${i + 1} · ${w.zoneMinutes[i].round()}m', ZoneBar.cols(p)[i]),
+                ('Z${i + 1} · ${w.zoneMinutes[i].round()}${loc?.localeName == 'ru' ? ' мин' : 'm'}', ZoneBar.cols(p)[i]),
             ],
             child: CustomPaint(
                 size: Size.infinite, painter: ZoneBar(w.zoneFractions, p)),
@@ -1056,7 +1057,7 @@ class _HistoryRow extends StatelessWidget {
             icon: statIcon(stats[i].$1),
             label: stats[i].$1,
             value: stats[i].$2,
-            unit: stats[i].$3,
+            unit: stats[i].$3 == null ? null : activityText(c, stats[i].$3!),
             accent: p.on(a.color),
           ),
         ],

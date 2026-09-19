@@ -31,6 +31,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../compute/findings.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_observations_extra.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show prettyDay;
 import 'metric_detail.dart' show detailScaffold;
@@ -41,13 +42,13 @@ import 'metric_detail.dart' show detailScaffold;
 Color _ink(P p, Finding f) => p.on(f.medical ? C.orange : C.blue);
 
 IconData _icon(Finding f) => switch (f.kind) {
-      FindingKind.illness => LucideIcons.stethoscope,
-      FindingKind.anomaly => LucideIcons.waves,
-      FindingKind.tempElevated => LucideIcons.thermometer,
-      FindingKind.irregularRhythm => LucideIcons.heartPulse,
-      FindingKind.lowReadiness => LucideIcons.batteryLow,
-      FindingKind.rhrShift => LucideIcons.trendingUp,
-    };
+  FindingKind.illness => LucideIcons.stethoscope,
+  FindingKind.anomaly => LucideIcons.waves,
+  FindingKind.tempElevated => LucideIcons.thermometer,
+  FindingKind.irregularRhythm => LucideIcons.heartPulse,
+  FindingKind.lowReadiness => LucideIcons.batteryLow,
+  FindingKind.rhrShift => LucideIcons.trendingUp,
+};
 
 class FindingsLog extends StatelessWidget {
   const FindingsLog(this.findings, {super.key});
@@ -65,58 +66,55 @@ class FindingsLog extends StatelessWidget {
       (byDay[f.date] ??= []).add(f);
     }
 
-    return detailScaffold(
-      c,
-      l?.findingsLogTitle ?? 'Observations',
-      [
-        if (findings.isEmpty)
-          StatusCard(
-            l?.findingsLogEmptyTitle ?? 'Nothing has stood out',
-            l?.findingsLogEmptyBody ??
-                'The watches for illness, unusual overnight physiology, skin '
-                    'temperature and a shift in your resting heart rate have '
-                    'all been quiet. That is an outcome, not an empty screen.',
-            icon: LucideIcons.check,
-          )
-        else ...[
-          for (final day in byDay.keys) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(S.x1, S.x5, S.x1, S.x2),
-              child: Text(prettyDay(day),
-                  style: F.cap.copyWith(
-                      color: p.ink3, fontWeight: FontWeight.w600)),
+    return detailScaffold(c, l?.findingsLogTitle ?? 'Observations', [
+      if (findings.isEmpty)
+        StatusCard(
+          l?.findingsLogEmptyTitle ?? 'Nothing has stood out',
+          l?.findingsLogEmptyBody ??
+              'The watches for illness, unusual overnight physiology, skin '
+                  'temperature and a shift in your resting heart rate have '
+                  'all been quiet. That is an outcome, not an empty screen.',
+          icon: LucideIcons.check,
+        )
+      else ...[
+        for (final day in byDay.keys) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.x1, S.x5, S.x1, S.x2),
+            child: Text(
+              prettyDay(day, l),
+              style: F.cap.copyWith(color: p.ink3, fontWeight: FontWeight.w600),
             ),
-            Surface(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var i = 0; i < byDay[day]!.length; i++) ...[
-                    if (i > 0) ...[
-                      const SizedBox(height: S.x3),
-                      Divider(color: p.line, height: 1),
-                      const SizedBox(height: S.x3),
-                    ],
-                    FindingRow(byDay[day]![i]),
+          ),
+          Surface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < byDay[day]!.length; i++) ...[
+                  if (i > 0) ...[
+                    const SizedBox(height: S.x3),
+                    Divider(color: p.line, height: 1),
+                    const SizedBox(height: S.x3),
                   ],
+                  FindingRow(byDay[day]![i]),
                 ],
-              ),
+              ],
             ),
-          ],
-          const SizedBox(height: S.x5),
-          // THE ONE THING A LOG OWES ITS READER: what it is a log OF. These
-          // entries are worked out from the data on every open rather than
-          // written down when they fired, so a day whose data was later
-          // re-derived changes here with it — including out of existence.
-          Text(
-            l?.findingsLogDerivedNote ??
-                'Worked out from your own days each time this opens, not '
-                    'written down when it happened — so if a day is '
-                    're-analysed, what it says here changes with it.',
-            style: F.cap.copyWith(color: p.ink3, height: 1.5),
           ),
         ],
+        const SizedBox(height: S.x5),
+        // THE ONE THING A LOG OWES ITS READER: what it is a log OF. These
+        // entries are worked out from the data on every open rather than
+        // written down when they fired, so a day whose data was later
+        // re-derived changes here with it — including out of existence.
+        Text(
+          l?.findingsLogDerivedNote ??
+              'Worked out from your own days each time this opens, not '
+                  'written down when it happened — so if a day is '
+                  're-analysed, what it says here changes with it.',
+          style: F.cap.copyWith(color: p.ink3, height: 1.5),
+        ),
       ],
-    );
+    ]);
   }
 }
 
@@ -132,8 +130,11 @@ class FindingRow extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final ink = _ink(p, f);
+    final locale = AppLocalizations.of(c)?.localeName;
+    final title = findingTitle(f, locale);
+    final detail = findingDetail(f, locale);
     return Semantics(
-      label: '${f.title}. ${f.detail}',
+      label: '$title. $detail',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -146,14 +147,18 @@ class FindingRow extends StatelessWidget {
               ),
               const SizedBox(width: S.x2),
               Expanded(
-                child: Text(f.title,
-                    style: F.body.copyWith(
-                        color: p.ink, fontWeight: FontWeight.w600)),
+                child: Text(
+                  title,
+                  style: F.body.copyWith(
+                    color: p.ink,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: S.x2),
-          Text(f.detail, style: F.cap.copyWith(color: p.ink2, height: 1.5)),
+          Text(detail, style: F.cap.copyWith(color: p.ink2, height: 1.5)),
         ],
       ),
     );

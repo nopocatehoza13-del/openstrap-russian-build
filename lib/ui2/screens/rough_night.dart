@@ -39,6 +39,7 @@ import 'package:provider/provider.dart';
 
 import '../../ai/journal_ai.dart' show kJournalPresetTags;
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_observations_extra.dart';
 import '../../data/db.dart';
 import '../../data/journal_fields.dart' show formatMinuteOfDay;
 import '../../data/local_repository.dart';
@@ -263,7 +264,9 @@ Future<RoughNight?> loadRoughNight(
         );
       }
     }
-  } catch (_) {/* a knowable that could not be read is simply not stated */}
+  } catch (_) {
+    /* a knowable that could not be read is simply not stated */
+  }
 
   // ILLNESS — the same night's CUSUM state, from the rollup that already ran.
   var illnessFlagged = false;
@@ -282,7 +285,9 @@ Future<RoughNight?> loadRoughNight(
         }
       }
     }
-  } catch (_) {/* the rollup fails closed; so does this */}
+  } catch (_) {
+    /* the rollup fails closed; so does this */
+  }
 
   // LUTEAL PHASE — `getCycle().phase` is TODAY'S phase and only today's, which
   // is one of the reasons the host offers this card for last night alone.
@@ -295,7 +300,9 @@ Future<RoughNight?> loadRoughNight(
                 'skin temperature by itself.',
       );
     }
-  } catch (_) {/* cycle tracking off, or nothing logged */}
+  } catch (_) {
+    /* cycle tracking off, or nothing logged */
+  }
 
   // WARM ROOM — only when the temp sign is one of the ones that fired. The
   // channel is relative ADC, so this is "warmer than your usual", never a
@@ -314,22 +321,21 @@ Future<RoughNight?> loadRoughNight(
     // takes. Every other field is inert: `roughNight` reads `signsPresent` and
     // nothing else, and the hypothesis band is fixed to 'none' because no
     // hypothesis was formed — the classifier never ran.
-    descriptor:
-        ana
-            .roughNight(
-              ana.EventState(
-                state: '',
-                alcoholHypothesisBand: 'none',
-                rhrDelta: 0,
-                rmssdDelta: 0,
-                rhrZ: null,
-                rmssdZ: null,
-                signsPresent: counted.signs,
-                ambiguous: false,
-              ),
-            )
-            .value!
-            .descriptor,
+    descriptor: ana
+        .roughNight(
+          ana.EventState(
+            state: '',
+            alcoholHypothesisBand: 'none',
+            rhrDelta: 0,
+            rmssdDelta: 0,
+            rhrZ: null,
+            rmssdZ: null,
+            signsPresent: counted.signs,
+            ambiguous: false,
+          ),
+        )
+        .value!
+        .descriptor,
     moved: counted.moved,
     knows: knows,
     illnessFlagged: illnessFlagged,
@@ -418,9 +424,9 @@ class _RoughNightCardState extends State<RoughNightCard> {
     final n = widget.night;
     // "a rougher night than usual for you — your body worked harder overnight"
     // splits at the dash into a headline and its own explanation.
-    final dash = n.descriptor.indexOf('—');
-    final head =
-        dash < 0 ? n.descriptor : n.descriptor.substring(0, dash).trim();
+    final descriptor = roughNightDescriptor(n.descriptor, l?.localeName);
+    final dash = descriptor.indexOf('—');
+    final head = dash < 0 ? descriptor : descriptor.substring(0, dash).trim();
 
     return Surface(
       child: Column(
@@ -473,7 +479,7 @@ class _RoughNightCardState extends State<RoughNightCard> {
                 const SizedBox(width: S.x2),
                 Expanded(
                   child: Text(
-                    k,
+                    roughNightFact(k, l?.localeName),
                     style: F.cap.copyWith(color: p.ink2, height: 1.5),
                   ),
                 ),
@@ -512,60 +518,60 @@ class _RoughNightCardState extends State<RoughNightCard> {
   List<Widget> _question(BuildContext c, P p, RoughNight n) {
     final l = AppLocalizations.of(c);
     return [
-    Text(
-      n.knows.isEmpty
-          ? (l?.roughNightWhatElse ?? 'What else was going on?')
-          : (l?.roughNightAnythingElse ?? 'Anything else?'),
-      style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
-    ),
-    const SizedBox(height: S.x3),
-    Wrap(
-      spacing: S.x2,
-      runSpacing: S.x2,
-      children: [
-        for (final t in n.ask)
-          Pressable(
-            onTap: () => setState(
-              () => _picked.contains(t) ? _picked.remove(t) : _picked.add(t),
+      Text(
+        n.knows.isEmpty
+            ? (l?.roughNightWhatElse ?? 'What else was going on?')
+            : (l?.roughNightAnythingElse ?? 'Anything else?'),
+        style: F.body.copyWith(color: p.ink, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: S.x3),
+      Wrap(
+        spacing: S.x2,
+        runSpacing: S.x2,
+        children: [
+          for (final t in n.ask)
+            Pressable(
+              onTap: () => setState(
+                () => _picked.contains(t) ? _picked.remove(t) : _picked.add(t),
+              ),
+              child: Pill(
+                journalTagLabel(t, l?.localeName),
+                _picked.contains(t) ? C.domMind : C.n400,
+                icon: _picked.contains(t) ? LucideIcons.check : null,
+              ),
             ),
-            child: Pill(
-              t,
-              _picked.contains(t) ? C.domMind : C.n400,
-              icon: _picked.contains(t) ? LucideIcons.check : null,
-            ),
-          ),
-      ],
-    ),
-    const SizedBox(height: S.x4),
-    BigButton(
-      _saving
-          ? (l?.roughNightSaving ?? 'Saving')
-          : (l?.roughNightLogIt ?? 'Log it for that night'),
-      icon: LucideIcons.check,
-      color: C.domMind,
-      onTap: _saving || _picked.isEmpty ? null : _save,
-    ),
-    const SizedBox(height: S.x3),
-    // The amounts live in the editor that already asks for them, and the
-    // amount is what the correlation engine actually reads.
-    Pressable(
-      onTap: () => Navigator.of(c).push(
-        MaterialPageRoute<void>(builder: (_) => JournalCompose(date: n.day)),
+        ],
       ),
-      child: Text(
-        l?.roughNightAddHowMuch ?? 'Add how much',
-        style: F.cap.copyWith(color: p.on(C.domMind)),
+      const SizedBox(height: S.x4),
+      BigButton(
+        _saving
+            ? (l?.roughNightSaving ?? 'Saving')
+            : (l?.roughNightLogIt ?? 'Log it for that night'),
+        icon: LucideIcons.check,
+        color: C.domMind,
+        onTap: _saving || _picked.isEmpty ? null : _save,
       ),
-    ),
-    const SizedBox(height: S.x2),
-    Pressable(
-      onTap: () => _setAsk('never'),
-      child: Text(
-        l?.roughNightDoNotAskAgain ?? 'Do not ask again',
-        style: F.over.copyWith(color: p.ink3),
+      const SizedBox(height: S.x3),
+      // The amounts live in the editor that already asks for them, and the
+      // amount is what the correlation engine actually reads.
+      Pressable(
+        onTap: () => Navigator.of(c).push(
+          MaterialPageRoute<void>(builder: (_) => JournalCompose(date: n.day)),
+        ),
+        child: Text(
+          l?.roughNightAddHowMuch ?? 'Add how much',
+          style: F.cap.copyWith(color: p.on(C.domMind)),
+        ),
       ),
-    ),
-  ];
+      const SizedBox(height: S.x2),
+      Pressable(
+        onTap: () => _setAsk('never'),
+        child: Text(
+          l?.roughNightDoNotAskAgain ?? 'Do not ask again',
+          style: F.over.copyWith(color: p.ink3),
+        ),
+      ),
+    ];
   }
 
   /// "a, b and c" — the moved measurements as one clause.
@@ -574,9 +580,13 @@ class _RoughNightCardState extends State<RoughNightCard> {
       return l?.roughNightSeveralMoved ??
           'Several overnight measurements moved together';
     }
-    final s = parts.length == 1
-        ? parts.first
-        : '${parts.sublist(0, parts.length - 1).join(', ')} and ${parts.last}';
+    final translated = [
+      for (final part in parts) roughNightFact(part, l?.localeName),
+    ];
+    final conjunction = observationCopy('and', 'и', l?.localeName);
+    final s = translated.length == 1
+        ? translated.first
+        : '${translated.sublist(0, translated.length - 1).join(', ')} $conjunction ${translated.last}';
     return s[0].toUpperCase() + s.substring(1);
   }
 }

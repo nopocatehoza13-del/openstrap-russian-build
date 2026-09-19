@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../grammar.dart';
 import '../theme.dart';
 import 'catalogue.dart';
@@ -127,7 +128,7 @@ class _ActivitySetupState extends State<ActivitySetup> {
         child: Column(children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: S.x4),
-            child: NavBar(a.name),
+            child: NavBar(activityText(c, a.name)),
           ),
           Expanded(
             child: ListView(
@@ -143,7 +144,7 @@ class _ActivitySetupState extends State<ActivitySetup> {
                       child: Icon(a.icon, size: 38, color: p.on(a.color)),
                     ),
                     const SizedBox(height: S.x4),
-                    Text(a.name, style: F.t2.copyWith(color: p.ink)),
+                    Text(activityText(c, a.name), style: F.t2.copyWith(color: p.ink)),
                     const SizedBox(height: S.x1),
                     Text(_trackLabel(a.track, l),
                         textAlign: TextAlign.center,

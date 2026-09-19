@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AABC00020000000000000001 /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = AABC00020000000000000002 /* AppShortcuts.strings */; };
+		AABC00010000000000000001 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = AABC00010000000000000002 /* Localizable.strings */; };
 		AABB00000000000000000001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000002 /* InfoPlist.strings */; };
 		0BGTASK00000000000000001 /* BgSyncScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BGTASK00000000000000002 /* BgSyncScheduler.swift */; };
 		0DCDABAA1F7E5CB91B882313 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 73008EEA61B58B119FFFF6D8 /* Pods_Runner.framework */; };
@@ -95,6 +97,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AABC00020000000000000003 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		AABC00020000000000000004 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		AABC00010000000000000003 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
+		AABC00010000000000000004 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		AABB00000000000000000003 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		AABB00000000000000000004 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		0BGTASK00000000000000002 /* BgSyncScheduler.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BgSyncScheduler.swift; sourceTree = "<group>"; };
@@ -293,6 +299,8 @@
 				534897562FDC1A450033A4D9 /* Runner.entitlements */,
 				97C146FA1CF9000F007C117D /* Main.storyboard */,
 				AABB00000000000000000002 /* InfoPlist.strings */,
+				AABC00020000000000000002 /* AppShortcuts.strings */,
+				AABC00010000000000000002 /* Localizable.strings */,
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
@@ -501,6 +509,8 @@
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				AABB00000000000000000001 /* InfoPlist.strings in Resources */,
+				AABC00020000000000000001 /* AppShortcuts.strings in Resources */,
+				AABC00010000000000000001 /* Localizable.strings in Resources */,
 				511D97990D2F790E7357E9B4 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -714,6 +724,8 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
+		AABC00020000000000000002 /* AppShortcuts.strings */ = {isa = PBXVariantGroup; children = (AABC00020000000000000003 /* ru */, AABC00020000000000000004 /* en */,); name = AppShortcuts.strings; sourceTree = "<group>"; };
+		AABC00010000000000000002 /* Localizable.strings */ = {isa = PBXVariantGroup; children = (AABC00010000000000000003 /* ru */, AABC00010000000000000004 /* en */,); name = Localizable.strings; sourceTree = "<group>"; };
 		AABB00000000000000000002 /* InfoPlist.strings */ = {isa = PBXVariantGroup; children = (AABB00000000000000000003 /* ru */, AABB00000000000000000004 /* en */,); name = InfoPlist.strings; sourceTree = "<group>"; };
 		97C146FA1CF9000F007C117D /* Main.storyboard */ = {
 			isa = PBXVariantGroup;

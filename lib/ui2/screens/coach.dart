@@ -17,6 +17,8 @@
 //      painters); everything else is grammar.dart. The one thing that is not is
 //      the markdown body, because there is no house widget for prose.
 
+import 'package:openstrap_edge/l10n/ru_core_extra.dart';
+import '../../l10n/ru_coach_extra.dart';
 import 'package:flutter/material.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -203,21 +205,21 @@ class _CoachScreenState extends State<CoachScreen> {
       context: context,
       builder: (d) => AlertDialog(
         backgroundColor: p.card,
-        title: Text(req.title, style: F.head.copyWith(color: p.ink)),
+        title: Text(coreText(context, req.title), style: F.head.copyWith(color: p.ink)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              req.summary,
+              coachActionSummary(req, Localizations.maybeLocaleOf(context)?.languageCode),
               style: F.body.copyWith(color: p.ink2, height: 1.4),
             ),
             const SizedBox(height: S.x3),
             Text(
-              destructive
+              coreText(context, destructive
                   ? (l?.coachDestructiveWarning ??
                       'This removes data from this device and cannot be undone.')
-                  : (l?.coachSafeWarning ?? 'Nothing is written until you tap below.'),
+                  : (l?.coachSafeWarning ?? 'Nothing is written until you tap below.')),
               style: F.cap.copyWith(color: p.ink3),
             ),
           ],
@@ -225,12 +227,12 @@ class _CoachScreenState extends State<CoachScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(d).pop(false),
-            child: Text(l?.actionCancel ?? 'Cancel', style: F.body.copyWith(color: p.ink2)),
+            child: Text(coreText(context, l?.actionCancel ?? 'Cancel'), style: F.body.copyWith(color: p.ink2)),
           ),
           TextButton(
             onPressed: () => Navigator.of(d).pop(true),
             child: Text(
-              destructive ? (l?.coachDeleteIt ?? 'Delete it') : (l?.coachSaveIt ?? 'Save it'),
+              coreText(context, destructive ? (l?.coachDeleteIt ?? 'Delete it') : (l?.coachSaveIt ?? 'Save it')),
               style: F.body.copyWith(
                 color: p.on(destructive ? C.red : kCoachAccent),
                 fontWeight: FontWeight.w600,
@@ -319,7 +321,7 @@ class _CoachScreenState extends State<CoachScreen> {
               if (engine != null) ...[
                 const SizedBox(height: S.x4),
                 Text(
-                  l?.coachPastChats ?? 'PAST CHATS',
+                  coreText(context, l?.coachPastChats ?? 'PAST CHATS'),
                   style: F.over.copyWith(color: p.ink3),
                 ),
                 const SizedBox(height: S.x2),
@@ -329,8 +331,8 @@ class _CoachScreenState extends State<CoachScreen> {
                     final list = snap.data ?? const <CoachSessionMeta>[];
                     if (list.isEmpty) {
                       return Text(
-                        l?.coachNoChatsYet ??
-                            'Nothing yet — this is your first conversation.',
+                        coreText(context, l?.coachNoChatsYet ??
+                            'Nothing yet — this is your first conversation.'),
                         style: F.cap.copyWith(color: p.ink3),
                       );
                     }
@@ -403,7 +405,7 @@ class _CoachScreenState extends State<CoachScreen> {
                     const SizedBox(width: S.x3),
                     Expanded(
                       child: Text(
-                        _status ?? '',
+                        coreText(c, _status ?? ''),
                         style: F.cap.copyWith(color: p.ink3),
                       ),
                     ),
@@ -495,17 +497,17 @@ class _CoachScreenState extends State<CoachScreen> {
                     ),
                     const SizedBox(width: S.x2),
                     Text(
-                      l?.coachYourDataYourModel ?? 'YOUR DATA, YOUR MODEL',
+                      coreText(c, l?.coachYourDataYourModel ?? 'YOUR DATA, YOUR MODEL'),
                       style: F.over.copyWith(color: p.on(kCoachAccent)),
                     ),
                   ],
                 ),
                 const SizedBox(height: S.x3),
                 Text(
-                  l?.coachIntroBody ??
+                  coreText(c, l?.coachIntroBody ??
                       'Ask about anything the app measures, and it can log food, '
                           'water, workouts, doses and how you felt — always asking '
-                          'first.',
+                          'first.'),
                   style: F.body.copyWith(color: p.ink, height: 1.45),
                 ),
               ],
@@ -529,7 +531,7 @@ class _CoachScreenState extends State<CoachScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                s,
+                                coreText(c, s),
                                 style: F.body.copyWith(color: p.ink2),
                               ),
                             ),
@@ -581,7 +583,7 @@ class _CoachScreenState extends State<CoachScreen> {
               border: Border.all(color: p.line),
             ),
             child: Semantics(
-              label: l?.coachAskLabel ?? 'Ask the coach',
+              label: coreText(c, l?.coachAskLabel ?? 'Ask the coach'),
               textField: true,
               child: TextField(
                 controller: _input,
@@ -595,7 +597,7 @@ class _CoachScreenState extends State<CoachScreen> {
                 decoration: InputDecoration(
                   isDense: true,
                   border: InputBorder.none,
-                  hintText: l?.coachInputHint ?? 'Ask about your health…',
+                  hintText: coreText(c, l?.coachInputHint ?? 'Ask about your health…'),
                   hintStyle: F.body.copyWith(color: p.ink3),
                 ),
               ),
@@ -717,14 +719,14 @@ class _MenuRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    coreText(c, title),
                     style: F.body.copyWith(color: p.ink),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (sub.isNotEmpty)
                     Text(
-                      sub,
+                      coreText(c, sub),
                       style: F.cap.copyWith(color: p.ink3),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -992,14 +994,14 @@ class _CoachSetupState extends State<CoachSetup> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          preset.label,
+                                          coreText(c, preset.label),
                                           style: F.body.copyWith(
                                             color: p.ink,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                         Text(
-                                          preset.sub,
+                                          coreText(c, preset.sub),
                                           style: F.cap.copyWith(color: p.ink3),
                                         ),
                                       ],
@@ -1031,14 +1033,14 @@ class _CoachSetupState extends State<CoachSetup> {
                   // reasonable choice. It is here, next to the field, and not
                   // in a settings page nobody opens.
                   Text(
-                    _isLocal
+                    coreText(c, _isLocal
                         ? (l?.coachLocalDataNote ??
                             'Your questions and the rows the coach reads stay on '
                                 'your own machine.')
                         : (l?.coachCloudDataNote ??
                             'Your questions and the rows the coach reads are sent '
                                 'to this endpoint. See exactly what that is on '
-                                '"What was sent".'),
+                                '"What was sent".')),
                     style: F.cap.copyWith(color: p.ink3, height: 1.5),
                   ),
                   const SizedBox(height: S.x4),
@@ -1051,7 +1053,7 @@ class _CoachSetupState extends State<CoachSetup> {
                   ),
                   if (_msg != null) ...[
                     const SizedBox(height: S.x3),
-                    Text(_msg!, style: F.cap.copyWith(color: p.ink3)),
+                    Text(coreText(c, _msg!), style: F.cap.copyWith(color: p.ink3)),
                   ],
                   const SizedBox(height: S.x4),
                   OsTextField(
@@ -1086,7 +1088,7 @@ class _CoachSetupState extends State<CoachSetup> {
                                     const SizedBox(width: S.x3),
                                     Expanded(
                                       child: Text(
-                                        m,
+                                        coreText(c, m),
                                         style: F.cap.copyWith(color: p.ink),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -1110,9 +1112,9 @@ class _CoachSetupState extends State<CoachSetup> {
                     ),
                     const SizedBox(height: S.x3),
                     Text(
-                      'A local model can take a while to load before its first '
+                      coreText(c, 'A local model can take a while to load before its first '
                       'reply. Default is 5 minutes (300s). Cloud providers use '
-                      'a fixed 2-minute timeout and are not affected by this.',
+                      'a fixed 2-minute timeout and are not affected by this.'),
                       style: F.cap.copyWith(color: p.ink3, height: 1.5),
                     ),
                   ],

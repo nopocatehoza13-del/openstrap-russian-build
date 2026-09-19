@@ -31,6 +31,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 // key/value façade, not the app.
 import '../../gps/gps_source.dart' show GpsPermissionStatus;
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
 import '../screens/home_screen.dart' show unitsOf;
@@ -576,7 +577,7 @@ class LiveShellState extends State<LiveShell> {
               ),
               Expanded(
                 child: Column(children: [
-                  Text(a.name.toUpperCase(),
+                  Text(activityText(context, a.name).toUpperCase(),
                       style: F.over.copyWith(color: p.on(a.color)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
@@ -720,7 +721,7 @@ void say(BuildContext c, String what) =>
 /// screen reader unusable for exactly as long as the session lasts. The
 /// elapsed time is on the shell's own label; the moments worth hearing are
 /// announced explicitly (see [say]).
-Widget bigNum(P p, String v, String unit) => ExcludeSemantics(
+Widget bigNum(P p, String v, String unit) => Builder(builder: (c) => ExcludeSemantics(
     child: Row(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -733,14 +734,14 @@ Widget bigNum(P p, String v, String unit) => ExcludeSemantics(
                 overflow: TextOverflow.ellipsis)),
         if (unit.isNotEmpty) ...[
           const SizedBox(width: S.x2),
-          Text(unit, style: F.t2.copyWith(color: p.ink3)),
+          Text(activityText(c, unit), style: F.t2.copyWith(color: p.ink3)),
         ],
       ],
-    ));
+    )));
 
 /// Up to three supporting numbers. A stat with nothing behind it is omitted,
 /// never rendered as a dash — and an entirely empty row is no row.
-Widget statRow(P p, List<(String, String)> items) => items.isEmpty
+Widget statRow(P p, List<(String, String)> items) => Builder(builder: (c) => items.isEmpty
     ? const SizedBox.shrink()
     : Row(
       children: [
@@ -748,16 +749,16 @@ Widget statRow(P p, List<(String, String)> items) => items.isEmpty
           if (i > 0) Container(width: 1, height: 36, color: p.line),
           Expanded(
             child: Column(children: [
-              Text(items[i].$1, style: F.n24.copyWith(color: p.ink)),
+              Text(activityText(c, items[i].$1), style: F.n24.copyWith(color: p.ink)),
               const SizedBox(height: S.x1),
-              Text(items[i].$2,
+              Text(activityText(c, items[i].$2),
                   style: F.over.copyWith(color: p.ink3),
                   textAlign: TextAlign.center),
             ]),
           ),
         ],
       ],
-      );
+      ));
 
 Widget counterButton(P p, IconData i, Color col, String label,
         VoidCallback onTap,
@@ -835,11 +836,11 @@ class LiveHeart extends StatelessWidget {
         const SizedBox(height: S.x4),
         ChartFrame(
           title: l?.activityLiveTimeInZonesTitle ?? 'TIME IN ZONES',
-          unit: 'minutes',
+          unit: activityText(c, 'minutes'),
           height: 10,
           legend: [
             for (var i = 0; i < 5; i++)
-              ('Z${i + 1} · ${feed.zoneMinutes[i].round()}m', ZoneBar.cols(p)[i]),
+              ('Z${i + 1} · ${feed.zoneMinutes[i].round()}${l?.localeName == 'ru' ? ' мин' : 'm'}', ZoneBar.cols(p)[i]),
           ],
           child: CustomPaint(
               size: Size.infinite,
@@ -944,12 +945,12 @@ List<Widget> _distanceStats(BuildContext ctx, P p, LiveFeed f, Activity a,
 /// "5.24 km" / "3.25 mi" for a distance already known to exist.
 String _distanceText(BuildContext c, double km) {
   final u = unitsOf(c);
-  return u == null
+  return activityText(c, u == null
       ? '${km.toStringAsFixed(2)} km'
-      : u.distance(km * 1000)!; // non-null in, non-null out
+      : u.distance(km * 1000)!); // non-null in, non-null out
 }
 
-String _distanceUnit(BuildContext c) => unitsOf(c)?.distanceUnit ?? 'km';
+String _distanceUnit(BuildContext c) => activityText(c, unitsOf(c)?.distanceUnit ?? 'km');
 
 /// Display text for a swim stroke — [key] stays the canonical English value
 /// stored on the session (see [LiveSwim]'s `strokes` and [_baseResult]'s
@@ -1342,9 +1343,9 @@ class _LiveStrengthState extends State<LiveStrength> {
                       horizontal: S.x4, vertical: S.x3),
                   child: Row(children: [
                     Expanded(
-                        child: Text(e.label,
+                        child: Text(activityText(c, e.label),
                             style: F.body.copyWith(color: p.ink))),
-                    Text(e.muscles.keys.first,
+                    Text(activityText(c, e.muscles.keys.first),
                         style: F.over.copyWith(color: p.ink3)),
                   ]),
                 ),
@@ -1375,8 +1376,8 @@ class _LiveStrengthState extends State<LiveStrength> {
           ? (l?.activityLiveSetsCountSubtitle(log.setCount) ??
               '${log.setCount} SETS')
           : (u?.isImperial == true
-              ? '${grouped(u!.weightValue(volume))} ${u.weightUnit.toUpperCase()} · '
-                  '${log.setCount} SETS'
+              ? '${grouped(u!.weightValue(volume))} ${activityText(c, u.weightUnit).toUpperCase()} · '
+                  '${l?.activityLiveSetsCountSubtitle(log.setCount) ?? '${log.setCount} SETS'}'
               : (l?.activityLiveVolumeSetsSubtitle(grouped(volume), log.setCount) ??
                   '${grouped(volume)} KG · ${log.setCount} SETS')),
       private: widget.private,
@@ -1438,7 +1439,7 @@ class _LiveStrengthState extends State<LiveStrength> {
                 volume == null
                     ? (l?.activityLiveBodyweightOnly ?? 'bodyweight only')
                     : (u?.isImperial == true
-                        ? '${u!.weightUnit} volume'
+                        ? (l?.localeName == 'ru' ? 'тоннаж, ${activityText(c, u!.weightUnit)}' : '${u!.weightUnit} volume')
                         : (l?.activityLiveKgVolumeUnit ?? 'kg volume')))),
         Container(width: 1, height: 26, color: p.line),
         Expanded(child: _total(p, '${log.setCount}', l?.activityLiveSetsUnit ?? 'sets')),
@@ -1462,7 +1463,7 @@ class _LiveStrengthState extends State<LiveStrength> {
                     'EXERCISE ${index + 1} OF ${plan.length}',
                 style: F.over.copyWith(color: p.ink3)),
             const SizedBox(height: S.x1),
-            Text(def?.label ?? key,
+            Text(activityText(c, def?.label ?? key),
                 textAlign: TextAlign.center,
                 style: F.t2.copyWith(color: p.ink)),
           ]),
@@ -1548,7 +1549,7 @@ class _LiveStrengthState extends State<LiveStrength> {
                                     setsHere[i].reps) ??
                                 '${setsHere[i].reps} reps · bodyweight')
                             : '${_fmt(setsHere[i].loadKg!, u)} '
-                                '${u?.weightUnit ?? 'kg'} × '
+                                '${activityText(c, u?.weightUnit ?? 'kg')} × '
                                 '${setsHere[i].reps}',
                         style: F.body.copyWith(color: p.ink)),
                   ),
@@ -1558,7 +1559,7 @@ class _LiveStrengthState extends State<LiveStrength> {
                   if (setsHere[i].volume != null) ...[
                     const SizedBox(width: S.x3),
                     Text('${grouped(u?.weightValue(setsHere[i].volume!) ?? setsHere[i].volume!)} '
-                        '${u?.weightUnit ?? 'kg'}',
+                        '${activityText(c, u?.weightUnit ?? 'kg')}',
                         style: F.cap.copyWith(
                             color: p.ink2, fontWeight: FontWeight.w600)),
                   ],
@@ -1672,8 +1673,9 @@ class _LiveStrengthState extends State<LiveStrength> {
                                 logged.last.reps) ??
                             '${logged.last.reps} reps logged')
                         : (u?.isImperial == true
-                            ? '${_fmt(logged.last.loadKg!, u)} '
-                                '${u!.weightUnit} × ${logged.last.reps} logged'
+                            ? (l?.localeName == 'ru'
+                                ? 'Записано: ${_fmt(logged.last.loadKg!, u)} ${activityText(c, u!.weightUnit)} × ${logged.last.reps}'
+                                : '${_fmt(logged.last.loadKg!, u)} ${u!.weightUnit} × ${logged.last.reps} logged')
                             : (l?.activityLiveWeightRepsLogged(
                                     _fmt(logged.last.loadKg!),
                                     logged.last.reps) ??
@@ -1704,7 +1706,7 @@ class _LiveStrengthState extends State<LiveStrength> {
 
   Widget _total(P p, String v, String l) => Column(children: [
         Text(v, style: F.n17.copyWith(color: p.ink)),
-        Text(l,
+        Text(activityText(context, l),
             style: F.over.copyWith(color: p.ink3),
             textAlign: TextAlign.center),
       ]);
@@ -1731,7 +1733,7 @@ class _LiveStrengthState extends State<LiveStrength> {
                   ? (l?.activityLiveNoneYet ?? 'None yet')
                   : s.loadKg == null
                       ? (l?.activityLiveRepsOnly(s.reps) ?? '${s.reps} reps')
-                      : '${_fmt(s.loadKg!, u)} ${u?.weightUnit ?? 'kg'} × ${s.reps}',
+                      : '${_fmt(s.loadKg!, u)} ${activityText(c, u?.weightUnit ?? 'kg')} × ${s.reps}',
               style: F.cap
                   .copyWith(color: p.ink, fontWeight: FontWeight.w600)),
         ]),
@@ -1904,7 +1906,7 @@ class _LiveSwimState extends State<LiveSwim> {
                           color:
                               poolLen == len ? p.wash(C.blue) : p.card2,
                           borderRadius: R.rPill),
-                      child: Text('$len m',
+                      child: Text(activityText(ctx, '$len m'),
                           style: F.cap.copyWith(
                               color: poolLen == len
                                   ? p.on(C.blue)
@@ -1920,7 +1922,7 @@ class _LiveSwimState extends State<LiveSwim> {
             final fastest = secs.reduce((x, y) => x < y ? x : y);
             return ChartFrame(
               title: l?.activityLiveLapsChartTitle ?? 'LAPS',
-              unit: 'seconds per lap',
+              unit: activityText(ctx, 'seconds per lap'),
               height: 20.0 * secs.length,
               xLabels: [
                 l?.activityLiveLapXLabel(1) ?? 'Lap 1',
@@ -2255,7 +2257,7 @@ class _LiveMatchState extends State<LiveMatch> {
                     child: Row(children: [
                       Expanded(
                           child: Text(
-                              l?.activityLiveSetNumber(i + 1) ?? 'Set ${i + 1}',
+                              l?.activitySummaryGameSetLabel(i + 1) ?? 'Set ${i + 1}',
                               style: F.body.copyWith(color: p.ink3))),
                       Text('${sets[i].$1} — ${sets[i].$2}',
                           style: F.n17.copyWith(

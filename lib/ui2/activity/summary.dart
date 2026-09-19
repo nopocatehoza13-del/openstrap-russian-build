@@ -29,6 +29,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/db.dart';
 import '../../gps/gpx_export.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/ru_activity_extra.dart';
 import '../../state/app_state.dart';
 import '../../state/prefs.dart';
 import '../../state/units_controller.dart';
@@ -496,7 +497,8 @@ String grouped(num v) {
   return b.toString();
 }
 
-String _shortDate(DateTime t) {
+String _shortDate(DateTime t, {String? locale}) {
+  if (locale == 'ru') return russianActivityDate(t, separator: ' в ');
   const months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -650,7 +652,9 @@ class SessionStats extends StatelessWidget {
       final (value, unit) = splitStatUnit(s.$2);
       rows.add(PosterStatRow(
         icon: statIcon(s.$1),
-        label: s.$1,
+        label: r.arch == Arch.match && s.$1 == 'Sets' &&
+                Localizations.maybeLocaleOf(c)?.languageCode == 'ru'
+            ? 'Сеты' : s.$1,
         value: value,
         unit: unit,
         accent: accent,
@@ -991,8 +995,8 @@ class _ActivitySummaryState extends State<ActivitySummary> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: S.x4),
             child: NavBar(
-              a.name,
-              sub: _shortDate(r.start).toUpperCase(),
+              activityText(c, a.name),
+              sub: _shortDate(r.start, locale: l?.localeName).toUpperCase(),
               // Each icon is a Pressable with S.tap's own 44 pt minimum hit
               // box (grammar.dart's accessibility floor, not optional) —
               // S.tap * n alone is short of that plus the gaps between them,
@@ -1012,7 +1016,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                 ],
                 Pressable(
                   semanticLabel: l?.activitySummaryShareThis(
-                          a.name.toLowerCase()) ??
+                          a.displayName(l.localeName).toLowerCase()) ??
                       'Share this ${a.name.toLowerCase()}',
                   onTap: () => Navigator.of(c).push(MaterialPageRoute(
                       builder: (_) => ShareSheet(r))),
@@ -1109,11 +1113,11 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Text(hero.$1,
+                  Text(activityText(c, hero.$1),
                       style: F.n48.copyWith(color: p.ink), maxLines: 1),
                   if (hero.$2.isNotEmpty) ...[
                     const SizedBox(width: S.x2),
-                    Text(hero.$2, style: F.body.copyWith(color: p.ink3)),
+                    Text(activityText(c, hero.$2), style: F.body.copyWith(color: p.ink3)),
                   ],
                 ]),
           ),
@@ -1125,7 +1129,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
         ],
       ]),
       const SizedBox(height: S.x1),
-      Text(hero.$3, style: F.cap.copyWith(color: p.ink2)),
+      Text(activityText(c, hero.$3), style: F.cap.copyWith(color: p.ink2)),
       const SizedBox(height: S.x5),
       ..._definingObject(c, p),
       const SizedBox(height: S.x5),
@@ -1236,7 +1240,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
               arch == Arch.journey && r.gainM != null
                   ? (l?.activitySummaryClimbed(r.gainM!.round()) ??
                       '+${r.gainM!.round()} m climbed')
-                  : a.name
+                  : a.displayName(l?.localeName)
             ),
       Arch.strength => r.strength.volumeKg == null
           ? (
@@ -1294,7 +1298,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
           Surface(
             child: ChartFrame(
               title: l?.activitySummaryRouteTitle ?? 'ROUTE',
-              unit: _distanceUnit,
+              unit: activityText(c, _distanceUnit),
               height: 200,
               legend: r.routePace == null
                   ? const []
@@ -1374,7 +1378,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
           Surface(
             child: ChartFrame(
               title: l?.activitySummaryIntervalLadderTitle ?? 'INTERVAL LADDER',
-              unit: 'seconds',
+              unit: activityText(c, 'seconds'),
               height: 110,
               legend: [
                 (l?.activitySummaryWork ?? 'Work', p.on(C.red)),
@@ -1427,8 +1431,8 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                       style: F.head.copyWith(color: p.ink)),
                   Text(
                       r.breathsPerMin == null
-                          ? a.name
-                          : '${r.breathsPerMin!.toStringAsFixed(1)} breaths/min',
+                          ? a.displayName(l?.localeName)
+                          : activityText(c, '${r.breathsPerMin!.toStringAsFixed(1)} breaths/min'),
                       style: F.over.copyWith(color: p.on(C.teal))),
                 ]),
           ),
@@ -1491,7 +1495,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
             child: Column(children: [
               ChartFrame(
                 title: l?.activitySummaryElevationTitle ?? 'ELEVATION',
-                unit: 'm',
+                unit: activityText(c, 'm'),
                 height: 130,
                 yAxis: axis,
                 xLabels: [
@@ -1581,7 +1585,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
       return [
         StatusCard(
           have == 0
-              ? (l?.activitySummaryNoPulseTitle(a.name.toLowerCase()) ??
+              ? (l?.activitySummaryNoPulseTitle(a.displayName(l.localeName).toLowerCase()) ??
                   'No pulse reading for this ${a.name.toLowerCase()}')
               : (l?.activitySummaryOneMinutePulse ??
                   'One minute of pulse, and no more'),
@@ -1627,7 +1631,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
         // helps.
         : thermal
             ? StatusCard(
-                l?.activitySummaryNoPulseTitle(a.name.toLowerCase()) ??
+                l?.activitySummaryNoPulseTitle(a.displayName(l.localeName).toLowerCase()) ??
                     'No pulse reading for this ${a.name.toLowerCase()}',
                 _thermalWhy!,
                 icon: _thermalIcon,
@@ -1677,7 +1681,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
     ];
     return ChartFrame(
       title: l?.activitySummaryHeartRateTitle ?? 'HEART RATE',
-      unit: 'bpm',
+      unit: activityText(context, 'bpm'),
       height: height,
       yAxis: axis,
       xLabels: [l?.activitySummaryStart ?? 'Start', hms(r.duration)],
@@ -1695,11 +1699,11 @@ class _ActivitySummaryState extends State<ActivitySummary> {
   Widget _zoneFrame(P p) => ChartFrame(
         title: AppLocalizations.of(context)?.activitySummaryTimeInZonesTitle ??
             'TIME IN ZONES',
-        unit: 'minutes',
+        unit: activityText(context, 'minutes'),
         height: 10,
         legend: [
           for (var i = 0; i < 5; i++)
-            ('Z${i + 1} · ${r.zoneMinutes[i].round()}m', ZoneBar.cols(p)[i]),
+            ('Z${i + 1} · ${r.zoneMinutes[i].round()}${Localizations.maybeLocaleOf(context)?.languageCode == 'ru' ? ' мин' : 'm'}', ZoneBar.cols(p)[i]),
         ],
         footnote: zonesWhy(r.zoneSource, r.zoneMaxHr, AppLocalizations.of(context)),
         child: CustomPaint(
@@ -1733,7 +1737,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                              exerciseByKey(top.exerciseKey)?.label ??
+                              exerciseByKey(top.exerciseKey)?.displayLabel(l?.localeName) ??
                                   top.exerciseKey,
                               style: F.body.copyWith(
                                   color: p.ink, fontWeight: FontWeight.w600)),
@@ -1741,8 +1745,9 @@ class _ActivitySummaryState extends State<ActivitySummary> {
                             Flexible(
                                 child: Text(
                                     _u?.isImperial == true
-                                        ? '1RM estimate '
-                                            '${_u!.weightValue(rm!).round()} lb'
+                                        ? (l?.localeName == 'ru'
+                                            ? 'Оценка 1ПМ: ${_u!.weightValue(rm!).round()} фунт.'
+                                            : '1RM estimate ${_u!.weightValue(rm!).round()} lb')
                                         : (l?.activitySummaryOneRepMax(
                                                 rm!.round()) ??
                                             '1RM estimate ${rm!.round()} kg'),
@@ -1842,9 +1847,9 @@ class _ActivitySummaryState extends State<ActivitySummary> {
   String _kg(double v) {
     final u = _u;
     if (u == null) {
-      return v == v.roundToDouble() ? '${v.round()} kg' : '${v.toStringAsFixed(1)} kg';
+      return activityText(context, v == v.roundToDouble() ? '${v.round()} kg' : '${v.toStringAsFixed(1)} kg');
     }
-    return '${u.weightField(v)} ${u.weightUnit}';
+    return activityText(context, '${u.weightField(v)} ${u.weightUnit}');
   }
 
   // ─────────────────── SPLITS ───────────────────
@@ -1952,7 +1957,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
         return [
           for (final key in r.strength.exercises) ...[
             Section(
-              exerciseByKey(key)?.label ?? key,
+              exerciseByKey(key)?.displayLabel(l?.localeName) ?? key,
               Surface(
                 pad: const EdgeInsets.symmetric(horizontal: S.x4),
                 child: Column(children: [
@@ -2129,7 +2134,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
         if (s.volume != null) ...[
           const SizedBox(width: S.x3),
           Text('${grouped(_u?.weightValue(s.volume!) ?? s.volume!)} '
-                  '${_u?.weightUnit ?? 'kg'}',
+                  '${activityText(context, _u?.weightUnit ?? 'kg')}',
               style: F.cap
                   .copyWith(color: p.ink2, fontWeight: FontWeight.w600)),
         ],
@@ -2161,7 +2166,7 @@ class _ActivitySummaryState extends State<ActivitySummary> {
         // reason, and "check band connection" is not it.
         else if (thermal)
           StatusCard(
-            l?.activitySummaryNothingToPlot(a.name.toLowerCase()) ??
+            l?.activitySummaryNothingToPlot(a.displayName(l.localeName).toLowerCase()) ??
                 'Nothing to plot for this ${a.name.toLowerCase()}',
             _thermalWhy!,
             icon: _thermalIcon,
@@ -2186,11 +2191,12 @@ class _ActivitySummaryState extends State<ActivitySummary> {
             child: Builder(builder: (_) {
               final axis = AxisSpec.of(g.$4.whereType<double>());
               return ChartFrame(
-                title: g.$1.toUpperCase(),
-                unit: g.$2,
+                title: (g.$1 == 'Elevation' && l?.localeName == 'ru'
+                        ? 'Высота' : activityText(c, g.$1)).toUpperCase(),
+                unit: activityText(c, g.$2),
                 height: 110,
                 yAxis: axis,
-                xLabels: ['Start', hms(r.duration)],
+                xLabels: [activityText(c, 'Start'), hms(r.duration)],
                 // The gap belongs to the heart-rate trace, not to the altitude
                 // the phone recorded alongside it.
                 footnote: g.$1 == 'Heart rate' ? _traceNote : null,

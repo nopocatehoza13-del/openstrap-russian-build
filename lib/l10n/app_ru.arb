@@ -10046,7 +10046,7 @@
   "@activitySummaryVolumeLoadedSets": {
     "description": "Hero caption for total volume when some sets had no recorded load"
   },
-  "activitySummaryTotalVolume": "Общий объём",
+  "activitySummaryTotalVolume": "Общий тоннаж",
   "@activitySummaryTotalVolume": {
     "description": "Hero caption for total volume when every set had a recorded load"
   },
@@ -10574,7 +10574,7 @@
   "@activityLiveKcalEstUnit": {
     "description": "Common stats row: unit label for the estimated-calories figure."
   },
-  "activityLiveKgVolumeUnit": "кг объёма",
+  "activityLiveKgVolumeUnit": "тоннаж, кг",
   "@activityLiveKgVolumeUnit": {
     "description": "Live strength screen: unit label under the total training volume in kg."
   },
@@ -10912,7 +10912,7 @@
       }
     }
   },
-  "activityLiveSetsListHeader": "ПОДХОДЫ",
+  "activityLiveSetsListHeader": "СЕТЫ",
   "@activityLiveSetsListHeader": {
     "description": "Live match screen: header above the list of finished sets."
   },

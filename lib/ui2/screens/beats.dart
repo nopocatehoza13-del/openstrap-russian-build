@@ -400,6 +400,7 @@ class _BeatsState extends State<Beats> {
         StatusCard.forMetric(
                 l?.beatsVariabilitySection ?? 'Variability across the night',
                 d.shape,
+                locale: l?.localeName,
                 unit: l?.beatsUnitNights ?? 'nights',
                 why: l?.beatsVariabilityWhy ??
                     'No half-hour bin of this night held enough clean beats '
@@ -484,6 +485,7 @@ class _BeatsState extends State<Beats> {
         l?.beatsDcSection ?? 'Deceleration capacity',
         StatusCard.forMetric(
                 l?.beatsDcSection ?? 'Deceleration capacity', d.dc,
+                locale: l?.localeName,
                 unit: l?.beatsUnitNights ?? 'nights',
                 why: l?.beatsDcWhy ??
                     'No stored night has produced one yet.') ??

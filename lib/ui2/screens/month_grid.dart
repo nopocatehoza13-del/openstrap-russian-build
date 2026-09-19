@@ -28,7 +28,7 @@ import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../ui2.dart';
 import 'home_screen.dart' show ChartPoint, denseDays, pointsOf;
-import 'metric_detail.dart' show MetricSpec, specOf;
+import 'metric_detail.dart' show MetricSpec, specOf, localizedMetricSpec;
 
 /// Days on screen. One month, and the same window every trend card uses.
 const int kGridDays = 30;
@@ -151,7 +151,7 @@ class MonthGrid extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            r.spec.title,
+                            localizedMetricSpec(r.spec, l).title,
                             style: F.over.copyWith(color: p.ink2),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -169,8 +169,8 @@ class MonthGrid extends StatelessWidget {
                   ),
                   Semantics(
                     label: l?.monthGridSemanticsLabel(
-                            r.spec.title, r.have, kGridDays) ??
-                        '${r.spec.title}: ${r.have} of $kGridDays days have '
+                            localizedMetricSpec(r.spec, l).title, r.have, kGridDays) ??
+                        '${localizedMetricSpec(r.spec, l).title}: ${r.have} of $kGridDays days have '
                             'a value. Shaded against your own range.',
                     child: SizedBox(
                       height: 22,
@@ -214,8 +214,8 @@ class MonthGrid extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: S.x3),
             child: StatusCard(
-              l?.monthGridNotShadedYetTitle(r.spec.title) ??
-                  '${r.spec.title} is not shaded yet',
+              l?.monthGridNotShadedYetTitle(localizedMetricSpec(r.spec, l).title) ??
+                  '${localizedMetricSpec(r.spec, l).title} is not shaded yet',
               l?.monthGridNotShadedYetBody(r.historyDays, kGridMinHistory) ??
                   'A shade is where a day sits in your own range, and '
                       '${r.historyDays} day${r.historyDays == 1 ? '' : 's'} is not '

@@ -76,6 +76,17 @@ const kCycleLengthReviewMinGaps = 12;
 /// most alarming bar on the screen.
 const kCycleLengthUnloggableGapDays = 60;
 
+/// A binary singular/plural branch cannot express Russian 2–4 or 21 cycles.
+String completedCycleUnit(int count, AppLocalizations? l) {
+  if (l?.localeName.split('_').first == 'ru') {
+    return russianCountForm(
+        count, 'полный цикл', 'полных цикла', 'полных циклов');
+  }
+  return count == 1
+      ? (l?.cycleUnitCompleteCycle ?? 'complete cycle')
+      : (l?.cycleUnitCompleteCycles ?? 'complete cycles');
+}
+
 /// What the user may attach to a day. A short, plain, non-diagnostic list —
 /// these are observations, not symptoms of anything the app claims to know.
 const kCycleSymptoms = <String>[
@@ -377,9 +388,7 @@ class _CycleTabState extends State<CycleTab> with RevisionReload {
         DeepDiveCard(
           l?.cycleAcrossCyclesTitle ?? 'Across your cycles',
           '${_completedCycles(d)}',
-          _completedCycles(d) == 1
-              ? (l?.cycleUnitCompleteCycle ?? 'complete cycle')
-              : (l?.cycleUnitCompleteCycles ?? 'complete cycles'),
+          completedCycleUnit(_completedCycles(d), l),
           l?.cycleOpenAction ?? 'Open',
           C.pink,
           onTap: () => Navigator.of(

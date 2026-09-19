@@ -1621,7 +1621,7 @@ class _SleepDetailState extends State<SleepDetail> {
       return StatusCard.forMetric(
               l?.sleepDetailSleepNeedNotEstablished ??
                   'Sleep need not established',
-              d.need) ??
+              d.need, locale: l?.localeName) ??
           const SizedBox.shrink();
     }
 

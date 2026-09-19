@@ -163,13 +163,36 @@ int? needMoreNightsFromNote(String? note) {
 /// [unit] picks the wording: 'nights' (sleep/recovery/HRV-baseline metrics) →
 /// "Need N more nights"; 'days' (activity/fitness) → "Wear N more days to
 /// unlock". Returns null when [note] isn't a need_baseline note.
-String? needMessageFromNote(String? note, {String unit = 'nights'}) {
+String? needMessageFromNote(String? note,
+    {String unit = 'nights', String? locale}) {
   final n = needMoreNightsFromNote(note);
   if (n == null) return null;
+  if (_isRussianLocale(locale)) {
+    if (unit == 'days') {
+      return 'Носите браслет ещё $n '
+          '${_russianCountWord(n, 'день', 'дня', 'дней')}, чтобы получить оценку';
+    }
+    return 'Нужно ещё $n ${_russianCountWord(n, 'ночь', 'ночи', 'ночей')}';
+  }
   if (unit == 'days') {
     return 'Wear $n more day${n == 1 ? '' : 's'} to unlock';
   }
   return 'Need $n more night${n == 1 ? '' : 's'}';
+}
+
+// Display-only helpers. Note parsing, gates, counts and metric values remain
+// language independent; callers opt in using the active UI locale.
+bool _isRussianLocale(String? locale) =>
+    locale?.toLowerCase().split(RegExp('[-_]')).first == 'ru';
+
+String _russianCountWord(int n, String one, String few, String many) {
+  final lastTwo = n.abs() % 100;
+  if (lastTwo >= 11 && lastTwo <= 14) return many;
+  return switch (n.abs() % 10) {
+    1 => one,
+    2 || 3 || 4 => few,
+    _ => many,
+  };
 }
 
 /// Machine-readable note token — `key:arg`, no space after the colon. The
@@ -233,6 +256,43 @@ const _inputWhy = {
       'Too few recorded sessions to describe a pattern rather than noise.',
 };
 
+// The same known causes as _inputWhy, not inferred explanations. Unknown
+// machine tokens still abstain, and unknown pipeline prose stays verbatim.
+const _inputWhyRu = {
+  'age': 'Ваш возраст не указан, а он нужен для расчёта этого показателя.',
+  'weight_kg': 'Ваш вес не указан, а он нужен для расчёта этого показателя.',
+  'height_cm': 'Ваш рост не указан, а он нужен для расчёта этого показателя.',
+  'sex': 'Ваш пол не указан, а формула расчёта требует этих данных.',
+  'wake_hr': 'За этот день нет записи пульса во время бодрствования.',
+  'hr_samples': 'Для расчёта слишком мало измерений пульса.',
+  'resting_hr': 'Нет пульса в покое за оценённую ночь, с которым можно сравнить показатель.',
+  'scored_night': 'Нет оценённой ночи, по которой можно рассчитать этот показатель.',
+  'nn_beats': 'Для расчёта слишком мало интервалов между ударами сердца без помех.',
+  'resp_windows': 'За ночь слишком мало получасовых участков с качественными данными '
+      'о дыхании, чтобы сравнить их между собой.',
+  'accel_1hz': 'Одновременно с пульсом движение не записывалось.',
+  'imported_day': 'Этот день получен из импортированной выгрузки, в которой есть '
+      'только ночь. За время бодрствования записей нет, как нет и исходных данных '
+      'для их восстановления.',
+  'today_activity': 'За сегодня ещё нет данных об активности: '
+      'они пока не поступили в приложение.',
+  'tst_min': 'Для этой ночи нет данных об общем времени сна.',
+  'wake_time': 'Для этой ночи нет времени пробуждения.',
+  'efficiency': 'Для этой ночи нет показателя эффективности сна.',
+  'observed_ceiling': 'Браслет ещё не записал достаточно высокий устойчивый пульс '
+      'при интенсивной нагрузке, чтобы определить максимальный пульс.',
+  'maximal_effort': 'Самый высокий устойчивый пульс в ваших записях значительно '
+      'ниже возрастной оценки. Это скорее говорит о том, что нагрузка не была '
+      'предельной, а не о вашем истинном максимуме. Зоны остаются основанными '
+      'на возрастной оценке, пока браслет не запишет более интенсивную нагрузку.',
+  'resting_hr_days': 'Для расчёта резерва пульса пока недостаточно ночных '
+      'измерений пульса в покое.',
+  'manual_zones': 'Вы задали зоны вручную, поэтому нет измеренного резерва '
+      'пульса, относительно которого можно построить распределение.',
+  'sessions': 'Записанных тренировок слишком мало, чтобы отличить '
+      'закономерность от случайных колебаний.',
+};
+
 /// THE REASON THE DATA GAVE, as a sentence — or null when nothing said why.
 ///
 /// A screen may only state a cause it was handed. Notes arrive in two shapes:
@@ -243,18 +303,29 @@ const _inputWhy = {
 /// which is the whole point. Inventing a plausible cause is the defect this
 /// exists to stop: a false diagnosis with an unactionable fix costs more trust
 /// than a bare absence, because the user does the thing and nothing happens.
-String? whyFromNote(String? note, {String unit = 'nights'}) {
+String? whyFromNote(String? note, {String unit = 'nights', String? locale}) {
   final s = note?.trim() ?? '';
   if (s.isEmpty) return null;
-  final need = needMessageFromNote(s, unit: unit);
+  final russian = _isRussianLocale(locale);
+  final need = needMessageFromNote(s, unit: unit, locale: locale);
   if (need != null) return need;
   if (s.startsWith('need_input:')) {
-    final why = _inputWhy[_noteInput.firstMatch(s)?.group(1)];
+    final why = (russian ? _inputWhyRu : _inputWhy)[
+        _noteInput.firstMatch(s)?.group(1)];
     if (why == null) return null;
     final c = _noteCounts.firstMatch(s);
-    return c == null ? why : '$why There were ${c[1]}, and it needs ${c[2]}.';
+    return c == null
+        ? why
+        : russian
+            ? '$why Есть: ${c[1]}; нужно: ${c[2]}.'
+            : '$why There were ${c[1]}, and it needs ${c[2]}.';
   }
   if (s.startsWith('unknown_device_family')) {
+    if (russian) {
+      return 'В записях не указано, каким браслетом они сделаны. Этот показатель '
+          'нужно калибровать для конкретной модели, поэтому вместо догадки '
+          'значение не показывается.';
+    }
     return 'These recordings are not stamped with which strap made them, and '
         'this number has to be calibrated per strap, so it is withheld rather '
         'than guessed.';

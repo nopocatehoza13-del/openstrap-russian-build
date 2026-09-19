@@ -67,9 +67,9 @@ private enum Trio: CaseIterable {
 
   var label: String {
     switch self {
-    case .recovery: return "Recovery"
-    case .strain: return "Strain"
-    case .sleep: return "Sleep"
+    case .recovery: return SWL.text("Recovery")
+    case .strain: return SWL.text("Strain")
+    case .sleep: return SWL.text("Sleep")
     }
   }
 
@@ -187,7 +187,7 @@ private struct AccessoryCircularView: View {
     // from a recovery OF zero.
     if r.measured, r.frac >= 0 {
       Gauge(value: min(r.frac, 1)) {
-        Text("RCV")
+        Text(SWL.text("RCV"))
       } currentValueLabel: {
         Text(r.value)
       }
@@ -196,7 +196,7 @@ private struct AccessoryCircularView: View {
     } else {
       VStack(spacing: 0) {
         Image(systemName: "bolt.heart").font(.system(size: 15)).widgetAccentable()
-        Text("RCV").font(.system(size: 9, weight: .semibold))
+        Text(SWL.text("RCV")).font(.system(size: 9, weight: .semibold))
       }
     }
   }
@@ -207,12 +207,12 @@ private struct AccessoryRectangularView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
       Text(snap.recovery.measured
-           ? "Recovery \(snap.recovery.value)"
-           : "Recovery · \(snap.recovery.value)")
+           ? SWL.text("Recovery {0}", snap.recovery.value)
+           : SWL.text("Recovery · {0}", snap.recovery.value))
         .font(.system(size: 13, weight: .bold)).widgetAccentable()
       // Only the rings that are actually reporting. An absent metric is left
       // out of the line rather than printed as a dash.
-      Text(pair("Strain", snap.strain, "Sleep", snap.sleep))
+      Text(pair(SWL.text("Strain"), snap.strain, SWL.text("Sleep"), snap.sleep))
         .font(.system(size: 13, weight: .semibold))
       Text(snap.recovery.measured && !snap.recovery.sub.isEmpty
            ? snap.recovery.sub
@@ -255,7 +255,7 @@ struct OpenStrapWidgetEntryView: View {
       case .accessoryRectangular: AccessoryRectangularView(snap: entry.snap)
       case .accessoryInline:
         Text(entry.snap.recovery.measured
-             ? "Recovery \(entry.snap.recovery.value)"
+             ? SWL.text("Recovery {0}", entry.snap.recovery.value)
              : "OpenStrap · \(entry.snap.recovery.value.lowercased())")
       default: SmallView(snap: entry.snap)
       }
@@ -271,7 +271,7 @@ struct OpenStrapWidget: Widget {
       OpenStrapWidgetEntryView(entry: entry)
     }
     .configurationDisplayName("OpenStrap")
-    .description("Recovery, strain and sleep at a glance.")
+    .description(Text(SWL.text("Recovery, strain and sleep at a glance.")))
     .supportedFamilies([.systemSmall, .systemMedium,
                         .accessoryCircular, .accessoryRectangular, .accessoryInline])
   }

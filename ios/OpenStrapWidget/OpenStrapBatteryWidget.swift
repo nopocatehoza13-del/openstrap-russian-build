@@ -68,7 +68,7 @@ struct BatteryEntry: TimelineEntry {
   let updatedAt: Int    // epoch seconds, 0 = unknown
 
   static let placeholder = BatteryEntry(
-    date: Date(), name: "Band", pct: 68, charging: false,
+    date: Date(), name: SWL.text("Band"), pct: 68, charging: false,
     updatedAt: Int(Date().timeIntervalSince1970))
 
   var hasData: Bool { pct >= 0 }
@@ -124,7 +124,7 @@ private enum BatteryStore {
     let charging = d?.object(forKey: "batt_charging") as? Bool ?? false
     let at = d?.object(forKey: "batt_at") as? Int ?? 0
     let raw = (d?.string(forKey: "batt_name") ?? "").trimmingCharacters(in: .whitespaces)
-    let name = raw.isEmpty ? "Band" : raw
+    let name = raw.isEmpty ? SWL.text("Band") : raw
     return BatteryEntry(date: Date(), name: name, pct: pct, charging: charging,
                         updatedAt: at)
   }
@@ -195,8 +195,8 @@ private struct BatterySmallView: View {
       if e.hasData { BattBar(t: e.t, color: e.color, height: 9) }
       // Dimming alone does not SAY anything. A reading we can no longer vouch
       // for names itself, on every family.
-      Text(!e.hasData ? "Not connected yet"
-           : (e.stale ? "Last known level" : (e.charging ? "Charging" : "Battery")))
+      Text(!e.hasData ? SWL.text("Not connected yet")
+           : (e.stale ? SWL.text("Last known level") : (e.charging ? SWL.text("Charging") : SWL.text("Battery"))))
         .font(.system(size: 10, weight: .medium)).foregroundColor(.battInkMuted)
         .padding(.top, 5)
     }
@@ -246,10 +246,10 @@ private struct BatteryRectangularView: View {
         }
         .gaugeStyle(.accessoryLinearCapacity)
       } else {
-        Text("Not connected yet").font(.system(size: 12)).foregroundStyle(.secondary)
+        Text(SWL.text("Not connected yet")).font(.system(size: 12)).foregroundStyle(.secondary)
       }
       if e.stale {
-        Text("Last known").font(.system(size: 11)).foregroundStyle(.secondary)
+        Text(SWL.text("Last known")).font(.system(size: 11)).foregroundStyle(.secondary)
       }
     }
   }
@@ -282,8 +282,10 @@ struct OpenStrapBatteryEntryView: View {
     case .accessoryInline:
       Label(
         entry.hasData
-          ? "\(entry.name) \(entry.pct)%\(entry.stale ? " · last known" : "")"
-          : "\(entry.name) not connected",
+          ? (entry.stale
+             ? SWL.text("{0} {1}% · last known", entry.name, String(entry.pct))
+             : "\(entry.name) \(entry.pct)%")
+          : SWL.text("{0} not connected", entry.name),
         systemImage: entry.symbol)
     default: BatterySmallView(e: entry)
     }
@@ -297,8 +299,8 @@ struct OpenStrapBatteryWidget: Widget {
     StaticConfiguration(kind: kind, provider: BatteryProvider()) { entry in
       OpenStrapBatteryEntryView(entry: entry)
     }
-    .configurationDisplayName("Band Battery")
-    .description("Your band's battery level at a glance.")
+    .configurationDisplayName(Text(SWL.text("Band Battery")))
+    .description(Text(SWL.text("Your band's battery level at a glance.")))
     .supportedFamilies([.systemSmall, .accessoryCircular,
                         .accessoryRectangular, .accessoryInline])
   }

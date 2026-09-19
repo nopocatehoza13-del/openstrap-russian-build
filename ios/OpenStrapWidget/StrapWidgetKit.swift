@@ -141,9 +141,9 @@ enum SW {
 
     static let placeholder = Snapshot(
       hasData: true, updatedAt: Int(Date().timeIntervalSince1970), tier: 3,
-      recovery: RingData(state: 0, value: "72", sub: "Good to go", why: "", frac: 0.72),
-      strain: RingData(state: 0, value: "12.4", sub: "of 21", why: "", frac: 12.4 / 21),
-      sleep: RingData(state: 0, value: "7h 17m", sub: "of 7h 45m", why: "", frac: 437.0 / 465),
+      recovery: RingData(state: 0, value: "72", sub: SWL.text("Good to go"), why: "", frac: 0.72),
+      strain: RingData(state: 0, value: "12.4", sub: SWL.text("of 21"), why: "", frac: 12.4 / 21),
+      sleep: RingData(state: 0, value: SWL.text("7h 17m"), sub: SWL.text("of 7h 45m"), why: "", frac: 437.0 / 465),
       hrv: 62, hrvBaseline: 58, rhr: 54, efficiency: 91,
       overnightWhy: "")
   }
@@ -313,17 +313,17 @@ enum SW {
         Image(systemName: "bolt.heart").font(.system(size: 18)).widgetAccentable()
       case .accessoryRectangular:
         VStack(alignment: .leading, spacing: 2) {
-          Text("No recent data").font(.system(size: 13, weight: .bold)).widgetAccentable()
-          Text("Open OpenStrap and sync your band.")
+          Text(SWL.text("No recent data")).font(.system(size: 13, weight: .bold)).widgetAccentable()
+          Text(SWL.text("Open OpenStrap and sync your band."))
             .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
         }
       case .accessoryInline:
-        Text("OpenStrap · no recent data")
+        Text(SWL.text("OpenStrap · no recent data"))
       default:
         VStack(spacing: 6) {
           Image(systemName: "bolt.heart").font(.system(size: 22)).foregroundStyle(p.ink3)
-          Text("No recent data").font(.system(size: 14, weight: .semibold)).foregroundStyle(p.ink)
-          Text("Open OpenStrap and sync your band.")
+          Text(SWL.text("No recent data")).font(.system(size: 14, weight: .semibold)).foregroundStyle(p.ink)
+          Text(SWL.text("Open OpenStrap and sync your band."))
             .font(.system(size: 11)).multilineTextAlignment(.center).foregroundStyle(p.ink3)
         }
         .padding(12)

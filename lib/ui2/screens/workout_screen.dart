@@ -302,7 +302,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> with RevisionReload {
     if (d.load == null) {
       return StatusCard(
         loc?.workoutNoLoadTitle ?? 'No training load yet',
-        d.loadNote ??
+        needMessageFromNote(d.loadNote, unit: 'days', locale: loc?.localeName) ??
             (loc?.workoutNoLoadBody ??
                 'Fitness and fatigue are 42-day and 7-day averages. They need '
                     'about two weeks of sessions.'),
@@ -1932,7 +1932,8 @@ Future<_WorkoutData> _loadWorkoutData(AppState app) async {
     String? note;
     final raw = insights['load'];
     if (raw is Map) {
-      note = needMessageFromNote(raw['note'] as String?, unit: 'days');
+      // Keep the note language neutral until the UI chooses its locale.
+      note = raw['note'] as String?;
       final v = raw['value'];
       if (v is Map && v['ctl'] is num) {
         load = _Load(

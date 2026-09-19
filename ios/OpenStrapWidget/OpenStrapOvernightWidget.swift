@@ -80,7 +80,7 @@ private struct Figure: View {
           Text(against).font(SW.cap).foregroundStyle(p.ink3).lineLimit(1)
         }
       } else {
-        Text("Not measured").font(SW.body).foregroundStyle(p.ink2)
+        Text(SWL.text("Not measured")).font(SW.body).foregroundStyle(p.ink2)
       }
     }
   }
@@ -101,13 +101,13 @@ private struct OvernightSmallView: View {
           r: SW.RingData(state: s.hrv >= 0 ? 0 : 2, value: "", sub: "", why: "",
                          frac: e.hrvFrac),
           symbol: "waveform.path.ecg", accent: p.good, size: 40, line: 6)
-        Figure(label: "HRV", value: s.hrv, unit: "ms",
-               against: s.hrvBaseline > 0 ? "base \(s.hrvBaseline)" : "",
+        Figure(label: SWL.text("HRV"), value: s.hrv, unit: SWL.text("ms"),
+               against: s.hrvBaseline > 0 ? SWL.text("base {0}", String(s.hrvBaseline)) : "",
                accent: p.good)
         Spacer(minLength: 0)
       }
       Divider()
-      Figure(label: "Resting HR", value: s.rhr, unit: "bpm", against: "", accent: p.ink)
+      Figure(label: SWL.text("Resting HR"), value: s.rhr, unit: SWL.text("bpm"), against: "", accent: p.ink)
       if !e.hasAny, !e.why.isEmpty {
         Text(e.why).font(.system(size: 11)).foregroundStyle(p.ink3).lineLimit(3)
       }
@@ -127,8 +127,8 @@ struct OpenStrapOvernightWidgetEntryView: View {
 
   private var line: String {
     let s = entry.snap
-    let parts = [s.hrv >= 0 ? "HRV \(s.hrv) ms" : nil,
-                 s.rhr >= 0 ? "RHR \(s.rhr)" : nil].compactMap { $0 }
+    let parts = [s.hrv >= 0 ? SWL.text("HRV {0} ms", String(s.hrv)) : nil,
+                 s.rhr >= 0 ? SWL.text("RHR {0}", String(s.rhr)) : nil].compactMap { $0 }
     return parts.isEmpty ? "" : parts.joined(separator: "   ")
   }
 
@@ -140,7 +140,7 @@ struct OpenStrapOvernightWidgetEntryView: View {
       case .accessoryCircular:
         if entry.snap.hrv >= 0, entry.hrvFrac >= 0 {
           Gauge(value: entry.hrvFrac) {
-            Text("HRV")
+            Text(SWL.text("HRV"))
           } currentValueLabel: {
             Text("\(entry.snap.hrv)")
           }
@@ -149,22 +149,22 @@ struct OpenStrapOvernightWidgetEntryView: View {
         } else {
           VStack(spacing: 0) {
             Image(systemName: "waveform.path.ecg").font(.system(size: 14)).widgetAccentable()
-            Text(entry.snap.hrv >= 0 ? "\(entry.snap.hrv)" : "HRV")
+            Text(entry.snap.hrv >= 0 ? "\(entry.snap.hrv)" : SWL.text("HRV"))
               .font(.system(size: 10, weight: .semibold))
           }
         }
       case .accessoryRectangular:
         VStack(alignment: .leading, spacing: 2) {
-          Text("Overnight").font(.system(size: 11, weight: .semibold)).widgetAccentable()
-          Text(entry.hasAny ? line : "Not measured")
+          Text(SWL.text("Overnight")).font(.system(size: 11, weight: .semibold)).widgetAccentable()
+          Text(entry.hasAny ? line : SWL.text("Not measured"))
             .font(.system(size: 15, weight: .bold))
           Text(entry.hasAny
-               ? (entry.snap.hrvBaseline > 0 ? "Your baseline \(entry.snap.hrvBaseline) ms" : "")
+               ? (entry.snap.hrvBaseline > 0 ? SWL.text("Your baseline {0} ms", String(entry.snap.hrvBaseline)) : "")
                : entry.why)
             .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
         }
       case .accessoryInline:
-        Text(entry.snap.hrv >= 0 ? "HRV \(entry.snap.hrv) ms" : "OpenStrap · HRV not measured")
+        Text(entry.snap.hrv >= 0 ? SWL.text("HRV {0} ms", String(entry.snap.hrv)) : SWL.text("OpenStrap · HRV not measured"))
       default: OvernightSmallView(e: entry)
       }
     }
@@ -178,8 +178,8 @@ struct OpenStrapOvernightWidget: Widget {
     StaticConfiguration(kind: kind, provider: OvernightProvider()) { entry in
       OpenStrapOvernightWidgetEntryView(entry: entry)
     }
-    .configurationDisplayName("Overnight")
-    .description("Last night's HRV against your own baseline, and resting heart rate.")
+    .configurationDisplayName(Text(SWL.text("Overnight")))
+    .description(Text(SWL.text("Last night's HRV against your own baseline, and resting heart rate.")))
     .supportedFamilies([.systemSmall, .accessoryCircular,
                         .accessoryRectangular, .accessoryInline])
   }

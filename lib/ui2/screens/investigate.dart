@@ -266,7 +266,7 @@ class _InvestigateState extends State<Investigate> {
   @override
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
-    final spec = specOf(widget.metricKey);
+    final spec = localizedMetricSpec(specOf(widget.metricKey), l);
     final d = _d ?? const InvestigateData();
     final hrvish = widget.metricKey == 'hrv';
 
@@ -1115,7 +1115,7 @@ class _InvestigateState extends State<Investigate> {
         (l?.investigateMin ?? 'Min', n(sorted.first)),
         (l?.investigateMax ?? 'Max', n(sorted.last)),
         (l?.investigateUnit ?? 'Unit',
-            spec.unit.isEmpty ? (l?.investigateUnitless ?? 'unitless') : spec.unit),
+            spec.unit.isEmpty ? (l?.investigateUnitless ?? 'unitless') : metricDisplayUnit(spec.unit, locale: l?.localeName)),
         (l?.investigateStorage ?? 'Storage',
             l?.investigateOneValuePerDerivedDay ?? 'one value per derived day'),
       ]),

@@ -177,6 +177,7 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
                   l?.readinessDetailNotScoredTitle ??
                       'Readiness is not scored',
                   d.readiness,
+                  locale: l?.localeName,
                   // Where the data stops, appended to whatever the pipeline
                   // said. Not a substitute for the reason and not a reading —
                   // "the last one was Saturday" is a fact about coverage.
@@ -329,7 +330,7 @@ class _ReadinessDetailState extends State<ReadinessDetail> {
       ));
     }
     final note = diag['note']?.toString();
-    final need = needMessageFromNote(note);
+    final need = needMessageFromNote(note, locale: l?.localeName);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (rows.isNotEmpty)

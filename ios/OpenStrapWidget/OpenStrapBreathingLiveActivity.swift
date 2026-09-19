@@ -74,14 +74,14 @@ private extension Color {
   static var bOnMind: Color { BreathingPal.current.onMind }
 }
 
-private func coherenceText(_ v: Double) -> String { v >= 0 ? "\(Int(v.rounded()))%" : "Calibrating…" }
+private func coherenceText(_ v: Double) -> String { v >= 0 ? "\(Int(v.rounded()))%" : SWL.text("Calibrating…") }
 
 // MARK: - Interactive stop (iOS 17+) — separate flag from the workout's
 // end_session so the two Live Activities never collide.
 
 @available(iOSApplicationExtension 17.0, *)
 struct EndBreathingIntent: LiveActivityIntent {
-  static var title: LocalizedStringResource = "End session"
+  static var title: LocalizedStringResource { SWL.resource("End session") }
   func perform() async throws -> some IntentResult {
     UserDefaults(suiteName: kAppGroup)?.set(true, forKey: "end_breathing_session")
     for activity in Activity<OpenStrapBreathingAttributes>.activities {
@@ -108,7 +108,7 @@ private struct BreathingLockScreenView: View {
         Text(coherenceText(score))
           .font(.system(size: score >= 0 ? 30 : 18, weight: .bold, design: .rounded))
           .foregroundStyle(Color.bInk).contentTransition(.numericText())
-        Text("COHERENCE").font(.system(size: 9, weight: .semibold)).tracking(1)
+        Text(SWL.text("COHERENCE")).font(.system(size: 9, weight: .semibold)).tracking(1)
           .foregroundStyle(Color.bInkMuted)
       }
       Spacer()
@@ -119,6 +119,7 @@ private struct BreathingLockScreenView: View {
         Button(intent: EndBreathingIntent()) {
           Image(systemName: "stop.fill").font(.system(size: 12, weight: .bold))
         }
+        .accessibilityLabel(SWL.text("End session"))
         .tint(Color.bMindFill).buttonBorderShape(.capsule)
       }
     }
@@ -148,7 +149,7 @@ struct OpenStrapBreathingLiveActivity: Widget {
             Text(coherenceText(score))
               .font(.system(size: 18, weight: .bold, design: .rounded))
               .foregroundStyle(Color.bOnMind).contentTransition(.numericText())
-            Text("COHERENCE").font(.system(size: 8, weight: .semibold)).tracking(1).foregroundStyle(.secondary)
+            Text(SWL.text("COHERENCE")).font(.system(size: 8, weight: .semibold)).tracking(1).foregroundStyle(.secondary)
           }
         }
         DynamicIslandExpandedRegion(.center) {
@@ -159,7 +160,7 @@ struct OpenStrapBreathingLiveActivity: Widget {
         DynamicIslandExpandedRegion(.bottom) {
           if #available(iOSApplicationExtension 17.0, *) {
             Button(intent: EndBreathingIntent()) {
-              Label("End session", systemImage: "stop.fill").font(.system(size: 12, weight: .bold))
+              Label(SWL.text("End session"), systemImage: "stop.fill").font(.system(size: 12, weight: .bold))
             }
             .tint(Color.bMindFill).buttonBorderShape(.capsule)
           }

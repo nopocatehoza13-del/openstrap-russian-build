@@ -388,7 +388,7 @@ class _DriverTile extends StatelessWidget {
     // The pipeline's own reason, never a written-here one. `need_baseline:
     // have=2,need=7` becomes "Need 5 more nights"; anything it cannot read
     // comes back null and the row simply says "not available" above.
-    final why = f.used ? null : whyFromNote(f.note);
+    final why = f.used ? null : whyFromNote(f.note, locale: l?.localeName);
 
     final head = Padding(
       padding: const EdgeInsets.symmetric(vertical: S.x3),
@@ -578,7 +578,7 @@ StatusCard driverAbsenceCard(
   }
   return StatusCard(
     l?.driverBreakdownAbsenceTitle ?? 'No breakdown to show',
-    whyFromNote(note) ??
+    whyFromNote(note, locale: l?.localeName) ??
         (l?.driverBreakdownAbsenceNoReason ??
             'Nothing recorded says why last night has no breakdown.'),
     icon: LucideIcons.listTree,

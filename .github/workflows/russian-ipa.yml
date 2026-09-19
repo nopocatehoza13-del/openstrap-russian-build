@@ -1,0 +1,52 @@
+name: OpenStrap Russian IPA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: russian-ipa-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.6'
+          channel: stable
+          cache: true
+      - name: Prepare independent build (no upstream secrets)
+        run: |
+          printf 'BACKEND_URL=\nCOMPANION_URL=\nENABLE_HEALTH_DATA_CONTRIBUTION=false\n' > .env
+          python3 - <<'PY'
+          from pathlib import Path
+          # Upstream documents Firebase as optional. Do not connect this personal
+          # build to the upstream developer's Firebase project.
+          Path('lib/firebase_options.dart').write_text('''import 'package:firebase_core/firebase_core.dart';
+          class DefaultFirebaseOptions {
+            static FirebaseOptions get currentPlatform => throw UnsupportedError('Firebase is not configured in this independent RU build');
+          }
+          ''')
+          PY
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          dart pub global activate flutterfire_cli 1.4.0
+      - name: Build and verify Russian IPA
+        shell: bash
+        run: bash tool/build_russian_ipa.sh 2>&1 | tee russian-build.log
+      - name: Upload IPA, checksum and build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenStrap-RU-unsigned
+          if-no-files-found: error
+          path: |
+            dist/*.ipa
+            dist/*.sha256
+            russian-build.log
+            build/ru-review/*.json

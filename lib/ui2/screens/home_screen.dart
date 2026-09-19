@@ -983,7 +983,7 @@ _RingState _gap(HomeRingKind k, String label, IconData icon, Color color,
       // THE PIPELINE'S REASON FIRST. A sentence written here by someone who
       // never saw the day is the fallback, and where there is neither the ring
       // says it does not know rather than guessing a cause.
-      why: whyFromNote(m.note, unit: unit) ??
+      why: whyFromNote(m.note, unit: unit, locale: l?.localeName) ??
           (fallbackWhy.isNotEmpty
               ? fallbackWhy
               : (l?.homeGapNoReason ?? 'Nothing recorded says why this is missing.')));
@@ -1758,7 +1758,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
           )
         else
           Builder(builder: (c) {
-            final need = needMessageFromNote(d.readiness.note);
+            final need = needMessageFromNote(d.readiness.note,
+                locale: l?.localeName);
             return StatusCard(
               l?.homeReadinessNotScoredTitle ?? 'Readiness is not scored today',
               need != null
@@ -1768,7 +1769,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
                   // history to compare it to" — a cause, stated for every
                   // absence the note convention did not cover. The door below
                   // is what actually answers it.
-                  : whyFromNote(d.readiness.note) ??
+                  : whyFromNote(d.readiness.note, locale: l?.localeName) ??
                       (l?.homeReadinessNoReason ?? 'Nothing recorded says why.'),
               fix: l?.homeSeeWhatWasMissing ?? 'See what was missing',
               icon: LucideIcons.batteryCharging,
@@ -1907,6 +1908,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       // screen can actually see is stated; the other defers to the note, or to
       // saying it does not know.
       () => StatusCard.forMetric(l?.homeNoRestingHr ?? 'No resting heart rate', d.rhr,
+          locale: l?.localeName,
           why: d.sleepMin.isEmpty
               ? (l?.homeNoRestingHrWhy ??
                   'Resting heart rate is read from sleep, and no sleep was recorded.')
@@ -1961,7 +1963,8 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
       // No `why:`. It said "Needs your weight and age" — and the measured run
       // printed that to a profile carrying both, because energy had gone absent
       // for an entirely different reason that the card never asked for.
-      () => StatusCard.forMetric(l?.homeNoEnergyEstimate ?? 'No energy estimate', d.calories),
+      () => StatusCard.forMetric(l?.homeNoEnergyEstimate ?? 'No energy estimate', d.calories,
+          locale: l?.localeName),
     );
 
     return Column(children: [
@@ -2051,6 +2054,7 @@ class _HomeScreenState extends State<HomeScreen> with RevisionReload {
 
     if (rows.isEmpty) {
       return StatusCard.forMetric(l?.homeNoPlanTitle ?? 'No plan for today yet', d.sleepNeedMin,
+              locale: l?.localeName,
               // "none are established yet" is the COLD-START reason, and it is
               // a wrong answer when the baselines exist and are being withheld.
               why: d.insightsStale != null

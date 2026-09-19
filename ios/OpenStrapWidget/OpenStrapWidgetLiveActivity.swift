@@ -165,7 +165,7 @@ private func kcalText(_ v: Int?) -> String { v.map { "\($0)" } ?? "" }
 
 @available(iOSApplicationExtension 17.0, *)
 struct EndSessionIntent: LiveActivityIntent {
-  static var title: LocalizedStringResource = "Finish session"
+  static var title: LocalizedStringResource { SWL.resource("Finish session") }
   func perform() async throws -> some IntentResult {
     UserDefaults(suiteName: kAppGroup)?.set(true, forKey: "end_session")
     for activity in Activity<OpenStrapWidgetAttributes>.activities {
@@ -188,18 +188,18 @@ private struct LockScreenView: View {
           VStack(alignment: .leading, spacing: 0) {
             Text(hrText(s.hr)).font(.system(size: 34, weight: .bold, design: .rounded))
               .foregroundStyle(Color.ink).contentTransition(.numericText())
-            Text("BPM").font(.system(size: 9, weight: .semibold)).tracking(1).foregroundStyle(Color.inkMuted)
+            Text(SWL.text("BPM")).font(.system(size: 9, weight: .semibold)).tracking(1).foregroundStyle(Color.inkMuted)
           }
         }
         Spacer()
         HStack(spacing: 14) {
-          stat("STRAIN", strainText(s.strain), .onMove)
-          stat("KCAL", kcalText(s.calories), .onHeart)
+          stat(SWL.text("STRAIN"), strainText(s.strain), .onMove)
+          stat(SWL.text("KCAL"), kcalText(s.calories), .onHeart)
         }
       }
       VStack(alignment: .leading, spacing: 5) {
         HStack {
-          Text(s.zone >= 1 ? "ZONE \(s.zone)" : "WARMING UP")
+          Text(s.zone >= 1 ? SWL.text("ZONE {0}", String(s.zone)) : SWL.text("WARMING UP"))
             .font(.system(size: 10, weight: .bold)).tracking(1).foregroundStyle(zoneColor(s.zone))
           Spacer()
           Text(context.attributes.startedAt, style: .timer)
@@ -243,7 +243,7 @@ struct OpenStrapWidgetLiveActivity: Widget {
             Text(strainText(s.strain))
               .font(.system(size: 20, weight: .bold, design: .rounded))
               .foregroundStyle(Color.onMove).contentTransition(.numericText())
-            Text("STRAIN").font(.system(size: 8, weight: .semibold)).tracking(1).foregroundStyle(.secondary)
+            Text(SWL.text("STRAIN")).font(.system(size: 8, weight: .semibold)).tracking(1).foregroundStyle(.secondary)
           }
         }
         DynamicIslandExpandedRegion(.center) {
@@ -257,11 +257,12 @@ struct OpenStrapWidgetLiveActivity: Widget {
             // Absent stays absent: a bare " kcal" with nothing in front of it
             // is the unit claiming a measurement we don't have. The lock
             // screen dims the empty slot; here the whole label goes.
-            Text(s.calories.map { "\($0) kcal" } ?? "").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+            Text(s.calories.map { SWL.text("{0} kcal", String($0)) } ?? "").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
             if #available(iOSApplicationExtension 17.0, *) {
               Button(intent: EndSessionIntent()) {
                 Image(systemName: "stop.fill").font(.system(size: 12, weight: .bold))
               }
+              .accessibilityLabel(SWL.text("Finish session"))
               .tint(Color.heartFill).buttonBorderShape(.capsule)
             }
           }.padding(.top, 2)
@@ -272,7 +273,7 @@ struct OpenStrapWidgetLiveActivity: Widget {
           Text(hrText(s.hr)).font(.system(size: 14, weight: .bold, design: .rounded))
         }
       } compactTrailing: {
-        Text(s.zone >= 1 ? "Z\(s.zone)" : "·")
+        Text(s.zone >= 1 ? SWL.text("Z{0}", String(s.zone)) : "·")
           .font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(zoneColor(s.zone))
       } minimal: {
         Text(hrText(s.hr)).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(Color.heart)

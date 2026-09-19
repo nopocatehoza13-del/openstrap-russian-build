@@ -342,7 +342,7 @@ class _ZonesDetailState extends State<ZonesDetail> {
       // below is a cause this screen wrote, and on all three real databases it
       // was the wrong one — the ceiling refused for an unstamped strap, and
       // "wear the band for your normal hard sessions" could never fix that.
-      final why = whyFromNote(d.ceilingNote);
+      final why = whyFromNote(d.ceilingNote, locale: l?.localeName);
       final tail = d.source == 'tanaka'
           // Only when there ARE age-estimated edges below. Said
           // unconditionally it described a section that, on every database in
@@ -420,7 +420,7 @@ class _ZonesDetailState extends State<ZonesDetail> {
       // payload carries the age. The age was set, the button led to a filled-in
       // field, and nothing changed. It is offered now only when the age really
       // is missing, which is the only state in which it does anything.
-      final why = whyFromNote(d.note, unit: 'days');
+      final why = whyFromNote(d.note, unit: 'days', locale: l?.localeName);
       final noAge = (d.age ?? 0) <= 0;
       return StatusCard(
         l?.activityZonesNoZonesTitle ?? 'No zones yet',
@@ -533,7 +533,7 @@ class _ZonesDetailState extends State<ZonesDetail> {
             // edges at all, edges off the age estimate, or a reserve anchor
             // still short — and the screen was choosing between two of them
             // off `source` alone.
-            whyFromNote(d.distNote, unit: 'days') ??
+            whyFromNote(d.distNote, unit: 'days', locale: l?.localeName) ??
                 (d.measured
                     ? (l?.activityZonesNeedsMonthBody ??
                         'Needs about a month of recorded sessions, each with a '

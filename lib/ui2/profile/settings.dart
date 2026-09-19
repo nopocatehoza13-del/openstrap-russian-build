@@ -479,6 +479,14 @@ Future<void> _confirmReset(BuildContext c, AppState app) async {
   if (c.mounted) backToRoot(c);
 }
 
+String settingsChoiceLabel(String value, String? locale) {
+  if (locale?.split(RegExp('[-_]')).first != 'ru') return value;
+  return const {
+    'Metric': 'Метрические', 'Imperial': 'Имперские',
+    'System': 'Как в системе', 'Light': 'Светлое', 'Dark': 'Тёмное',
+  }[value] ?? value;
+}
+
 class MoreSettingsView extends StatelessWidget {
   final String units, appearance;
   final bool phoneSteps, telemetry, barcodeLookup, cycleTracking;
@@ -662,10 +670,10 @@ class MoreSettingsView extends StatelessWidget {
                 settingsGroup(c, l?.settingsGroupPreferences ?? 'Preferences', [
                   SetRow(LucideIcons.ruler, C.blue,
                       l?.settingsUnitsRowTitle ?? 'Units',
-                      value: units, onTap: onCycleUnits),
+                      value: settingsChoiceLabel(units, l?.localeName), onTap: onCycleUnits),
                   SetRow(LucideIcons.sun, C.yellow,
                       l?.settingsAppearanceRowTitle ?? 'Appearance',
-                      value: appearance, onTap: onCycleAppearance),
+                      value: settingsChoiceLabel(appearance, l?.localeName), onTap: onCycleAppearance),
                   if (appIcon != null)
                     _IconRow(chosen: appIcon!, onPick: onPickIcon),
                   // Opt-in, and it says what it does rather than what it is

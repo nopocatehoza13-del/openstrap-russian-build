@@ -206,7 +206,10 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
         ? ''
         : dayLabelOf(day) == todayLabel()
             ? (l?.dayStrainToday ?? 'TODAY')
-            : '${monthName(day.month, l)} ${day.day}'.toUpperCase();
+            : (Localizations.localeOf(c).languageCode == 'ru'
+                    ? '${day.day} ${monthName(day.month, l)}'
+                    : '${monthName(day.month, l)} ${day.day}')
+                .toUpperCase();
 
     return detailScaffold(
       c,
@@ -234,7 +237,7 @@ class _DayStrainDetailState extends State<DayStrainDetail> {
       // wrist" — and it printed that on a day with a scored night (RHR 56.8)
       // and 89 % wear, because the sentence was written here rather than
       // handed over. A cause the screen did not receive is a guess.
-      final why = whyFromNote(d.note, unit: 'days');
+      final why = whyFromNote(d.note, unit: 'days', locale: l?.localeName);
       // And "wear the band" is only an instruction on a day the band did not
       // see. Offered on a day it was on the wrist all along it is worse than
       // no button, because the user spends trust doing it.

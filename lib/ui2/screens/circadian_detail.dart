@@ -598,7 +598,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
       return StatusCard.forMetric(
               l?.circadianDetailRhythmNotEstablished ??
                   'Your rhythm is not established yet',
-              d.regularity) ??
+              d.regularity, locale: l?.localeName) ??
           const SizedBox.shrink();
     }
 
@@ -663,6 +663,7 @@ class _CircadianDetailState extends State<CircadianDetail> {
               l?.circadianDetailStrengthNotMeasured ??
                   'Rhythm strength is not measured yet',
               d.rhythm,
+              locale: l?.localeName,
               unit: 'days',
               why: l?.circadianDetailStrengthWhy ??
                   'Needs consecutive days with all 24 hours recorded.') ??

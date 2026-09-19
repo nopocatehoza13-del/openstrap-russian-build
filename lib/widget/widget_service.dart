@@ -7,16 +7,88 @@
 // in the Swift suite name. See guides/IOS_INSTALLATION.md.
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show Locale, WidgetsBinding;
 import 'package:home_widget/home_widget.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/local_repository.dart';
+import '../l10n/app_localizations.dart';
 import '../models/metric.dart';
 import '../models/payloads.dart';
 import '../ui2/screens/home_screen.dart' show hm, readinessBand;
 
 class WidgetService {
   static const _platform = MethodChannel('openstrap/ios_config');
+  static TodayData? _latestToday;
+
+  /// Match MaterialApp's language resolution, including an in-app override.
+  /// A background isolate can read the persisted choice without AppState.
+  static Future<AppLocalizations> _localizations() async {
+    String? override;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      override = prefs.getString('locale_override');
+    } catch (_) {
+      /* preferences may be unavailable in a native-free test */
+    }
+    final supported = AppLocalizations.supportedLocales;
+    final languages = [
+      if (override != null) Locale(override),
+      // Use the same dispatcher as MaterialApp, including the test binding's
+      // system-locale override. Foreground and headless sync both initialize
+      // WidgetsFlutterBinding before this service is called.
+      ...WidgetsBinding.instance.platformDispatcher.locales,
+    ];
+    for (final locale in languages) {
+      for (final candidate in supported) {
+        if (candidate.languageCode == locale.languageCode) {
+          return lookupAppLocalizations(candidate);
+        }
+      }
+    }
+    return lookupAppLocalizations(const Locale('en'));
+  }
+
+  /// Re-label a known snapshot on a language change; measurements and all
+  /// absence/calibration gates still come from the original payload.
+  /// No initialized repository, band or native plugin is required.
+  static Future<void> refreshLanguage() async {
+    try {
+      await init();
+      final l = await _localizations();
+      final today = _latestToday;
+      if (today != null) {
+        // Use the existing write queue. A locale change is not a new reading:
+        // keep its freshness timestamp instead of giving old data a new lease.
+        final next = _pushChain.then(
+          (_) => _pushInternal(today, preserveTimestamp: true),
+        );
+        _pushChain = next;
+        await next;
+      } else {
+        await HomeWidget.saveWidgetData<String>(
+          'widget_language',
+          l.localeName,
+        );
+      }
+      await _reloadSnapshotWidgets();
+      await HomeWidget.updateWidget(
+        iOSName: _batteryIOSName,
+        androidName: _batteryAndroidName,
+      );
+    } catch (_) {
+      /* localization must never prevent preference persistence */
+    }
+  }
+
+  static String _duration(num? minutes, AppLocalizations l) {
+    final value = hm(minutes);
+    return l.localeName == 'ru'
+        ? value.replaceAll('h ', ' ч ').replaceAll('m', ' мин')
+        : value;
+  }
 
   /// Fallback App Group id. iOS builds read the configured value from Info.plist.
   static const String fallbackAppGroupId = String.fromEnvironment(
@@ -82,7 +154,9 @@ class WidgetService {
     if (repo == null) return;
     try {
       await push(TodayData.fromJson(await repo.getToday()));
-    } catch (_) {/* the widget is a mirror; it must never break its source */}
+    } catch (_) {
+      /* the widget is a mirror; it must never break its source */
+    }
   }
 
   /// True when [t] is describing a day that is more than one calendar day
@@ -101,9 +175,7 @@ class WidgetService {
     final day = _parseDay(s.overnightDay ?? s.activityDay ?? s.todayDay);
     if (day == null) return false;
     final today = now ?? DateTime.now();
-    return DateTime(today.year, today.month, today.day)
-            .difference(day)
-            .inDays >
+    return DateTime(today.year, today.month, today.day).difference(day).inDays >
         1;
   }
 
@@ -112,7 +184,9 @@ class WidgetService {
     if (label == null) return null;
     final p = label.split('-');
     if (p.length != 3) return null;
-    final y = int.tryParse(p[0]), m = int.tryParse(p[1]), d = int.tryParse(p[2]);
+    final y = int.tryParse(p[0]),
+        m = int.tryParse(p[1]),
+        d = int.tryParse(p[2]);
     if (y == null || m == null || d == null) return null;
     return DateTime(y, m, d);
   }
@@ -133,6 +207,7 @@ class WidgetService {
   @visibleForTesting
   static const List<String> fingerprintKeyOrder = [
     'statusDay',
+    'widget_language',
     'has_data',
     'readiness',
     'readiness_tier',
@@ -177,14 +252,19 @@ class WidgetService {
   /// Push the latest snapshot and trigger a widget reload. Best-effort; never
   /// throws into the caller. Sentinels: ints use -1 / strings use '' for "no data".
   static Future<void> push(TodayData t) {
+    _latestToday = t;
     final next = _pushChain.then((_) => _pushInternal(t));
     _pushChain = next;
     return next;
   }
 
-  static Future<void> _pushInternal(TodayData t) async {
+  static Future<void> _pushInternal(
+    TodayData t, {
+    bool preserveTimestamp = false,
+  }) async {
     try {
       await init();
+      final l = await _localizations();
       // WHICH NIGHT IS THIS. `getToday` holds the last night that scored over
       // until today's settles, so every morning before the first sync the
       // overnight block belongs to the night BEFORE last. Home refuses those
@@ -193,7 +273,7 @@ class WidgetService {
       // read as today's before any caption under it is, and that is even truer
       // on a home screen than in the app. So the same refusal happens here, and
       // the reason travels in the numbers' place.
-      final heldWhy = _heldOverWhy(t.status);
+      final heldWhy = _heldOverWhy(t.status, l);
       Metric ov(Metric m) => heldWhy == null ? m : Metric(note: heldWhy);
 
       final readiness = ov(t.readiness);
@@ -225,7 +305,7 @@ class WidgetService {
       // Headline composite Readiness — the Recovery ring on Home.
       final rv = readiness.isEmpty ? null : readiness.value;
       final readinessInt = rv == null ? -1 : rv.round();
-      final band = readinessBand(rv);
+      final band = readinessBand(rv, l);
       final tier = band.tier;
       final bandLabel = tier < 0 ? '' : band.label;
       final hrvV = hrv == null ? -1 : hrv.rmssd.round();
@@ -236,7 +316,7 @@ class WidgetService {
       final rhrV = rhr.isEmpty ? -1 : rhr.value!.round();
       final effMin = eff.isEmpty ? -1 : eff.value!.round();
       final overnightWhy = heldWhy ?? '';
-      final coachLine = _coachLine(t.coach);
+      final coachLine = _coachLine(t.coach, l);
       // The day this snapshot describes leads the fingerprint — the SAME
       // field `isStale` reads. Without it, two consecutive days with
       // identical rounded metrics produce the same fingerprint, the push is
@@ -245,7 +325,8 @@ class WidgetService {
       // clean current-day sync. Including it guarantees a new day always
       // pushes while keeping the within-day skip that is the point of the
       // gate.
-      final statusDay = t.status?.overnightDay ??
+      final statusDay =
+          t.status?.overnightDay ??
           t.status?.activityDay ??
           t.status?.todayDay ??
           '';
@@ -257,27 +338,40 @@ class WidgetService {
       // targets is four rules.
       final rings = [
         rv == null
-            ? _gapRing('recovery', readiness, 'Not scored')
-            : _Ring('recovery',
+            ? _gapRing('recovery', readiness, l.homeReadinessNotScored, l)
+            : _Ring(
+                'recovery',
                 value: '${rv.round()}',
                 sub: band.label,
-                frac: rv / 100),
+                frac: rv / 100,
+              ),
         s.isEmpty
             // 0-21 is the scale's own ceiling, not a target invented here.
-            ? _gapRing('strain', s, 'No strain', unit: 'days')
-            : _Ring('strain',
+            ? _gapRing('strain', s, l.homeRingNoStrain, l, unit: 'days')
+            : _Ring(
+                'strain',
                 value: s.value!.toStringAsFixed(1),
-                sub: 'of 21',
-                frac: s.value! / 21),
+                sub: l.homeStrainOf21,
+                frac: s.value! / 21,
+              ),
         sleep.isEmpty
-            ? _gapRing('sleep', sleep, 'No sleep',
-                fallbackWhy: 'No night long enough to score was recorded.')
-            : _Ring('sleep',
-                value: hm(sleep.value),
-                sub: needMin <= 0 ? 'No target yet' : 'of ${hm(need.value)}',
+            ? _gapRing(
+                'sleep',
+                sleep,
+                l.homeRingNoSleep,
+                l,
+                fallbackWhy: l.homeSleepGapFallback,
+              )
+            : _Ring(
+                'sleep',
+                value: _duration(sleep.value, l),
+                sub: needMin <= 0
+                    ? l.homeSleepNoTarget
+                    : l.homeOfSpan(_duration(need.value, l)),
                 frac: needMin <= 0 || sleep.isEmpty
                     ? null
-                    : sleep.value! / need.value!),
+                    : sleep.value! / need.value!,
+              ),
       ];
 
       // THE CHANGE GATE. push() runs after EVERY derive pass; an unchanged
@@ -291,6 +385,7 @@ class WidgetService {
       // least one value in the list.
       final fpValues = <Object>[
         statusDay,
+        l.localeName,
         hasData,
         readinessInt,
         tier,
@@ -324,6 +419,7 @@ class WidgetService {
       await setI('sleep_min', sleepMin);
       await setI('sleep_need_min', needMin);
       await setI('rhr', rhrV);
+      await HomeWidget.saveWidgetData<String>('widget_language', l.localeName);
       await setI('sleep_efficiency', effMin);
       await HomeWidget.saveWidgetData<String>('overnight_why', overnightWhy);
       await HomeWidget.saveWidgetData<String>('coach_line', coachLine);
@@ -334,7 +430,9 @@ class WidgetService {
         await HomeWidget.saveWidgetData<String>('ring_${r.key}_why', r.why);
         await HomeWidget.saveWidgetData<double>('ring_${r.key}_frac', r.frac);
       }
-      await setI('updated_at', DateTime.now().millisecondsSinceEpoch ~/ 1000);
+      if (!preserveTimestamp) {
+        await setI('updated_at', DateTime.now().millisecondsSinceEpoch ~/ 1000);
+      }
 
       await _reloadSnapshotWidgets();
       await _syncWatch();
@@ -364,6 +462,7 @@ class WidgetService {
   static Future<void> clear() async {
     try {
       await init();
+      _latestToday = null;
       // The change gate must not swallow the first push after a wipe.
       _lastPushFingerprint = null;
       await HomeWidget.saveWidgetData<bool>('has_data', false);
@@ -443,18 +542,30 @@ class WidgetService {
   /// fires ~1 Hz on live HR; reloading the widget every tick is wasteful).
   /// Sentinel: pct -1 = never seen the band. [name] is the strap's advertising
   /// name (the widget falls back to "Strap" when empty/null).
-  static Future<void> pushBattery(int? pct, bool? charging, String? name) async {
+  static Future<void> pushBattery(
+    int? pct,
+    bool? charging,
+    String? name,
+  ) async {
     try {
       await init();
+      final l = await _localizations();
+      await HomeWidget.saveWidgetData<String>('widget_language', l.localeName);
       await HomeWidget.saveWidgetData<int>('batt_pct', pct ?? -1);
       await HomeWidget.saveWidgetData<bool>('batt_charging', charging ?? false);
       await HomeWidget.saveWidgetData<String>('batt_name', name ?? '');
       await HomeWidget.saveWidgetData<int>(
-          'batt_at', DateTime.now().millisecondsSinceEpoch ~/ 1000);
+        'batt_at',
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      );
       await HomeWidget.updateWidget(
-          iOSName: _batteryIOSName, androidName: _batteryAndroidName);
+        iOSName: _batteryIOSName,
+        androidName: _batteryAndroidName,
+      );
       await _syncWatch();
-    } catch (_) {/* widgets unavailable / not configured yet — ignore */}
+    } catch (_) {
+      /* widgets unavailable / not configured yet — ignore */
+    }
   }
 
   /// Tell the iOS widget + Live Activity which appearance the app is rendering
@@ -535,7 +646,9 @@ class WidgetService {
       );
       if (v != null && v >= 0 && v <= 6) {
         await HomeWidget.saveWidgetData<int>(
-            'enable_tomorrow_alarm_weekday', -1);
+          'enable_tomorrow_alarm_weekday',
+          -1,
+        );
         return v;
       }
     } catch (_) {}
@@ -550,7 +663,9 @@ class WidgetService {
     try {
       await init();
       await HomeWidget.saveWidgetData<int>(
-          'enable_tomorrow_alarm_weekday', weekday);
+        'enable_tomorrow_alarm_weekday',
+        weekday,
+      );
     } catch (_) {}
   }
 
@@ -579,8 +694,13 @@ class WidgetService {
   /// `staleOvernightNote` uses on Home — one resolves on its own, the other
   /// wants a sync. Written out here rather than imported because that helper
   /// takes the raw `getToday()` map and this seam is handed the parsed payload.
-  static String? _heldOverWhy(TodayStatus? s) {
+  static String? _heldOverWhy(TodayStatus? s, AppLocalizations l) {
     if (s == null || !s.showingPriorOvernight) return null;
+    if (l.localeName == 'ru') {
+      return s.overnightBuilding
+          ? 'Данные за прошлую ночь ещё обрабатываются.'
+          : 'Данные за прошлую ночь ещё не поступили в приложение.';
+    }
     return s.overnightBuilding
         ? 'Last night is still being worked out.'
         : 'Nothing from last night has reached the app yet.';
@@ -590,33 +710,49 @@ class WidgetService {
   /// baseline still filling — the one absence that is progress and can honestly
   /// draw an arc — otherwise the word and the pipeline's own reason.
   /// Mirrors `_gap` in lib/ui2/screens/home_screen.dart.
-  static _Ring _gapRing(String key, Metric m, String word,
-      {String unit = 'nights', String fallbackWhy = ''}) {
+  static _Ring _gapRing(
+    String key,
+    Metric m,
+    String word,
+    AppLocalizations l, {
+    String unit = 'nights',
+    String fallbackWhy = '',
+  }) {
     final counts = baselineCountsFromNote(m.note);
     if (counts != null) {
-      return _Ring(key,
-          state: 1,
-          value: 'Calibrating',
-          sub: '${counts.have} of ${counts.need} $unit',
-          frac: (counts.have / counts.need).clamp(0.0, 1.0));
+      return _Ring(
+        key,
+        state: 1,
+        value: l.homeCalibrating,
+        sub: unit == 'days'
+            ? l.homeCalibratingDays(counts.have, counts.need)
+            : l.homeCalibratingNights(counts.have, counts.need),
+        frac: (counts.have / counts.need).clamp(0.0, 1.0),
+      );
     }
-    return _Ring(key,
-        state: 2,
-        value: word,
-        // THE PIPELINE'S REASON FIRST, a sentence written here second, and
-        // where there is neither the ring says it does not know rather than
-        // guessing a cause.
-        why: whyFromNote(m.note, unit: unit) ??
-            (fallbackWhy.isNotEmpty
-                ? fallbackWhy
-                : 'Nothing recorded says why this is missing.'));
+    return _Ring(
+      key,
+      state: 2,
+      value: word,
+      // THE PIPELINE'S REASON FIRST, a sentence written here second, and
+      // where there is neither the ring says it does not know rather than
+      // guessing a cause.
+      why:
+          whyFromNote(m.note, unit: unit, locale: l.localeName) ??
+          (fallbackWhy.isNotEmpty ? fallbackWhy : l.homeGapNoReason),
+    );
   }
 
-  static String _coachLine(CoachData? c) {
+  static String _coachLine(CoachData? c, AppLocalizations l) {
     if (c == null) return '';
     if (c.plan.isNotEmpty) return c.plan.first.title;
     final tgt = c.strainTarget;
-    if (tgt != null) return 'Aim for strain ${tgt.value.toStringAsFixed(0)}';
+    if (tgt != null) {
+      final value = tgt.value.toStringAsFixed(0);
+      return l.localeName == 'ru'
+          ? 'Ориентир по нагрузке: $value'
+          : 'Aim for strain $value';
+    }
     return c.summary;
   }
 }
@@ -650,11 +786,12 @@ class _Ring {
   /// arc that laps itself, or a progress bar that draws past its own end,
   /// depending on which of the four targets is reading. The number the ring
   /// shows is the real one ("8h 10m of 7h 30m"); only the arc is bounded.
-  _Ring(this.key,
-      {this.state = 0,
-      required this.value,
-      this.sub = '',
-      this.why = '',
-      double? frac})
-      : frac = frac == null ? -1 : frac.clamp(0.0, 1.0);
+  _Ring(
+    this.key, {
+    this.state = 0,
+    required this.value,
+    this.sub = '',
+    this.why = '',
+    double? frac,
+  }) : frac = frac == null ? -1 : frac.clamp(0.0, 1.0);
 }

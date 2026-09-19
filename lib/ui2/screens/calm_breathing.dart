@@ -1085,6 +1085,7 @@ class _Result extends StatelessWidget {
     final absent = StatusCard.forMetric(
       l?.calmBreathingNoScoreForSession ?? 'No coherence score for this session',
       m,
+      locale: l?.localeName,
       why: !rated
           ? (l?.calmBreathingPatternNotScored(app.breathingPattern.label) ??
               '${app.breathingPattern.label} is not scored. Resonance is the '

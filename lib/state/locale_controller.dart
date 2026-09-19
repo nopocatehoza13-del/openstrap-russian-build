@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
+import '../widget/widget_service.dart';
 
 class LocaleController extends ChangeNotifier {
   static const String _kLocale = 'locale_override'; // language code, e.g. 'es'
@@ -21,8 +22,8 @@ class LocaleController extends ChangeNotifier {
     // A locale dropped from AppLocalizations.supportedLocales (or from a
     // stale build) has no row in the picker — fall back to system default
     // rather than showing a selection nothing matches.
-    final code = AppLocalizations.supportedLocales
-            .any((l) => l.languageCode == stored)
+    final code =
+        AppLocalizations.supportedLocales.any((l) => l.languageCode == stored)
         ? stored
         : null;
     return LocaleController._(code);
@@ -42,5 +43,6 @@ class LocaleController extends ChangeNotifier {
     } else {
       await prefs.setString(_kLocale, code);
     }
+    await WidgetService.refreshLanguage();
   }
 }

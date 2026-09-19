@@ -142,6 +142,7 @@ void openProfile(BuildContext c) => goto(c, const ProfileHome());
 /// actually has translations for.
 const Map<String, String> _kLanguageNames = {
   'en': 'English',
+  'ru': 'Русский',
   'es': 'Español',
   'fr': 'Français',
   'de': 'Deutsch',

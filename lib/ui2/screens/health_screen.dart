@@ -658,6 +658,7 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
             l?.healthNoMetric(name.toLowerCase()) ??
                 'No ${name.toLowerCase()}',
             m,
+            locale: l?.localeName,
             why: whyAbsent ?? '', gap: overnight ? d.nightGap : null);
         if (s != null) gaps.add(s);
         return;
@@ -1329,7 +1330,7 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
                 if (i > 0) Divider(color: p.line, height: 1),
                 Builder(builder: (c) {
                   final r = have[i];
-                  final s = specOf(r.key);
+                  final s = localizedMetricSpec(specOf(r.key), l);
                   // NO NUMBER IN THE VALUE SLOT, on purpose.
                   //
                   // This used to print the day count. It read as a score: nine
@@ -1363,7 +1364,7 @@ class _HealthScreenState extends State<HealthScreen> with RevisionReload {
             // a row count, and a count of zero says the day never produced one
             // — never why. No `fix:` either; there is no button that makes a
             // derive happen for a night that has already been scored.
-            '${none.map((r) => specOf(r.key).title).join(' · ')}. '
+            '${none.map((r) => localizedMetricSpec(specOf(r.key), l).title).join(' · ')}. '
                 '${l?.healthNoDayProduced ?? 'No day on this device has '
                     'produced one yet.'}',
             icon: LucideIcons.chartLine,

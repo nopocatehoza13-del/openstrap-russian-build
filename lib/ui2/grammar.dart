@@ -939,15 +939,17 @@ class StatusCard extends StatelessWidget {
     String what,
     Metric? m, {
     String unit = 'nights',
+    String? locale,
     String why = '',
     String? gap,
     VoidCallback? onFix,
   }) {
     if (m != null && !m.isEmpty) return null;
-    final need = needMessageFromNote(m?.note, unit: unit);
+    final need = needMessageFromNote(m?.note, unit: unit, locale: locale);
     // A need_baseline note is rendered as the FIX ("Need 3 more nights"), so
     // its why stays the generic one — every other note is the why itself.
-    final told = need == null ? whyFromNote(m?.note) : null;
+    final told = need == null ? whyFromNote(m?.note, locale: locale) : null;
+    final russian = locale?.toLowerCase().split(RegExp('[-_]')).first == 'ru';
     return StatusCard(
       what,
       told != null
@@ -956,8 +958,12 @@ class StatusCard extends StatelessWidget {
               (why.isNotEmpty
                   ? why
                   : need != null
-                      ? 'Not enough history yet to know what normal looks like for you.'
-                      : 'Nothing recorded says why this is missing.'),
+                      ? (russian
+                          ? 'Пока недостаточно истории, чтобы определить ваш обычный уровень.'
+                          : 'Not enough history yet to know what normal looks like for you.')
+                      : (russian
+                          ? 'Причина отсутствия показателя не записана.'
+                          : 'Nothing recorded says why this is missing.')),
       fix: need ?? '',
       onFix: onFix,
     );
@@ -1555,6 +1561,32 @@ class Observation extends StatelessWidget {
   }
 }
 
+/// Russian count form for integer-only counters. The teen exception applies
+/// before the final digit, including 111–114.
+String russianCountForm(int count, String one, String few, String many) {
+  final n = count.abs();
+  if (n % 100 >= 11 && n % 100 <= 14) return many;
+  if (n % 10 == 1) return one;
+  if (n % 10 >= 2 && n % 10 <= 4) return few;
+  return many;
+}
+
+/// The coverage denominator is genitive after «из», not a standalone count.
+/// Preserve the existing text for other locales and unknown custom units.
+String consistencyCountLabel(int count, String unit, {bool russian = false}) {
+  if (!russian) return 'of $count $unit';
+  final forms = switch (unit) {
+    'days' || 'дни' || 'дней' || 'дня' => ('дня', 'дней', 'дней'),
+    'doses' || 'дозы' || 'доз' => ('дозы', 'доз', 'доз'),
+    'приёмы' || 'приёмов' => ('приёма', 'приёмов', 'приёмов'),
+    'measures' || 'показатели' || 'показателей' =>
+      ('показателя', 'показателей', 'показателей'),
+    _ => (unit, unit, unit),
+  };
+  final label = russianCountForm(count, forms.$1, forms.$2, forms.$3);
+  return 'из $count $label';
+}
+
 /// Consistency, never a streak. "18 of 24 days" cannot reset to zero, so a
 /// missed day costs a day rather than costing everything.
 class Consistency extends StatelessWidget {
@@ -1574,8 +1606,10 @@ class Consistency extends StatelessWidget {
   Widget build(BuildContext c) {
     final p = P.of(c);
     final n = of <= 0 ? 0 : of;
+    final denominator = consistencyCountLabel(n, unit,
+        russian: Localizations.maybeLocaleOf(c)?.languageCode == 'ru');
     return Semantics(
-      label: '$have of $n $unit. $label',
+      label: '$have $denominator. $label',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1584,7 +1618,7 @@ class Consistency extends StatelessWidget {
             spacing: S.x1,
             children: [
               Text('$have', style: F.n24.copyWith(color: p.ink)),
-              Text('of $n $unit', style: F.cap.copyWith(color: p.ink3)),
+              Text(denominator, style: F.cap.copyWith(color: p.ink3)),
             ],
           ),
           const SizedBox(height: S.x2),

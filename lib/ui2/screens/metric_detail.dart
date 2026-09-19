@@ -19,6 +19,7 @@ import '../../data/day_label.dart';
 import '../../data/db.dart' show LocalDb;
 import '../../data/local_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../l10n/metric_specs_ru.dart';
 import '../../state/app_state.dart';
 import '../ui2.dart';
 import 'beats.dart';
@@ -384,6 +385,53 @@ const _specs = <String, MetricSpec>{
 MetricSpec specOf(String key) =>
     _specs[key] ??
     MetricSpec(chartKey: key, title: key.replaceAll('_', ' '));
+
+/// Localize presentation without mutating the metric catalogue or stored data.
+MetricSpec localizedMetricSpec(MetricSpec s, AppLocalizations? l) {
+  if (l?.localeName.split('_').first != 'ru') return s;
+  return MetricSpec(
+    chartKey: s.chartKey,
+    title: russianMetricTitles[s.chartKey] ?? s.title,
+    // This is a formatter discriminator as well as a unit. Translating it
+    // would bypass rounding and duration/axis formatting; translate only at
+    // the Text boundary with metricDisplayUnit instead.
+    unit: s.unit,
+    color: s.color, icon: s.icon, higherBetter: s.higherBetter,
+    suppress: s.chartKey == 'skin_temp'
+        ? 'Это отклонение, не температура. У импортированных ночей могут быть другие единицы, поэтому они не объединяются на графике.' : s.suppress,
+    suppressFix: s.chartKey == 'skin_temp'
+        ? 'Показано за эту ночь в разделе «Показатели»' : s.suppressFix,
+    method: russianMetricMethods[s.chartKey] ?? s.method,
+    citation: s.citation, requires: s.requires,
+  );
+}
+
+bool _russianMetricLocale(String? locale) =>
+    locale?.split(RegExp('[-_]')).first.toLowerCase() == 'ru';
+
+/// Keep numeric precision and canonical unit dispatch in metricValue intact.
+/// A duration already carries its units; only those suffixes are translated.
+String metricDisplayValue(String unit, num? value, {String? locale}) {
+  final text = metricValue(unit, value);
+  return unit == 'min' ? _metricDurationText(text, locale) : text;
+}
+
+String _metricDurationText(String text, String? locale) =>
+    _russianMetricLocale(locale)
+        ? text.replaceAll('h', ' ч').replaceAll('m', ' мин')
+        : text;
+
+String metricDisplayAxisMinutes(double value, {String? locale}) =>
+    _metricDurationText(axisHm(value), locale);
+
+/// Display labels never flow back into chart keys or formatter decisions.
+String metricDisplayUnit(String unit,
+    {String? locale, bool besideValue = false}) {
+  final text = besideValue ? unitBeside(unit) : unit;
+  if (!_russianMetricLocale(locale)) return text;
+  if (text == 'score') return 'баллы';
+  return russianMetricUnits[text] ?? text;
+}
 
 /// Which cross-day percentile block and journal outcome, if any, belongs to
 /// this metric. Only four outcomes are correlated by the journal engine.
@@ -819,7 +867,7 @@ class _MetricDetailState extends State<MetricDetail> {
   @override
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
-    final spec = specOf(widget.metricKey);
+    final spec = localizedMetricSpec(specOf(widget.metricKey), l);
     final d = _d ?? const MetricData();
 
     final all = d.series;
@@ -1146,7 +1194,8 @@ class _MetricDetailState extends State<MetricDetail> {
               // NOT `spec.unit`. `metricValue('min', 443)` is already "7h 23m",
               // so every min-unit metric — Time asleep, Deep, REM, Wear time —
               // rendered its headline as "7h 23m min".
-              Text(unitBeside(spec.unit),
+              Text(metricDisplayUnit(spec.unit,
+                      locale: l?.localeName, besideValue: true),
                   style: F.body.copyWith(color: p.ink3)),
             ]),
         const SizedBox(height: S.x1),
@@ -1169,8 +1218,9 @@ class _MetricDetailState extends State<MetricDetail> {
             alignment: Alignment.centerLeft,
             child: Text(
                 (l?.metricDetailLatestReading(
-                            _fmt(spec, latest), unitBeside(spec.unit), asOf) ??
-                        'Latest ${_fmt(spec, latest)} ${unitBeside(spec.unit)} · $asOf')
+                            _fmt(spec, latest), metricDisplayUnit(spec.unit,
+                                locale: l.localeName, besideValue: true), asOf) ??
+                        'Latest ${_fmt(spec, latest)} ${metricDisplayUnit(spec.unit, locale: l?.localeName, besideValue: true)} · $asOf')
                     .replaceAll('  ', ' '),
                 style: F.cap.copyWith(color: p.ink3)),
           ),
@@ -1228,7 +1278,7 @@ class _MetricDetailState extends State<MetricDetail> {
           final axis = AxisSpec.of(vals,
               ticks: 3,
               format: spec.unit == 'min'
-                  ? axisHm
+                  ? (v) => metricDisplayAxisMinutes(v, locale: l?.localeName)
                   : (spec.unit == 'steps' || spec.unit == 'kcal'
                       ? (v) => thousands(v)
                       : (vals.every((v) => v.abs() >= 10)
@@ -1251,7 +1301,8 @@ class _MetricDetailState extends State<MetricDetail> {
           final dim = _dimMask(d, series.length);
           return ChartFrame(
             title: spec.title,
-            unit: spec.unit.isEmpty ? 'score' : spec.unit,
+            unit: metricDisplayUnit(spec.unit.isEmpty ? 'score' : spec.unit,
+                locale: l?.localeName),
             height: 150,
             yAxis: axis,
             xMarks: marks,
@@ -1457,8 +1508,9 @@ class _MetricDetailState extends State<MetricDetail> {
 
     if (v != null) {
       final base = (l?.metricDetailSlotWithValue(
-                  pretty, _fmt(spec, v), unitBeside(spec.unit)) ??
-              '$pretty, ${_fmt(spec, v)} ${unitBeside(spec.unit)}')
+                  pretty, _fmt(spec, v), metricDisplayUnit(spec.unit,
+                      locale: l.localeName, besideValue: true)) ??
+              '$pretty, ${_fmt(spec, v)} ${metricDisplayUnit(spec.unit, locale: l?.localeName, besideValue: true)}')
           .trimRight();
       if (!attribute) return base;
       final who = _contributors(_labelsFor(day, d.coverage, d.sources));
@@ -1532,7 +1584,7 @@ class _MetricDetailState extends State<MetricDetail> {
             Text(
               v == null
                   ? (l?.metricDetailNoRecordLabel ?? 'No record')
-                  : '${_fmt(spec, v)} ${unitBeside(spec.unit)}'.trimRight(),
+                  : '${_fmt(spec, v)} ${metricDisplayUnit(spec.unit, locale: l?.localeName, besideValue: true)}'.trimRight(),
               style: v == null
                   ? F.cap.copyWith(color: p.ink3)
                   : F.n17.copyWith(color: p.ink),
@@ -1639,6 +1691,7 @@ class _MetricDetailState extends State<MetricDetail> {
         return '$nº';
       case 'hi':
       case 'zh':
+      case 'ru':
         // Neither language marks the ordinal with a suffix here — the
         // surrounding ARB sentence already carries the "the Nth" framing
         // (Hindi's postposition, Chinese's 第 prefix), so a bare number is
@@ -1712,7 +1765,8 @@ class _MetricDetailState extends State<MetricDetail> {
     return '${v >= 0 ? '+' : '−'}$s${unit == null || unit.isEmpty ? '' : ' $unit'}';
   }
 
-  String _fmt(MetricSpec spec, double v) => metricValue(spec.unit, v);
+  String _fmt(MetricSpec spec, double v) => metricDisplayValue(spec.unit, v,
+      locale: AppLocalizations.of(context)?.localeName);
 }
 
 /// Today's steps against the goal, as one small ring — the same [Ring]

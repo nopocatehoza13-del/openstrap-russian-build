@@ -464,7 +464,8 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
           _drivers.isEmpty
               ? StatusCard(
                   l?.wellnessNoDriversTitle ?? 'No readiness drivers yet',
-                  whyFromNote(metricOf(_stress['readiness']).note) ??
+                  whyFromNote(metricOf(_stress['readiness']).note,
+                      locale: l?.localeName) ??
                       (l?.wellnessNoDriversBody ??
                           'Needs enough nights to know what normal looks like '
                               'for you.'),
@@ -480,7 +481,7 @@ class _WellnessScreenState extends State<WellnessScreen> with RevisionReload {
               // nothing, and was printed for every cause the estimator has.
               ? StatusCard(
                   l?.wellnessNoSleepNeedTitle ?? 'No sleep need yet',
-                  whyFromNote(_noteOf(coachMap?['need'])) ??
+                  whyFromNote(_noteOf(coachMap?['need']), locale: l?.localeName) ??
                       (l?.wellnessNoSleepNeedBody ??
                           'Nothing recorded says why there is no need for '
                               'tonight.'),

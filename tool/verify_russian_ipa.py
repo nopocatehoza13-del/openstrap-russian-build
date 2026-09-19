@@ -2,6 +2,17 @@
 import pathlib, plistlib, struct, sys, zipfile
 
 def verify_device_macho(data, label):
+    # Flutter packages its single ARM64 AOT slice in a FAT Mach-O container.
+    # Validate every slice instead of rejecting that valid wrapper.
+    if data[:4] == b'\xca\xfe\xba\xbe':
+        count = struct.unpack_from('>I', data, 4)[0]
+        assert 0 < count <= 16 and 8 + count * 20 <= len(data)
+        for index in range(count):
+            cpu, subtype, start, size, align = struct.unpack_from('>IIIII', data, 8 + index * 20)
+            assert cpu == 0x0100000c, f'{label}: FAT slice is not ARM64'
+            assert start >= 8 + count * 20 and size >= 32 and start + size <= len(data)
+            verify_device_macho(data[start:start+size], f'{label}[{index}]')
+        return
     assert data[:4] == b'\xcf\xfa\xed\xfe', f'{label}: not thin 64-bit little-endian Mach-O'
     cpu, subtype, filetype, ncmds = struct.unpack_from('<IIII', data, 4)
     assert cpu == 0x0100000c, f'{label}: not ARM64'

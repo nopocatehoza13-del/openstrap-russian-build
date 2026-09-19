@@ -1,0 +1,54 @@
+name: Verify existing Russian IPA
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Original macOS build run containing OpenStrap-RU-unsigned'
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: OpenStrap-RU-unsigned
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded
+      - name: Record binary provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_RUN: ${{ inputs.run_id }}
+        shell: bash
+        run: |
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]]
+          mkdir -p verified
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" --jq '{id,head_sha,html_url,conclusion}' > verified/binary-source.json
+      - name: Verify unchanged compiled IPA and checksum it
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, pathlib, shutil, subprocess
+          found = list(pathlib.Path('downloaded').rglob('*.ipa'))
+          assert len(found) == 1
+          ipa = found[0]
+          subprocess.run(['python3', 'tool/verify_russian_ipa.py', str(ipa)], check=True)
+          dest = pathlib.Path('verified') / ipa.name
+          shutil.copyfile(ipa, dest)
+          digest = hashlib.sha256(dest.read_bytes()).hexdigest()
+          dest.with_suffix('.ipa.sha256').write_text(digest + '  ' + dest.name + '\n')
+          print('IPA_SHA256=' + digest)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenStrap-RU-verified
+          path: verified/*
+          if-no-files-found: error

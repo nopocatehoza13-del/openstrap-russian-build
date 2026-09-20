@@ -94,7 +94,7 @@ class _WhTrendState extends State<WhTrend> {
     double? avg, prevAvg;
     String rangeTxt = period == 0 ? '${DateTime(end.year, end.month, end.day - 6).day} – ${dayShort(end)}' : period == 1 ? '${dayShort(DateTime(end.year, end.month, end.day - 29))} – ${dayShort(end)}' : '${dayShort(DateTime(end.year, end.month - 5, 1))} – ${dayShort(end)} ${end.year % 100}';
     double? mean(Iterable<double?> xs) {
-      final l = [for (final x in xs) if (x != null) x];
+      final l = [for (final x in xs) ?x];
       return l.isEmpty ? null : l.reduce((a, b) => a + b) / l.length;
     }
 
@@ -153,7 +153,7 @@ class _WhTrendState extends State<WhTrend> {
           groups = [for (var i = 0; i < n; i++) ws.every((x) => x[i] == null) ? null : <double>[for (final x in ws) (x[i] ?? 0).toDouble()]];
           labels = period == 0 ? labelsW : labelsM;
         }
-        vals = [for (final g in groups) g == null ? null : g.fold<double>(0.0, (a, b) => a + b)];
+        vals = [for (final g in groups) g?.fold<double>(0.0, (a, b) => a + b)];
         avg = mean(vals.take(math.max(0, vals.length - (shift == 0 && period != 2 ? 1 : 0))));
         chart = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

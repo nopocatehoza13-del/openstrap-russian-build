@@ -306,7 +306,7 @@ class WhView {
     final deep30 = rangeOfKey('deep');
     final weekRows = week;
     double? avgOf(Iterable<double?> xs) {
-      final v = [for (final x in xs) if (x != null) x];
+      final v = [for (final x in xs) ?x];
       return v.isEmpty ? null : v.reduce((a, b) => a + b) / v.length;
     }
 

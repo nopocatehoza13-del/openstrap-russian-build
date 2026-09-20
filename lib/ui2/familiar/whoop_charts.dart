@@ -89,7 +89,7 @@ class WcTrendPainter extends CustomPainter {
   void paint(Canvas c, Size s) {
     const left = 26.0, top = 18.0;
     final w = s.width, h = s.height, bottom = h - 26;
-    final all = [for (final v in vals) if (v != null) v];
+    final all = [for (final v in vals) ?v];
     if (all.isEmpty) return;
     var lo0 = all.reduce(math.min), hi0 = all.reduce(math.max);
     if (band != null) {

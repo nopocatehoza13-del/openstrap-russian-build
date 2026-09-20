@@ -103,7 +103,7 @@ class WhStrain extends StatelessWidget {
     final steps7 = trailing(d.steps, v.date, 7, excludeEnd: false);
     if (v.steps != null) steps7[6] = v.steps;
     double? avg(Iterable<double?> xs) {
-      final l = [for (final x in xs) if (x != null) x];
+      final l = [for (final x in xs) ?x];
       return l.isEmpty ? null : l.reduce((a, b) => a + b) / l.length;
     }
 

@@ -53,7 +53,7 @@ class _WhSleepState extends State<WhSleep> {
       ];
     }
     final ci = cursor == null || hr.isEmpty ? null : (cursor! * (hr.length - 1)).round();
-    final rangeOf30 = (String key) => v.rangeOfKey(key);
+    WhRange? rangeOf30(String key) => v.rangeOfKey(key);
     (int, int)? pctRange(WhRange? r) => r == null || tst == null || tst <= 0 ? null : ((r.lo / tst * 100).round().clamp(0, 100), (r.hi / tst * 100).round().clamp(0, 100));
     int? pct(double? m) => m == null || tst == null || tst <= 0 ? null : (m / tst * 100).round();
     final bedSpans = _weekSpans(d.sleepWindows, v.date);

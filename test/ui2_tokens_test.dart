@@ -199,6 +199,11 @@ const _notComponents = {
   'FamiliarDashboard', 'FamiliarMonitorDetail', 'FamiliarSleepPlanner',
   'FamiliarAgeDetail', 'FamiliarStressDetail', 'FamiliarAllHealth',
   'FamiliarActivities', 'FamiliarMore', 'FamiliarSettings', 'FamiliarPage',
+  // The WHOOP-parity routes (lib/ui2/familiar/wh_*.dart): Scaffolds over
+  // FamiliarData, or a live-HR owner that needs Provider<AppState>. The pure
+  // kit (WcRing, WcDial, WhRow, WhObservationCard, painters…) is in the gallery.
+  'WhPage', 'WhSleep', 'WhRecovery', 'WhStrain', 'WhTrend', 'WhWorkout',
+  'WhObservationsScreen', 'WhLivePulse',
   // shell and routing
   'AppShell', 'Domain', 'GalleryScreen',
   // onboarding routes

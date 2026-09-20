@@ -107,9 +107,14 @@ class _AppShellState extends State<AppShell>
                   children: [
                     // An unvisited tab is an empty box, not a built screen — the
                     // old shell built all forty screens' worth of state on launch.
+                    // TickerMode is how a hidden tab learns it is hidden: the
+                    // IndexedStack keeps every built tab alive, and a live-HR
+                    // owner that retained the stream in initState would hold it
+                    // from behind another tab. `TickerMode.of(context)` in the
+                    // tab flips with the selection (see WhLivePulse).
                     for (final d in ShellDomain.values)
                       if (_built.contains(d))
-                        widget.builder(c, d)
+                        TickerMode(enabled: d == _current, child: widget.builder(c, d))
                       else
                         const SizedBox.shrink(),
                   ],

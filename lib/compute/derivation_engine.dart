@@ -4720,6 +4720,11 @@ class DerivationEngine {
         // previous version's daytime-RHR strain left behind, not keep it.
         'strain': sc('strain'),
         'trimp': sc('trimp'),
+        // WHOOP-formula family (v98): patent-structured strain and HRR zone
+        // minutes, so the W/M/6M trends can plot them like any other key.
+        'whoop_strain': sc('whoop_strain'),
+        'whoop_z13_min': sc('whoop_z13_min'),
+        'whoop_z45_min': sc('whoop_z45_min'),
         // `strain_effort`, `spo2` and `odi_per_hour` used to be listed here.
         // Nothing in the tree ever produced them (12 rows, 0 values per key on
         // a real install), so they were three permanently-null series with a
@@ -5150,6 +5155,7 @@ class DerivationEngine {
         label: 'crossday',
       );
       await LocalDb.putBaseline('crossday', bundleJson);
+      await _persistWhoopSeries(bundleJson);
       if (dropped.isNotEmpty) {
         // Loud, not debug-only: a dropped field is a metric the user will see
         // as absent, and the reason lives here and nowhere else.
@@ -5165,6 +5171,46 @@ class DerivationEngine {
       debugPrint('[derive] crossday BUNDLE DROPPED — the stored artifact is '
           'now stale and every cross-day metric will read absent: $e\n$st');
       _log('crossday FAILED/skipped: $e');
+    }
+  }
+
+  /// The cross-day WHOOP-formula scalars the trends read — recovery, sleep
+  /// performance, consistency, hours-vs-need and tonight's need — written into
+  /// `metric_series` under the night they describe, so W/M/6M trends plot
+  /// them like any other key. Best-effort: a failure here costs a trend point,
+  /// never the artifact.
+  Future<void> _persistWhoopSeries(String bundleJson) async {
+    try {
+      final decoded = jsonDecode(bundleJson);
+      final wh = decoded is Map ? decoded['whoop'] : null;
+      if (wh is! Map) return;
+      final rec = wh['recovery'];
+      if (rec is Map && rec['date'] is String && rec['score'] is num) {
+        await LocalDb.putMetricSeriesValue(
+            rec['date'] as String, 'whoop_recovery', (rec['score'] as num).toDouble());
+      }
+      final night = wh['last_night'];
+      if (night is Map && night['date'] is String) {
+        final date = night['date'] as String;
+        final perf = night['performance'];
+        if (perf is Map) {
+          for (final (from, key) in const [
+            ('performance_pct', 'whoop_sleep_perf'),
+            ('consistency_pct', 'whoop_consistency'),
+            ('hours_vs_need_pct', 'whoop_hours_vs_need'),
+          ]) {
+            final v = perf[from];
+            if (v is num) await LocalDb.putMetricSeriesValue(date, key, v.toDouble());
+          }
+        }
+        final need = night['need'];
+        if (need is Map && need['need_sec'] is num) {
+          await LocalDb.putMetricSeriesValue(
+              date, 'whoop_need_min', (need['need_sec'] as num).toDouble() / 60);
+        }
+      }
+    } catch (e) {
+      _log('crossday whoop series skipped: $e');
     }
   }
 

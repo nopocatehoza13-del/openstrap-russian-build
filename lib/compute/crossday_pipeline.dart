@@ -1281,5 +1281,24 @@ Map<String, dynamic> whoopCrossDayBlock(
       'z13_min': weekSum('whoop_z13_min'),
       'z45_min': weekSum('whoop_z45_min'),
     },
+    // The last seven rows, newest last, for the Weekly Trends cards: the
+    // screens draw them without a second read of the series store.
+    'week': [
+      for (var i = math.max(0, n - 7); i < n; i++)
+        {
+          'date': days[i]['date'],
+          'whoop_strain': _numOrNull(days[i]['whoop_strain']),
+          'whoop_z13_min': _numOrNull(days[i]['whoop_z13_min']),
+          'whoop_z45_min': _numOrNull(days[i]['whoop_z45_min']),
+          'tst_min': _numOrNull(days[i]['tst_min']),
+          'steps': _numOrNull(days[i]['steps']),
+          'rhr': _numOrNull(days[i]['rhr']),
+          'rmssd': _numOrNull(days[i]['rmssd']),
+          'readiness': _numOrNull(days[i]['readiness']),
+          'onset_sec': days[i]['onset_sec'],
+          'wake_sec': days[i]['wake_sec'],
+          'efficiency': _numOrNull(days[i]['efficiency']),
+        },
+    ],
   };
 }

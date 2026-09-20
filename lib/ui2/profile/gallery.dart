@@ -1,5 +1,6 @@
-import '../familiar/data.dart';
-import '../familiar/screens.dart';
+import '../familiar/wh_home.dart' show WcOrb;
+import '../familiar/wh_widgets.dart';
+import '../familiar/whoop_charts.dart';
 import '../familiar/widgets.dart';
 // The component gallery, and the one set of fixtures behind it.
 //
@@ -667,10 +668,40 @@ Map<String, Widget> extraCases() => {
   'familiar_ring': SizedBox(width: 112, child: FamiliarRing(label:'СОН', value:'—', subtitle:'Нет данных', fraction:null, color:C.purple, onTap:() {})),
   'familiar_button': FamiliarButton('Добавить активность', Icons.add, onTap: () {}),
   'familiar_chart': const FamiliarChart(first:[null,12,14,null,10,13,9],second:[null,60,70,null,58,75,62]),
-  'familiar_monitor': FamiliarHealthMonitor(data:const FamiliarData(), onTap:() {}),
-  'familiar_age': FamiliarAgeCard(data:const FamiliarData(), onTap:() {}),
-  'familiar_stress': FamiliarStressCard(data:const FamiliarData(), onTap:() {}),
-  'familiar_strain_recovery': FamiliarStrainRecovery(data:const FamiliarData(), end:DateTime(2026,9,19)),
+  // The WHOOP-parity kit (lib/ui2/familiar/wh_*.dart), pure pieces only.
+  'wh_ring': WcRing(label: 'Сон', value: '—', fraction: null, color: W.sleep, onTap: () {}),
+  'wh_observation': WhObservationCard(text: 'Наблюдение появляется из измеренных данных.', link: 'Подробнее', onLink: () {}),
+  'wh_row': const WhRow(icon: 'hrv', label: 'Вариабельность ритма', value: '—'),
+  'wh_orb': const WcOrb(size: 140, big: '—', caption: 'Возраст организма', delta: 'нет данных', deltaColor: W.ink3),
+  'wh_stress_timeline': WcBox(WcStressPainter(vals: const [0.6, 0.7, null, 1.4, 2.2, 1.6, 1.1], startHour: 6, stepMin: 60), height: 160),
+  'wh_info_dot': const WhInfoDot(),
+  'wh_card': const WhCard(child: WhCardHead('Карточка', chevron: true)),
+  'wh_section': const WhSection('Мой день'),
+  'wh_tri': const Row(children: [WhTri('up'), WhTri('dn'), WhTri('eq')]),
+  'wh_seg3': const WhSeg3(2),
+  'wh_legend_note': const WhLegendNote(children: [WhTri('up'), WhTri('dn')]),
+  'wh_count_badge': const WhCountBadge(2),
+  'wh_pill': WhPill('Добавить', icon: 'add', onTap: () {}),
+  'wh_big_button': WhBigButton('Планировщик сна', icon: 'sleep_coach', onTap: () {}),
+  'wh_segmented': WhSegmented(labels: const ['Нед', 'Мес', '6 мес'], selected: 1, onSelect: (_) {}),
+  'wh_chips': WhChips(labels: const ['Весь день', 'Без активности', 'Сон'], selected: 0, onSelect: (_) {}),
+  'wh_menu': WhMenu([WhMenuItem('Мой профиль', icon: 'profile', subtitle: 'возраст, рост, вес', onTap: () {})]),
+  'wh_kv': const WhKv('Подъём', '07:00', last: true),
+  'wh_status': const WhStatus('В норме', icon: 'checkmark'),
+  'wh_hint': const WhHint('Среднее не включает сегодня', info: true),
+  'wh_change_chip': const WhChangeChip(4, 'к прошлой неделе'),
+  'wh_legend': const WhLegend([(W.z1, 'Зона 1'), (W.z2, 'Зона 2')]),
+  'wh_note': const WhNote('Демонстрационные значения.'),
+  'wh_dial': const WcDial(color: W.sleep, fraction: .85, big: '85', suffix: '%', caption: 'Показатель сна', seg: 2),
+  'wh_hatch': WcHatchRow(label: 'Лёгкий', pct: 55, color: W.light, range: (46, 58), value: Text('4:22', style: FW.n17.copyWith(color: W.ink)), circle: true),
+  'wh_hours_vs_needed': const WcHoursVsNeeded(sleptMin: 462, needMin: 495, healthyMin: 463, strainAddMin: 20, debtMin: 12, pct: 93, prevPct: 91),
+  'wh_factor': const WcFactorBar(label: 'Регулярность сна', p30: 63, p6: 60, v30: '78%', v6: '76%', lo: '40%', hi: '100%', years: -1.1, text: 'Регулярный график сна улучшает долгосрочное здоровье.', good: true),
+  'wh_breakdown': const WcBreakdown(title: 'Разбивка показателя', segs: [(17, 'Оптимально (85 %+)', W.action), (7, 'Достаточно (70–84 %)', W.sufficient), (6, 'Слабо (<70 %)', W.neg)]),
+  'wh_zone_bar': const WcZoneBar(1),
+  'wh_stress_stack': const WcStressStack([420, 530, 74]),
+  'wh_icon': const WhIcon('recovery', size: 28, color: W.action),
+  'wh_navbar': const WhNavbar(title: 'Тренд'),
+  'wh_bars': WcBox(WcBarsPainter(mode: WcMode.week, vals: const [9.1, 12.4, null, 11.0, 8.6, 13.4, 10.2], labels: const ['Пн 14', 'Вт 15', 'Ср 16', 'Чт 17', 'Пт 18', 'Сб 19', 'Вс 20'], colors: const [W.strain], fmt: (v) => v.toStringAsFixed(1), yTicks: const [0, 5, 10, 15, 21], yFmt: (v) => v.round().toString(), todayIdx: 6), height: 180),
       // The edge treatment that tells a horizontal row it continues. Swept
       // rather than photographed because the state worth seeing is the one a
       // still cannot hold: it is ABSENT when the content fits, present when it

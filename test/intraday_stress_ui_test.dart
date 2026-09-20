@@ -54,20 +54,20 @@ void main() {
       await t.pumpWidget(app(FamiliarStressDetail(data: data)));
       await t.pumpAndSettle();
       expect(t.takeException(), isNull);
-      for (final scope in ['Весь день', 'Без активности', 'Сон']) {
-        await t.tap(find.text(scope));
+      for (final scope in ['ВЕСЬ ДЕНЬ', 'БЕЗ АКТИВНОСТИ', 'СОН']) {
+        await t.tap(find.text(scope).first);
         await t.pumpAndSettle();
         final text = t
             .widget<Text>(find.byKey(const ValueKey('stress-summary')))
             .data!;
         expect(text, endsWith(' / 3'));
         expect(text, isNot(contains('—')));
-        if (scope == 'Без активности') expect(text, '1,5 / 3');
+        if (scope == 'БЕЗ АКТИВНОСТИ') expect(text, '1,5 / 3');
         if (width == 390 && Platform.isWindows) {
           await expectLater(
             find.byKey(const ValueKey('capture')),
             matchesGoldenFile(
-              'familiar_goldens/stress-v6-${['Весь день', 'Без активности', 'Сон'].indexOf(scope)}.png',
+              'familiar_goldens/stress-v6-${['ВЕСЬ ДЕНЬ', 'БЕЗ АКТИВНОСТИ', 'СОН'].indexOf(scope)}.png',
             ),
           );
         }

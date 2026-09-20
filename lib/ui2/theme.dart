@@ -464,3 +464,146 @@ ThemeData buildTheme(Brightness b) {
     }),
   );
 }
+
+/// ── WHOOP TOKENS ── the Familiar (WHOOP-parity) surface, dark only ─────────
+///
+/// Palette lifted from the WHOOP 5.469.0 design tokens (`Lr71/j`) and the
+/// mock `design/whoop-mock-v6/app.css`; the Familiar screens paint with these
+/// directly and always sit on [W.bg]/[W.card], so they are not run through
+/// [P.on] — every ink/accent below clears 4.5:1 on [W.card2] already
+/// (`test/ui2_whoop_tokens_test.dart` measures it). Not in [C.all] on purpose:
+/// they are never used on the light theme's surfaces.
+class W {
+  static const bg = Color(0xFF101518);
+  static const card = Color(0xFF1A2227);
+  static const card2 = Color(0xFF232D33);
+  static const card3 = Color(0xFF2A343A);
+  static const line = Color(0x1AFFFFFF);
+  static const line2 = Color(0x14FFFFFF);
+  static const track = Color(0xFF3A4047);
+  static const ink = Color(0xFFFFFFFF);
+  static const ink2 = Color(0xB3FFFFFF);
+  static const ink3 = Color(0xFF969696);
+  static const ink4 = Color(0xFFB9C0C4);
+  static const axis = Color(0xFF7F8A90);
+  static const grid = Color(0x12FFFFFF);
+  static const band = Color(0x14FFFFFF);
+  static const onLight = Color(0xFF101518);
+  static const clear = Color(0x00000000);
+
+  static const sleep = Color(0xFF7BA1BB);
+  static const sleepLine = Color(0xFF8FB0C8);
+  static const recovery = Color(0xFF67AEE6);
+  static const strain = Color(0xFF0093E7);
+  static const strainMid = Color(0xFF3FB0F0);
+  static const strainLight = Color(0xFF79C8F5);
+  static const strainPale = Color(0xFFB7DFF7);
+  static const recHigh = Color(0xFF19EC06);
+  static const recMed = Color(0xFFFFDE00);
+  static const recLow = Color(0xFFFF0026);
+  static const action = Color(0xFF00F19F);
+  static const neg = Color(0xFFFFA722);
+  static const young = Color(0xFF05F0A2);
+  static const link = Color(0xFF6FA8FF);
+  static const liveHr = Color(0xFF6FA8FF);
+  static const sufficient = Color(0xFF8A949A);
+
+  static const stressLow = Color(0xFF67AEE6);
+  static const stressMed = Color(0xFF00F19F);
+  static const stressHigh = Color(0xFFFFA722);
+
+  static const z1 = Color(0xFFADC2CD);
+  static const z2 = Color(0xFF479AC2);
+  static const z3 = Color(0xFF59B996);
+  static const z4 = Color(0xFFFCAC5D);
+  static const z5 = Color(0xFFFF6422);
+  static const zones = [z1, z2, z3, z4, z5];
+
+  static const awake = Color(0xFFC8C8C8);
+  static const light = Color(0xFFA4A3F1);
+  static const rem = Color(0xFFAC5AED);
+  static const deep = Color(0xFFFA95FA);
+
+  /// Recovery band colour on WHOOP's thresholds (green ≥ 67, yellow 34–66).
+  static Color recovery3(num? v) =>
+      v == null ? track : v >= 67 ? recHigh : v >= 34 ? recMed : recLow;
+
+  /// Poor / sufficient / optimal.
+  static const levels = [neg, sufficient, action];
+  static Color level(int lvl) => lvl < 0 ? track : levels[lvl.clamp(0, 2)];
+
+  static Color stress3(num v) => v < 1 ? stressLow : v < 2 ? stressMed : stressHigh;
+
+  /// Body/caption inks — must clear 4.5:1 on [card2] (ui2_whoop_tokens_test).
+  static const inks = <Color>[ink, ink2, ink3, ink4];
+
+  /// Accents used for bold numerals, bars and badges on [card] (WHOOP's own
+  /// values) — held to the 3:1 non-text/large-text floor on [card].
+  static const accents = <Color>[
+    axis, sleep, sleepLine, recovery, strain, recHigh, recMed, recLow, action,
+    neg, young, link, stressLow, stressMed, stressHigh, z1, z2, z3, z4, z5,
+    awake, light, rem, deep, sufficient,
+  ];
+}
+
+/// ── WHOOP TYPE ── Proxima Nova (text) and DIN Pro (numerals) from the APK ──
+///
+/// Registered in pubspec as `WHOOP Text` (400/600/700) and `WHOOP Num`
+/// (500/700); Manrope stays the fallback so a missing glyph never lands on the
+/// platform default. Sizes mirror the mock's roles; `num` styles are tabular.
+class FW {
+  static const text = 'WHOOP Text';
+  static const num = 'WHOOP Num';
+  static const _fb = ['Manrope'];
+  static const _tab = [FontFeature.tabularFigures()];
+
+  static const over = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 10, height: 13 / 10, fontWeight: FontWeight.w700, letterSpacing: 1.0);
+  static const label = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 11, height: 14 / 11, fontWeight: FontWeight.w700, letterSpacing: 1.1);
+  static const h5 = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 13, height: 16 / 13, fontWeight: FontWeight.w700, letterSpacing: 1.4);
+  static const h4 = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 15, height: 18 / 15, fontWeight: FontWeight.w700, letterSpacing: 1.6);
+  static const wordmark = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 13, height: 1, fontWeight: FontWeight.w600, letterSpacing: 4.2);
+  static const tiny = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 9, height: 11 / 9, fontWeight: FontWeight.w400);
+  static const hint = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 11, height: 15 / 11, fontWeight: FontWeight.w400);
+  static const body = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 13, height: 18 / 13, fontWeight: FontWeight.w400);
+  static const body15 = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 15, height: 21 / 15, fontWeight: FontWeight.w400);
+  static const b1 = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 14, height: 18 / 14, fontWeight: FontWeight.w600);
+  static const b2 = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 12, height: 16 / 12, fontWeight: FontWeight.w600);
+  static const menu = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 14, height: 18 / 14, fontWeight: FontWeight.w600);
+  static const t3 = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 19, height: 24 / 19, fontWeight: FontWeight.w600);
+  static const t2 = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 22, height: 28 / 22, fontWeight: FontWeight.w600);
+  static const pill = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 10, height: 1, fontWeight: FontWeight.w700, letterSpacing: 0.8);
+  static const tab = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 10, height: 13 / 10, fontWeight: FontWeight.w500);
+
+  static const n62 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 62, height: 1, fontWeight: FontWeight.w700, letterSpacing: -1.2, fontFeatures: _tab);
+  static const n52 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 52, height: 1, fontWeight: FontWeight.w700, letterSpacing: -1, fontFeatures: _tab);
+  static const n44 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 44, height: 1, fontWeight: FontWeight.w700, letterSpacing: -.8, fontFeatures: _tab);
+  static const n36 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 36, height: 1, fontWeight: FontWeight.w700, letterSpacing: -.6, fontFeatures: _tab);
+  static const n28 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 28, height: 1, fontWeight: FontWeight.w700, letterSpacing: -.4, fontFeatures: _tab);
+  static const n24 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 24, height: 1, fontWeight: FontWeight.w700, letterSpacing: -.3, fontFeatures: _tab);
+  static const n20 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 20, height: 1, fontWeight: FontWeight.w700, fontFeatures: _tab);
+  static const n17 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 17, height: 1, fontWeight: FontWeight.w700, fontFeatures: _tab);
+  static const n15 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 15, height: 1, fontWeight: FontWeight.w700, fontFeatures: _tab);
+  static const n12 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 12, height: 1, fontWeight: FontWeight.w700, fontFeatures: _tab);
+  static const n11 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 11, height: 1, fontWeight: FontWeight.w700, fontFeatures: _tab);
+  static const n10 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 10, height: 1, fontWeight: FontWeight.w700, fontFeatures: _tab);
+  static const n9 = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 9, height: 1, fontWeight: FontWeight.w700, fontFeatures: _tab);
+  static const axis = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 9, height: 1, fontWeight: FontWeight.w400);
+  static const axisNum = TextStyle(fontFamily: num, fontFamilyFallback: _fb, fontSize: 9, height: 1, fontWeight: FontWeight.w500, fontFeatures: _tab);
+  static const pillAvg = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 7, height: 1, fontWeight: FontWeight.w700, letterSpacing: .4);
+  static const sub = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 12, height: 1, fontWeight: FontWeight.w400);
+  static const unit = TextStyle(fontFamily: text, fontFamilyFallback: _fb, fontSize: 11, height: 1, fontWeight: FontWeight.w400);
+}
+
+/// WHOOP-surface radii and sizes.
+class WR {
+  static const card = 16.0;
+  static const tile = 14.0;
+  static const chip = 12.0;
+  static const bar = 5.0;
+  static const rCard = BorderRadius.all(Radius.circular(card));
+  static const rTile = BorderRadius.all(Radius.circular(tile));
+  static const rChip = BorderRadius.all(Radius.circular(chip));
+  static const rBar = BorderRadius.all(Radius.circular(bar));
+  static const rTiny = BorderRadius.all(Radius.circular(2));
+  static const rPill = BorderRadius.all(Radius.circular(999));
+}

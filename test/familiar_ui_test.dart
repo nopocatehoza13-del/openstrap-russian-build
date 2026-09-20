@@ -125,21 +125,26 @@ void main() {
     }
   }
   testWidgets('numeric monitor remains a drilldown', (t) async {
-    await t.pumpWidget(app(const FamiliarDashboard(data: fixture)));
+    await t.pumpWidget(app(const FamiliarDashboard(data: fixture, health: true)));
+    await t.pumpAndSettle();
+    await t.dragUntilVisible(find.text('14,2'), find.byType(ListView).first, const Offset(0, -200));
     await t.pumpAndSettle();
     expect(find.text('14,2'), findsOneWidget);
     expect(find.text('56'), findsOneWidget);
     expect(find.text('48'), findsOneWidget);
     await t.tap(find.text('МОНИТОР ЗДОРОВЬЯ'));
     await t.pumpAndSettle();
-    expect(find.text('Монитор здоровья'), findsOneWidget);
+    expect(find.text('ЧАСТОТА ДЫХАНИЯ'), findsOneWidget);
+    await t.dragUntilVisible(find.text('КАК ЧИТАТЬ'), find.byType(ListView).last, const Offset(0, -200));
+    await t.pumpAndSettle();
+    expect(find.text('КАК ЧИТАТЬ'), findsOneWidget);
     expect(t.takeException(), isNull);
   });
   testWidgets('stress scopes never relabel night as daytime', (t) async {
     await t.pumpWidget(app(const FamiliarStressDetail(data: fixture)));
     await t.pumpAndSettle();
-    for (final scope in ['Весь день', 'Без активности', 'Сон']) {
-      await t.tap(find.text(scope));
+    for (final scope in ['ВЕСЬ ДЕНЬ', 'БЕЗ АКТИВНОСТИ', 'СОН']) {
+      await t.tap(find.text(scope).first);
       await t.pumpAndSettle();
       expect(find.text('27 / 100'), findsNothing);
       expect(find.text('— / 3'), findsOneWidget);
@@ -148,7 +153,7 @@ void main() {
   testWidgets('planner target persists without arming alarm', (t) async {
     await t.pumpWidget(app(const FamiliarSleepPlanner(data: fixture)));
     await t.pumpAndSettle();
-    await t.tap(find.text('85%'));
+    await t.tap(find.text('85 %'));
     await t.pumpAndSettle();
     expect(Prefs.getInt('familiar.sleepGoal', 0), 85);
     expect(Prefs.getInt('familiar.wakeMinute', -1), -1);

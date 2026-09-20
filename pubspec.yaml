@@ -698,6 +698,8 @@ flutter:
     # Lucide glyph can't stand in for GitHub/Discord/Reddit's own logos.
     # Official simple-icons SVGs, single fill path, tinted at paint time.
     - assets/icons/
+    # WHOOP 5.469.0 design icons (VectorDrawable -> SVG) for the Familiar surface.
+    - assets/icons/whoop/
   # Both families are bundled, not fetched. google_fonts resolves a missing
   # family over HTTP to fonts.gstatic.com on first launch — before the user
   # has seen the consent screen, and contrary to PRIVACY.md. It also lets the
@@ -705,6 +707,22 @@ flutter:
   # SIL Open Font License (OFL.txt alongside the .ttf files, from
   # https://github.com/google/fonts).
   fonts:
+    # WHOOP faces from the 5.469.0 APK, Familiar surface only: Proxima Nova as
+    # `WHOOP Text`, DIN Pro as `WHOOP Num`. Personal build.
+    - family: WHOOP Text
+      fonts:
+        - asset: assets/fonts/WhoopText/WhoopText-Regular.otf
+          weight: 400
+        - asset: assets/fonts/WhoopText/WhoopText-Semibold.otf
+          weight: 600
+        - asset: assets/fonts/WhoopText/WhoopText-Bold.otf
+          weight: 700
+    - family: WHOOP Num
+      fonts:
+        - asset: assets/fonts/WhoopNum/WhoopNum-Medium.otf
+          weight: 500
+        - asset: assets/fonts/WhoopNum/WhoopNum-Bold.otf
+          weight: 700
     - family: Barlow Condensed
       fonts:
         - asset: assets/fonts/BarlowCondensed/BarlowCondensed-Bold.ttf

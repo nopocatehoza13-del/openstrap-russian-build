@@ -22,6 +22,25 @@ class FamiliarData {
   /// had no reserve.
   final Map<String, dynamic> whoopDay;
 
+  /// Extra series the WHOOP screens draw (deep/rem/light minutes, efficiency,
+  /// calories, the whoop_* keys), keyed like [LocalRepository.getChart].
+  final Map<String, List<ChartPoint>> series;
+
+  /// Sleep windows of the last 60 nights (`date`, `onset_ts`, `wake_ts`).
+  final List<Map<String, dynamic>> sleepWindows;
+
+  /// Journal rows of the last 30 days and the behaviour-impact insights.
+  final List<Map<String, dynamic>> journal;
+  final Map<String, dynamic> journalInsights;
+
+  /// The night's heart-rate curve (`[{t, v}]`, minute means) across the sleep
+  /// window — yesterday's evening half plus this morning's.
+  final List<Map<String, dynamic>> nightHr;
+
+  /// Battery percent and charging flag captured at load time.
+  final double? batteryPct;
+  final bool charging;
+
   /// The cross-day WHOOP-formula block (`insights['whoop']`): tonight's need,
   /// last night's performance, recovery, Healthspan age. Empty when the rollup
   /// is stale or absent.
@@ -53,9 +72,21 @@ class FamiliarData {
     this.day = '',
     this.age,
     this.whoopDay = const {},
+    this.series = const {},
+    this.sleepWindows = const [],
+    this.journal = const [],
+    this.journalInsights = const {},
+    this.nightHr = const [],
+    this.batteryPct,
+    this.charging = false,
   });
 
-  static Future<FamiliarData> load(LocalRepository repo, DateTime date) async {
+  static Future<FamiliarData> load(
+    LocalRepository repo,
+    DateTime date, {
+    double? batteryPct,
+    bool charging = false,
+  }) async {
     final label = dayLabelOf(date), today = todayLabel();
     final home = label == today
         ? await HomeData.load(repo)
@@ -65,6 +96,30 @@ class FamiliarData {
     final strain = pointsOf(await repo.getChart('strain'));
     final steps = pointsOf(await repo.getChart('steps'));
     final strainDay = await repo.getDayStrain(label);
+    final series = <String, List<ChartPoint>>{};
+    for (final k in const [
+      'deep', 'rem', 'light', 'efficiency', 'calories',
+      'whoop_strain', 'whoop_z13_min', 'whoop_z45_min', 'whoop_recovery',
+      'whoop_sleep_perf', 'whoop_consistency', 'whoop_hours_vs_need', 'whoop_need_min',
+    ]) {
+      try {
+        series[k] = pointsOf(await repo.getChart(k));
+      } catch (_) {
+        series[k] = const [];
+      }
+    }
+    List<Map<String, dynamic>> windows = const [];
+    List<Map<String, dynamic>> journal = const [];
+    Map<String, dynamic> journalInsights = const {};
+    try {
+      windows = await repo.sleepWindows(days: 60);
+    } catch (_) {}
+    try {
+      journal = await repo.getJournal(range: '30d');
+    } catch (_) {}
+    try {
+      journalInsights = await repo.getJournalInsights(range: '90d');
+    } catch (_) {}
     final whoopDay = strainDay['whoop'] is Map
         ? (strainDay['whoop'] as Map).cast<String, dynamic>()
         : const <String, dynamic>{};
@@ -127,11 +182,30 @@ class FamiliarData {
       sleepHours: daily(health.points('sleep'), 1 / 60),
       steps: daily(steps),
     );
+    // The night's HR: the sleep window usually starts the evening before, so
+    // the curve is the tail of yesterday's day curve plus the head of today's.
+    final nightSleep = await repo.getDaySleepV2(label);
+    final nightHr = <Map<String, dynamic>>[];
+    final onset = nightSleep['onset_ts'], wake = nightSleep['wake_ts'];
+    if (onset is num && wake is num) {
+      final prev = dayLabelOf(DateTime(date.year, date.month, date.day - 1));
+      for (final d in [prev, label]) {
+        try {
+          final heart = await repo.getDayHeart(d);
+          for (final e in heart['hr'] as List? ?? const []) {
+            if (e is Map && e['t'] is num && (e['t'] as num) >= onset - 900 && (e['t'] as num) <= wake + 900) {
+              nightHr.add(e.cast<String, dynamic>());
+            }
+          }
+        } catch (_) {}
+      }
+      nightHr.sort((a, b) => (a['t'] as num).compareTo(b['t'] as num));
+    }
     return FamiliarData(
       home: home,
       health: health,
       activities: activities,
-      sleep: await repo.getDaySleepV2(label),
+      sleep: nightSleep,
       intradayStress: intraday,
       recovery: recovery,
       strain: strain,
@@ -139,6 +213,13 @@ class FamiliarData {
       day: label,
       age: age,
       whoopDay: whoopDay,
+      series: series,
+      sleepWindows: windows,
+      journal: journal,
+      journalInsights: journalInsights,
+      nightHr: nightHr,
+      batteryPct: batteryPct,
+      charging: charging,
     );
   }
 }

@@ -2,6 +2,7 @@
 // the first band sync (gen5 1 Hz rows with skin temperature, the SpO2 byte
 // and the band sleep state) -> the real day derive -> the Familiar loader.
 // Loading must not throw, and the night must reach the sleep screen data.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -87,7 +88,11 @@ void main() {
     csv.writeAsStringSync(lines.join('\n'));
     final imported = await WhoopImporter.importFiles([csv.path]);
     expect(imported.days, 7);
-    final repo = LocalRepositoryImpl(getProfileMap: () => {'age': 35, 'sex': 'male', 'weight_kg': 75.0});
+    // Like AppState's callbacks on the device: the closure captures an object
+    // that owns a Timer, which no isolate message may carry.
+    final ticker = Timer.periodic(const Duration(hours: 1), (_) {});
+    addTearDown(ticker.cancel);
+    final repo = LocalRepositoryImpl(getProfileMap: () => {'tick': ticker.tick, 'age': 35, 'sex': 'male', 'weight_kg': 75.0});
     // The screen works on the imported days alone (what the user saw first).
     await FamiliarData.load(repo, now);
 

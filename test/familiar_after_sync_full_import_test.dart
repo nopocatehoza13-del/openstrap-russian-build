@@ -2,6 +2,7 @@
 // user imported: physiological cycles, sleeps and workouts. Then the first
 // gen5 sync, the real derive, the loader for today and for an imported day,
 // the activities reader and the observations.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -86,7 +87,11 @@ void main() {
     final imported = await WhoopImporter.importFiles([cycles.path, sleeps.path, workouts.path]);
     expect(imported.days, 30);
     expect(imported.workouts, greaterThanOrEqualTo(7));
-    final repo = LocalRepositoryImpl(getProfileMap: () => {'age': 35, 'sex': 'male', 'weight_kg': 75.0, 'height_cm': 180.0});
+    // Like AppState's callbacks on the device: the closure captures an object
+    // that owns a Timer, which no isolate message may carry.
+    final ticker = Timer.periodic(const Duration(hours: 1), (_) {});
+    addTearDown(ticker.cancel);
+    final repo = LocalRepositoryImpl(getProfileMap: () => {'tick': ticker.tick, 'age': 35, 'sex': 'male', 'weight_kg': 75.0, 'height_cm': 180.0});
     await FamiliarData.load(repo, now);
     await FamiliarData.load(repo, DateTime(today.year, today.month, today.day - 3));
 

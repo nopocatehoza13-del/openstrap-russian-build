@@ -202,7 +202,7 @@ class FamiliarData {
         : await _read(
             fail,
             'intraday stress projection',
-            () => Isolate.run(() => projectIntradayStress(stored, stressSessions)),
+            () => _projectStress(stored, stressSessions),
             const <String, dynamic>{},
           );
     {
@@ -324,6 +324,19 @@ class FamiliarData {
     );
   }
 }
+
+/// The intraday stress projection off the UI isolate. A TOP-LEVEL function on
+/// purpose: the closure handed to `Isolate.run` captures only these two
+/// arguments. Written inline in [FamiliarData.load] it shared that method's
+/// context, which since v8 also holds `repo` (captured by the guarded reader
+/// closures), and through the repository's profile callbacks reaches AppState
+/// and its timers — so on a real device the isolate refused the message as
+/// unsendable (`_Timer`) and the whole day failed to load. Tests never saw it:
+/// their repository carries no timers.
+Future<Map<String, dynamic>> _projectStress(
+  Map<String, dynamic> stored,
+  List<Map<String, dynamic>> sessions,
+) => Isolate.run(() => projectIntradayStress(stored, sessions));
 
 /// Run one reader of [FamiliarData.load]; on failure log the cause and return
 /// [fallback] so the rest of the day still loads.

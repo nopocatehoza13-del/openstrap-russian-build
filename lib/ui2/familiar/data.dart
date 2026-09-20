@@ -51,6 +51,10 @@ class FamiliarData {
   final List<Map<String, Object?>> alarmSchedule;
   final List<Map<String, dynamic>> recentSessions;
 
+  /// v8.1: readers that failed during [load], as `what: cause`, so the screen
+  /// can list every cause at once instead of blanking.
+  final List<String> loadFailures;
+
   /// The cross-day WHOOP-formula block (`insights['whoop']`): tonight's need,
   /// last night's performance, recovery, Healthspan age. Empty when the rollup
   /// is stale or absent.
@@ -93,6 +97,7 @@ class FamiliarData {
     this.naps = const {},
     this.alarmSchedule = const [],
     this.recentSessions = const [],
+    this.loadFailures = const [],
   });
 
   static Future<FamiliarData> load(
@@ -101,20 +106,28 @@ class FamiliarData {
     double? batteryPct,
     bool charging = false,
   }) async {
+    final failures = <String>[];
+    void fail(String what, Object e) {
+      final why = e.toString();
+      failures.add('$what: ${why.length > 160 ? why.substring(0, 160) : why}');
+      debugPrint('[familiar] $what failed: $e');
+    }
+
     final label = dayLabelOf(date), today = todayLabel();
     // Every reader is guarded on its own (v8.1): one failing read logs its
     // cause and yields an empty block, so the screen shows what it has instead
     // of the "could not read" card for the whole day.
     final home = await _read(
+      fail,
       'home',
       () => label == today ? HomeData.load(repo) : HomeData.loadForDay(repo, label),
       const HomeData(),
     );
-    final health = await _read('health', () => HealthData.load(repo), const HealthData());
-    final recovery = pointsOf(await _read('chart recovery', () => repo.getChart('recovery'), const <String, dynamic>{}));
-    final strain = pointsOf(await _read('chart strain', () => repo.getChart('strain'), const <String, dynamic>{}));
-    final steps = pointsOf(await _read('chart steps', () => repo.getChart('steps'), const <String, dynamic>{}));
-    final strainDay = await _read('day strain', () => repo.getDayStrain(label), const <String, dynamic>{});
+    final health = await _read(fail, 'health', () => HealthData.load(repo), const HealthData());
+    final recovery = pointsOf(await _read(fail, 'chart recovery', () => repo.getChart('recovery'), const <String, dynamic>{}));
+    final strain = pointsOf(await _read(fail, 'chart strain', () => repo.getChart('strain'), const <String, dynamic>{}));
+    final steps = pointsOf(await _read(fail, 'chart steps', () => repo.getChart('steps'), const <String, dynamic>{}));
+    final strainDay = await _read(fail, 'day strain', () => repo.getDayStrain(label), const <String, dynamic>{});
     final series = <String, List<ChartPoint>>{};
     for (final k in const [
       'deep', 'rem', 'light', 'efficiency', 'calories',
@@ -124,7 +137,8 @@ class FamiliarData {
     ]) {
       try {
         series[k] = pointsOf(await repo.getChart(k));
-      } catch (_) {
+      } catch (e) {
+        fail('chart $k', e);
         series[k] = const [];
       }
     }
@@ -133,18 +147,25 @@ class FamiliarData {
     Map<String, dynamic> journalInsights = const {};
     try {
       windows = await repo.sleepWindows(days: 60);
-    } catch (_) {}
+    } catch (e) {
+      fail('sleep windows', e);
+    }
     try {
       journal = await repo.getJournal(range: '30d');
-    } catch (_) {}
+    } catch (e) {
+      fail('journal', e);
+    }
     try {
       journalInsights = await repo.getJournalInsights(range: '90d');
-    } catch (_) {}
+    } catch (e) {
+      fail('journal insights', e);
+    }
     final whoopDay = strainDay['whoop'] is Map
         ? (strainDay['whoop'] as Map).cast<String, dynamic>()
         : const <String, dynamic>{};
     final toSec = DateTime(date.year, date.month, date.day + 1).millisecondsSinceEpoch ~/ 1000;
     var rows = await _read(
+      fail,
       'sessions 30d',
       () => repo.getSessions(
         from: DateTime(date.year, date.month, date.day - 30).millisecondsSinceEpoch ~/ 1000,
@@ -155,6 +176,7 @@ class FamiliarData {
     );
     if (rows.isEmpty) {
       rows = await _read(
+        fail,
         'sessions day',
         () => repo.getSessions(
           from: DateTime(date.year, date.month, date.day).millisecondsSinceEpoch ~/ 1000,
@@ -165,7 +187,7 @@ class FamiliarData {
       );
     }
     final activities = <Map<String, dynamic>>[];
-    final stress = await _read('day stress', () => repo.getDayStress(label), const <String, dynamic>{});
+    final stress = await _read(fail, 'day stress', () => repo.getDayStress(label), const <String, dynamic>{});
     final stored =
         (stress['intraday_stress'] as Map?)?.cast<String, dynamic>() ??
         const <String, dynamic>{};
@@ -178,6 +200,7 @@ class FamiliarData {
     final intraday = stored.isEmpty
         ? const <String, dynamic>{}
         : await _read(
+            fail,
             'intraday stress projection',
             () => Isolate.run(() => projectIntradayStress(stored, stressSessions)),
             const <String, dynamic>{},
@@ -207,7 +230,9 @@ class FamiliarData {
           final w = await repo.getWorkout(a['id'].toString());
           if (w['whoop_strain'] != null) a['whoop_strain'] = w['whoop_strain'];
           if (w['whoop_zone_min'] != null) a['whoop_zone_min'] = w['whoop_zone_min'];
-        } catch (_) {}
+        } catch (e) {
+          fail('workout ${a['id']}', e);
+        }
       }
       final last = activities.last;
       await attach(last);
@@ -223,13 +248,19 @@ class FamiliarData {
     List<Map<String, Object?>> alarms = const [];
     try {
       wear = await repo.getDayWear(label);
-    } catch (_) {}
+    } catch (e) {
+      fail('wear', e);
+    }
     try {
       naps = await repo.getDayNaps(label);
-    } catch (_) {}
+    } catch (e) {
+      fail('naps', e);
+    }
     try {
       alarms = await LocalDb.alarmScheduleRows();
-    } catch (_) {}
+    } catch (e) {
+      fail('alarm schedule', e);
+    }
     List<DailyValue> daily(List<ChartPoint> points, [double scale = 1]) => [
       for (final p in points)
         (
@@ -247,7 +278,7 @@ class FamiliarData {
     );
     // The night's HR: the sleep window usually starts the evening before, so
     // the curve is the tail of yesterday's day curve plus the head of today's.
-    final nightSleep = await _read('day sleep', () => repo.getDaySleepV2(label), const <String, dynamic>{});
+    final nightSleep = await _read(fail, 'day sleep', () => repo.getDaySleepV2(label), const <String, dynamic>{});
     final nightHr = <Map<String, dynamic>>[];
     final onset = nightSleep['onset_ts'], wake = nightSleep['wake_ts'];
     if (onset is num && wake is num) {
@@ -260,7 +291,9 @@ class FamiliarData {
               nightHr.add(e.cast<String, dynamic>());
             }
           }
-        } catch (_) {}
+        } catch (e) {
+          fail('night heart $d', e);
+        }
       }
       nightHr.sort((a, b) => (a['t'] as num).compareTo(b['t'] as num));
     }
@@ -287,17 +320,19 @@ class FamiliarData {
       naps: naps,
       alarmSchedule: alarms,
       recentSessions: recent,
+      loadFailures: failures,
     );
   }
 }
 
 /// Run one reader of [FamiliarData.load]; on failure log the cause and return
 /// [fallback] so the rest of the day still loads.
-Future<T> _read<T>(String what, Future<T> Function() reader, T fallback) async {
+Future<T> _read<T>(void Function(String, Object) fail, String what, Future<T> Function() reader, T fallback) async {
   try {
     return await reader();
   } catch (e, st) {
     debugPrint('[familiar] $what failed: $e\n$st');
+    fail(what, e);
     return fallback;
   }
 }

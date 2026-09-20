@@ -129,6 +129,7 @@ class _FamiliarDashboardState extends State<FamiliarDashboard> with RevisionRelo
               onBattery: () => open(const MyDevices()),
             ),
             if (loading) const LinearProgressIndicator(color: W.action, backgroundColor: W.card2),
+            if (d.loadFailures.isNotEmpty) WhNote('Не прочитано: ${d.loadFailures.join('; ')}'),
             if (error != null)
               WhCard(
                 child: Column(

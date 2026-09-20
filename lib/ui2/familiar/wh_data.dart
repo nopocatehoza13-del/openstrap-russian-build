@@ -15,6 +15,7 @@ import '../../state/alarm_schedule.dart';
 import '../screens/home_screen.dart' show ChartPoint;
 import '../screens/workout_screen.dart' show familiarActivityName;
 import 'data.dart';
+import 'wh_widgets.dart' show WhPlanGoal, ruMonthsGen;
 
 double? _n(Object? v) => v is num && v.isFinite ? v.toDouble() : null;
 Map<String, dynamic> _m(Object? v) => v is Map ? v.cast<String, dynamic>() : const {};
@@ -295,6 +296,37 @@ class WhView {
       if (e is Map && e['tag'] is String && e['delta'] is num)
         JournalEffect(e['tag'] as String, (e['delta'] as num).toDouble(), (e['n'] as num?)?.toInt() ?? 0, metric: e['outcome'] == 'efficiency' ? 'sleep' : 'recovery'),
   ];
+
+  // ── «Мой план»: the current Monday–Sunday week ──
+  DateTime get planWeekStart => DateTime(date.year, date.month, date.day - (date.weekday - 1));
+  int get planDaysLeft => 7 - date.weekday;
+  String get planRange {
+    final ws = planWeekStart, we = DateTime(ws.year, ws.month, ws.day + 6);
+    return ws.month == we.month ? '${ws.day}–${we.day} ${ruMonthsGen[we.month - 1]}' : '${ws.day} ${ruMonthsGen[ws.month - 1]} – ${we.day} ${ruMonthsGen[we.month - 1]}';
+  }
+
+  /// WHO zone minutes for the week, nights at ≥ 85 % sleep performance and
+  /// days with the step goal closed — from the stored series, today's values
+  /// patched in when its series row is not written yet.
+  List<WhPlanGoal> get planGoals {
+    final days = date.weekday;
+    List<double?> week(List<ChartPoint> pts, double? today) {
+      final w = trailing(pts, date, days, excludeEnd: false);
+      if (w.isNotEmpty && w.last == null && today != null) w[w.length - 1] = today;
+      return w;
+    }
+    double sum(List<double?> w) => w.whereType<double>().fold(0.0, (a, b) => a + b);
+    final z13 = sum(week(d.series['whoop_z13_min'] ?? const [], z13Today));
+    final z45 = sum(week(d.series['whoop_z45_min'] ?? const [], z45Today));
+    final nights = week(d.series['whoop_sleep_perf'] ?? const [], sleepPerf).where((x) => x != null && x >= 85).length;
+    final stepDays = stepGoal <= 0 ? 0 : week(d.steps, steps).where((x) => x != null && x >= stepGoal).length;
+    return [
+      WhPlanGoal('Зоны 1–3', z13, 150, 'мин', 'trend-zones13'),
+      WhPlanGoal('Зоны 4–5', z45, 75, 'мин', 'trend-zones45'),
+      WhPlanGoal('Сон от 85 %', nights.toDouble(), 7, 'ночей', 'trend-sleepperf'),
+      if (stepGoal > 0) WhPlanGoal('Цель по шагам', stepDays.toDouble(), 7, 'дней', 'trend-steps'),
+    ];
+  }
 
   // ── observations ──
   ObservationInput observationInput({Duration? sinceSync}) {

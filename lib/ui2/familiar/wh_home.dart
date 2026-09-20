@@ -290,6 +290,8 @@ class _FamiliarDashboardState extends State<FamiliarDashboard> with RevisionRelo
             ],
           ),
         ),
+      WhSection('Мой план', right: Text(v.planRange, style: FW.hint.copyWith(color: W.ink3))),
+      WhPlanCard(goals: v.planGoals, daysLeft: v.planDaysLeft, onGoal: nav.go),
       WhSection('Мои показатели', right: Pressable(onTap: () => nav.go('all-metrics'), child: Row(children: [const WhIcon('customize', size: 12, color: W.ink), const SizedBox(width: S.x1 + 2), Text('НАСТРОИТЬ', style: FW.over.copyWith(color: W.ink))]))),
       WhCard(
         padding: const EdgeInsets.symmetric(horizontal: S.x4, vertical: S.x1),

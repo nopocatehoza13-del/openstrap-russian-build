@@ -249,7 +249,7 @@ class _WhTrendState extends State<WhTrend> {
                   ],
                 ),
               ),
-              WhBigButton('Цель по зонам $zoneText в плане', icon: 'customize', onTap: () => _info(c, 'Цель по зонам $zoneText', 'Ориентир ВОЗ: 150 минут умеренной нагрузки (зоны 1–3) или 75 минут интенсивной (зоны 4–5) в неделю. Минуты считаются по всему дню по резерву пульса; дневная цель нагрузки — на экране «Нагрузка».')),
+              WhBigButton('Цель по зонам $zoneText в плане', icon: 'customize', onTap: () => showWhPlan(c, goals: v.planGoals, daysLeft: v.planDaysLeft, range: v.planRange, onGoal: (t) => WhNav(c, v).go(t))),
               const SizedBox(height: S.x3),
             ],
           );

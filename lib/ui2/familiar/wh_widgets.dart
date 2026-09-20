@@ -694,3 +694,107 @@ String clockOf(int? epochSec) {
   final t = DateTime.fromMillisecondsSinceEpoch(epochSec * 1000);
   return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 }
+
+/// One weekly goal of «Мой план»: label, done, target, unit, trend target.
+class WhPlanGoal {
+  final String label, unit, target;
+  final double done, goal;
+  const WhPlanGoal(this.label, this.done, this.goal, this.unit, this.target);
+  double get fraction => goal <= 0 ? 0 : (done / goal).clamp(0, 1).toDouble();
+}
+
+String _daysRu(int n) => n % 10 == 1 && n % 100 != 11 ? '$n день' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? '$n дня' : '$n дней';
+
+/// «Мой план» (the design's weekly plan card): completion across the week's
+/// goals, the days left, and the goals themselves when expanded. Every goal
+/// comes from measured minutes/nights/days; nothing is invented.
+class WhPlanCard extends StatefulWidget {
+  final List<WhPlanGoal> goals;
+  final int daysLeft;
+  final void Function(String target)? onGoal;
+  final bool expanded;
+  const WhPlanCard({super.key, required this.goals, required this.daysLeft, this.onGoal, this.expanded = false});
+  @override
+  State<WhPlanCard> createState() => _WhPlanCardState();
+}
+
+class _WhPlanCardState extends State<WhPlanCard> {
+  late bool open = widget.expanded;
+
+  @override
+  Widget build(BuildContext c) {
+    final g = widget.goals;
+    final pct = g.isEmpty ? 0 : (g.map((x) => x.fraction).reduce((a, b) => a + b) / g.length * 100).round();
+    String fmt(double v, String unit) => unit == 'мин' ? hmOf(v) : v.round().toString();
+    Widget bar(double fraction, Color color) => Container(
+      height: 6,
+      decoration: BoxDecoration(color: W.card2, borderRadius: WR.rBar),
+      child: Align(alignment: Alignment.centerLeft, child: FractionallySizedBox(widthFactor: fraction.clamp(0, 1).toDouble(), child: Container(decoration: BoxDecoration(color: color, borderRadius: WR.rBar)))),
+    );
+    return WhCard(
+      onTap: () => setState(() => open = !open),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [Text('СВОЙ ПЛАН', style: FW.label.copyWith(color: W.ink)), const Spacer(), WhIcon(open ? 'caret_up' : 'caret_down', size: 14, color: W.ink)]),
+          const SizedBox(height: S.x1),
+          Text(widget.daysLeft <= 0 ? 'последний день недели' : 'осталось ${_daysRu(widget.daysLeft)}', style: FW.hint.copyWith(color: W.ink3)),
+          const SizedBox(height: S.x2),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [Text('$pct%', style: FW.n28.copyWith(color: W.action)), const SizedBox(width: S.x2), Padding(padding: const EdgeInsets.only(bottom: 4), child: Text('ВЫПОЛНЕНО', style: FW.label.copyWith(color: W.ink2)))]),
+          const SizedBox(height: S.x2),
+          bar(pct / 100, W.action),
+          if (open) ...[
+            const SizedBox(height: S.x3),
+            for (final x in g)
+              Pressable(
+                onTap: widget.onGoal == null ? null : () => widget.onGoal!(x.target),
+                semanticLabel: x.label,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: S.x2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [Expanded(child: Text(x.label.toUpperCase(), style: FW.label.copyWith(color: W.ink))), Text('${fmt(x.done, x.unit)} / ${fmt(x.goal, x.unit)} ${x.unit}', style: FW.n12.copyWith(color: x.fraction >= 1 ? W.action : W.ink))]),
+                      const SizedBox(height: S.x1 + 2),
+                      bar(x.fraction, x.fraction >= 1 ? W.action : W.ink4),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: S.x1),
+            Text('Зоны — ориентир ВОЗ на неделю, сон — ночи с показателем от 85 %, шаги — дни с закрытой целью. Неделя с понедельника.', style: FW.hint.copyWith(color: W.ink3)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The plan as a sheet (the zone trends' goal button).
+void showWhPlan(BuildContext c, {required List<WhPlanGoal> goals, required int daysLeft, required String range, void Function(String target)? onGoal}) => showModalBottomSheet<void>(
+  context: c,
+  backgroundColor: W.card,
+  sheetAnimationStyle: sheetMotion(c),
+  builder: (sheet) => Padding(
+    padding: const EdgeInsets.fromLTRB(S.x4, S.x5, S.x4, S.x8),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [Text('МОЙ ПЛАН', style: FW.h4.copyWith(color: W.ink)), const Spacer(), Text(range, style: FW.hint.copyWith(color: W.ink3))]),
+        const SizedBox(height: S.x3),
+        WhPlanCard(
+          goals: goals,
+          daysLeft: daysLeft,
+          expanded: true,
+          onGoal: onGoal == null
+              ? null
+              : (t) {
+                  Navigator.of(sheet).pop();
+                  onGoal(t);
+                },
+        ),
+      ],
+    ),
+  ),
+);

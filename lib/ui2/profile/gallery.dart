@@ -671,6 +671,7 @@ Map<String, Widget> extraCases() => {
   // The WHOOP-parity kit (lib/ui2/familiar/wh_*.dart), pure pieces only.
   'wh_ring': WcRing(label: 'Сон', value: '—', fraction: null, color: W.sleep, onTap: () {}),
   'wh_observation': WhObservationCard(text: 'Наблюдение появляется из измеренных данных.', link: 'Подробнее', onLink: () {}),
+  'wh_plan': const WhPlanCard(goals: [WhPlanGoal('Зоны 1–3', 95, 150, 'мин', 'trend-zones13'), WhPlanGoal('Сон от 85 %', 3, 7, 'ночей', 'trend-sleepperf')], daysLeft: 3, expanded: true),
   'wh_row': const WhRow(icon: 'hrv', label: 'Вариабельность ритма', value: '—'),
   'wh_orb': const WcOrb(size: 140, big: '—', caption: 'Возраст организма', delta: 'нет данных', deltaColor: W.ink3),
   'wh_stress_timeline': WcBox(WcStressPainter(vals: const [0.6, 0.7, null, 1.4, 2.2, 1.6, 1.1], startHour: 6, stepMin: 60), height: 160),

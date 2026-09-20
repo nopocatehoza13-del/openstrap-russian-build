@@ -120,7 +120,7 @@ class _WhObservationsScreenState extends State<WhObservationsScreen> {
   Widget build(BuildContext c) {
     final v = widget.view;
     final nav = WhNav(c, v);
-    final all = v.allObservations();
+    final all = safeAllObservations(v);
     final gone = dismissedObservations();
     final live = [for (final o in all) if (!gone.contains(o.id)) o];
     final dismissed = [for (final o in all) if (gone.contains(o.id)) o];

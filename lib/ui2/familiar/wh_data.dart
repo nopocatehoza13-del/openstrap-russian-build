@@ -4,6 +4,8 @@
 // null, and every widget renders “—” for it.
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'package:personal_analytics/whoop_observations.dart';
 
 import '../../data/day_label.dart';
@@ -348,7 +350,12 @@ class WhView {
     final solVital = _m(crossVitals['sol_min']);
     // Band alarm: the next occurrence within 24 h, and this morning's alarm
     // against the measured wake time.
-    final schedule = [for (final r in d.alarmSchedule) AlarmScheduleEntry.fromRow(r)];
+    final schedule = <AlarmScheduleEntry>[];
+    for (final r in d.alarmSchedule) {
+      try {
+        schedule.add(AlarmScheduleEntry.fromRow(r));
+      } catch (_) {}
+    }
     final nextAlarm = schedule.isEmpty ? null : nextAlarmOccurrence(schedule, nowT);
     final alarmTomorrow = nextAlarm != null && nextAlarm.difference(nowT).inHours < 24 ? nextAlarm.hour * 60 + nextAlarm.minute : null;
     int? wokeBefore;
@@ -418,14 +425,17 @@ class WhView {
       }
     }
     List<double> zoneList(Object? z) {
-      if (z is List && z.length == 5) return [for (final v in z) (v as num?)?.toDouble() ?? 0];
+      if (z is List && z.length == 5) return [for (final v in z) v is num ? v.toDouble() : 0.0];
       if (z is Map) return [for (var k = 1; k <= 5; k++) _n(z['z$k']) ?? _n(z['$k']) ?? 0];
       return const [];
     }
     final lastTitle = (last?['title'] as String?) ?? '';
-    final lastName = last == null ? null : (lastTitle.isNotEmpty ? lastTitle : activityTypeRu(last['type']?.toString()));
+    final lastName = last == null ? null : (lastTitle.isNotEmpty && lastTitle != last['type'] ? lastTitle : activityTypeRu(last['type']?.toString()));
     final lastEnd = last == null ? null : (last['end_ts'] as num?)?.toInt();
-    final unlabeled = d.activities.where((a) => ((a['title'] as String?) ?? '').isEmpty && (a['type'] == null || a['type'] == 'other')).length;
+    final unlabeled = d.activities.where((a) {
+      final t = (a['title'] as String?) ?? '';
+      return (t.isEmpty || t == a['type']) && (a['type'] == null || a['type'] == 'other');
+    }).length;
     var rest = 0;
     {
       final sessionDays = {for (final r in d.recentSessions) if (r['start_ts'] is num) dayLabelOf(DateTime.fromMillisecondsSinceEpoch((r['start_ts'] as num).toInt() * 1000))};
@@ -623,6 +633,26 @@ String ageFactorName(String key) => switch (key) {
   'lean_mass' => 'безжировая масса',
   _ => key,
 };
+
+/// Observations that never throw into a widget build: a rule tripping over an
+/// unexpected value logs and yields an empty feed for the day.
+List<Observation> safeObservations(WhView v, {Duration? sinceSync}) {
+  try {
+    return v.observations(sinceSync: sinceSync);
+  } catch (e, st) {
+    debugPrint('[familiar] observations failed: $e\n$st');
+    return const [];
+  }
+}
+
+List<Observation> safeAllObservations(WhView v, {Duration? sinceSync}) {
+  try {
+    return v.allObservations(sinceSync: sinceSync);
+  } catch (e, st) {
+    debugPrint('[familiar] observations failed: $e\n$st');
+    return const [];
+  }
+}
 
 const _dismissKey = 'familiar.obs.dismissed';
 Set<String> dismissedObservations() => {for (final s in Prefs.getString(_dismissKey, '').split(';')) if (s.isNotEmpty) s};

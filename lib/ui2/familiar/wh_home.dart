@@ -59,11 +59,14 @@ class _FamiliarDashboardState extends State<FamiliarDashboard> with RevisionRelo
             loading = false;
           });
         })
-        .catchError((Object e) {
+        .catchError((Object e, StackTrace st) {
+          debugPrint('[familiar] load failed: $e\n$st');
           if (!mounted || !stillNewest(#familiar, token)) return;
+          final why = e.toString();
           setState(() {
             loading = false;
-            error = 'Не удалось прочитать данные. Повторите загрузку.';
+            error = 'Не удалось прочитать данные. Повторите загрузку.\n'
+                'Причина: ${why.length > 240 ? why.substring(0, 240) : why}';
           });
         });
   }
@@ -147,7 +150,7 @@ class _FamiliarDashboardState extends State<FamiliarDashboard> with RevisionRelo
   // ── HOME ──────────────────────────────────────────────────────────────────
   List<Widget> _homeTab(BuildContext c, WhView v, WhNav nav) {
     final d = v.d;
-    final obs = v.observations();
+    final obs = safeObservations(v);
     final sleepPct = v.sleepPerf;
     return [
       Center(child: Padding(padding: const EdgeInsets.fromLTRB(0, S.x1, 0, S.x3 + 2), child: Text('WHOOD', style: FW.wordmark.copyWith(color: W.ink4)))),
@@ -227,7 +230,7 @@ class _FamiliarDashboardState extends State<FamiliarDashboard> with RevisionRelo
               const SizedBox(width: S.x2 + 2),
               Text('Наблюдения за день', style: FW.b1.copyWith(color: W.ink)),
               const SizedBox(width: S.x2),
-              Text('${v.allObservations().length}', style: FW.sub.copyWith(color: W.ink2)),
+              Text('${safeAllObservations(v).length}', style: FW.sub.copyWith(color: W.ink2)),
               const Spacer(),
               const WhIcon('navigation_forward', size: 12, color: W.ink4),
             ],

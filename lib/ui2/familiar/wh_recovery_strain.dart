@@ -4,7 +4,7 @@ import 'package:personal_analytics/whoop_observations.dart';
 
 import '../grammar.dart';
 import '../screens/log_workout.dart';
-import '../screens/workout_screen.dart' show openFamiliarActivityPicker, familiarActivityName;
+import '../screens/workout_screen.dart' show openFamiliarActivityPicker;
 import '../theme.dart';
 import 'wh_data.dart';
 import 'wh_home.dart' show activityIconOf;
@@ -53,7 +53,7 @@ class WhRecovery extends StatelessWidget {
           child: Column(
             children: [
               if (d.sleep['duration_min'] is num) _ActRow(icon: 'sleep', tag: hmOf(d.sleep['duration_min'] as num), name: 'Сон', start: clockOf((d.sleep['onset_ts'] as num?)?.toInt()), end: clockOf((d.sleep['wake_ts'] as num?)?.toInt()), color: W.sleep, onTap: () => nav.go('sleep')),
-              for (final row in d.activities) _ActRow(icon: activityIconOf(row['type']?.toString()), tag: ruDecimal((row['whoop_strain'] as num?) ?? (row['strain'] as num?)), name: familiarActivityName(c, row['type']?.toString()), start: clockOf((row['start_ts'] as num?)?.toInt()), end: clockOf((row['end_ts'] as num?)?.toInt()), color: W.strain, onTap: () => nav.workout(row)),
+              for (final row in d.activities) _ActRow(icon: activityIconOf(row['type']?.toString()), tag: ruDecimal((row['whoop_strain'] as num?) ?? (row['strain'] as num?)), name: activityRowName(c, row), start: clockOf((row['start_ts'] as num?)?.toInt()), end: clockOf((row['end_ts'] as num?)?.toInt()), color: W.strain, onTap: () => nav.workout(row)),
               if (d.activities.isEmpty && d.sleep['duration_min'] is! num) Padding(padding: const EdgeInsets.symmetric(vertical: S.x2), child: Text('Записей за день пока нет.', style: FW.hint.copyWith(color: W.ink3))),
             ],
           ),
@@ -100,6 +100,17 @@ class WhStrain extends StatelessWidget {
     if (v.z13Today != null) z13w[6] = v.z13Today;
     final z45w = trailing(d.series['whoop_z45_min'] ?? const [], v.date, 7, excludeEnd: false);
     if (v.z45Today != null) z45w[6] = v.z45Today;
+    // Per-zone minutes for the stacked weekly cards; today from the day block
+    // when its metric-series row is not there yet.
+    final zw = [for (var z = 1; z <= 5; z++) trailing(d.series['whoop_z${z}_min'] ?? const [], v.date, 7, excludeEnd: false)];
+    for (var z = 1; z <= 5; z++) {
+      final t = v.zonesToday['z$z'];
+      if (t is num) zw[z - 1][6] = t.toDouble();
+    }
+    List<List<double>?> stack(List<int> zs) => [
+      for (var i = 0; i < 7; i++)
+        zs.every((z) => zw[z - 1][i] == null) ? null : <double>[for (final z in zs) zw[z - 1][i] ?? 0],
+    ];
     final steps7 = trailing(d.steps, v.date, 7, excludeEnd: false);
     if (v.steps != null) steps7[6] = v.steps;
     double? avg(Iterable<double?> xs) {
@@ -137,7 +148,7 @@ class WhStrain extends StatelessWidget {
         WhCard(
           child: Column(
             children: [
-              for (final row in d.activities) _ActRow(icon: activityIconOf(row['type']?.toString()), tag: ruDecimal((row['whoop_strain'] as num?) ?? (row['strain'] as num?)), name: familiarActivityName(c, row['type']?.toString()), start: clockOf((row['start_ts'] as num?)?.toInt()), end: clockOf((row['end_ts'] as num?)?.toInt()), color: W.strain, onTap: () => nav.workout(row)),
+              for (final row in d.activities) _ActRow(icon: activityIconOf(row['type']?.toString()), tag: ruDecimal((row['whoop_strain'] as num?) ?? (row['strain'] as num?)), name: activityRowName(c, row), start: clockOf((row['start_ts'] as num?)?.toInt()), end: clockOf((row['end_ts'] as num?)?.toInt()), color: W.strain, onTap: () => nav.workout(row)),
               if (d.activities.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: S.x2), child: Text('Активностей за день нет. Нагрузка всё равно копится из пульса в течение дня.', style: FW.hint.copyWith(color: W.ink3))),
               const SizedBox(height: S.x1),
               Row(
@@ -152,8 +163,8 @@ class WhStrain extends StatelessWidget {
         ),
         const WhSection('Недельные тренды'),
         weekCard('Нагрузка', 'trend-strain', nav, WcBarsPainter(mode: WcMode.week, vals: strain7, labels: weekLabels(v.date), colors: const [W.strain], fmt: ruDecimal, yTicks: const [0, 5, 10, 15, 21], yFmt: (x) => '${x.round()}', todayIdx: 6)),
-        weekCard('Зоны пульса 1–3', 'trend-zones13', nav, WcStackedPainter(groups: [for (final x in z13w) x == null ? null : [x]], colors: const [W.z2], labels: weekLabels(v.date), values: true, todayIdx: 6), height: 180, legend: const WhLegend([(W.z2, 'зоны 1–3, минуты')])),
-        weekCard('Зоны пульса 4–5', 'trend-zones45', nav, WcStackedPainter(groups: [for (final x in z45w) x == null ? null : [x]], colors: const [W.z4], labels: weekLabels(v.date), values: true, todayIdx: 6), height: 180, legend: const WhLegend([(W.z4, 'зоны 4–5, минуты')])),
+        weekCard('Зоны пульса 1–3', 'trend-zones13', nav, WcStackedPainter(groups: stack(const [1, 2, 3]), colors: const [W.z1, W.z2, W.z3], labels: weekLabels(v.date), values: true, todayIdx: 6), height: 180, legend: const WhLegend([(W.z1, 'Зона 1'), (W.z2, 'Зона 2'), (W.z3, 'Зона 3')])),
+        weekCard('Зоны пульса 4–5', 'trend-zones45', nav, WcStackedPainter(groups: stack(const [4, 5]), colors: const [W.z4, W.z5], labels: weekLabels(v.date), values: true, todayIdx: 6), height: 180, legend: const WhLegend([(W.z4, 'Зона 4'), (W.z5, 'Зона 5')])),
         weekCard('Шаги', 'trend-steps', nav, WcBarsPainter(mode: WcMode.week, vals: steps7, labels: weekLabels(v.date), colors: const [W.strain], fmt: groupThousands, yTicks: const [0, 3000, 6000, 9000, 12000], yFmt: (x) => x == 0 ? '0' : '${(x / 1000).round()} тыс.', todayIdx: 6, valueColor: W.ink), height: 180),
         WhNote(v.strainIsWhoop ? 'Как считается: резерв пульса v = (HR − RHR)/(MHR − RHR), взвешенный интеграл за день, нормировка на 24 ч и шкала 21·½·(arctan(k·(N − p))/(π/2)+1) — структура патента WHOOP US 9,750,415; вес и k, p подобраны. Зоны: 50/60/70/80/90 % резерва.' : 'Нагрузка OpenStrap (Banister TRIMP). WHOOP-расчёт включится, когда известны возраст, пол и пульс покоя.'),
       ],

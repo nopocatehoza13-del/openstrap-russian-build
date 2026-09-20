@@ -5,6 +5,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/widgets.dart' show BuildContext;
 
 import 'package:personal_analytics/whoop_observations.dart';
 
@@ -12,6 +13,7 @@ import '../../data/day_label.dart';
 import '../../state/prefs.dart';
 import '../../state/alarm_schedule.dart';
 import '../screens/home_screen.dart' show ChartPoint;
+import '../screens/workout_screen.dart' show familiarActivityName;
 import 'data.dart';
 
 double? _n(Object? v) => v is num && v.isFinite ? v.toDouble() : null;
@@ -38,11 +40,15 @@ WhRange? rangeOf(Iterable<double?> values, {int minN = 5}) {
   return WhRange(q(.1), q(.9), q(.5), xs.length);
 }
 
-/// Values of the last [days] calendar days before [end] (exclusive of [end]
-/// when [excludeEnd]) from a chart series.
+/// Exactly [days] values from a chart series, oldest first: the [days]
+/// calendar days before [end] when [excludeEnd], or the [days] days ending
+/// at [end] itself otherwise. (It used to return [days] + 1 values with
+/// [excludeEnd] false — one more than every week/month painter has labels
+/// for, so those charts threw in paint on real data.)
 List<double?> trailing(List<ChartPoint> pts, DateTime end, int days, {bool excludeEnd = true}) {
   final map = <String, double>{for (final p in pts) dayLabelOf(DateTime.fromMillisecondsSinceEpoch(p.t * 1000)): p.v};
-  return [for (var i = days; i >= (excludeEnd ? 1 : 0); i--) map[dayLabelOf(DateTime(end.year, end.month, end.day - i))]];
+  final first = excludeEnd ? days : days - 1, last = excludeEnd ? 1 : 0;
+  return [for (var i = first; i >= last; i--) map[dayLabelOf(DateTime(end.year, end.month, end.day - i))]];
 }
 
 String dirOf(num? now, num? prev, {bool lowerBetter = false, double eps = 0}) {
@@ -600,6 +606,16 @@ class WhView {
   }
 
   List<Observation> allObservations({Duration? sinceSync}) => buildObservations(observationInput(sinceSync: sinceSync));
+}
+
+/// A session row's name for the lists: its own title unless that is just the
+/// type code, else the catalogue's localized name, else the Russian type name
+/// (a bare code such as RUN never reaches the screen).
+String activityRowName(BuildContext c, Map<String, dynamic> row) {
+  final title = (row['title'] as String?) ?? '', type = row['type']?.toString();
+  if (title.isNotEmpty && title != type) return title;
+  final loc = familiarActivityName(c, type);
+  return loc.toLowerCase() == (type ?? '').toLowerCase() || loc == 'Workout' ? activityTypeRu(type) : loc;
 }
 
 /// Russian name of an activity type code (session rows store the code).

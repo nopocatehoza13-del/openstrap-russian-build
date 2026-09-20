@@ -1505,6 +1505,7 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
       'whoop_strain': whoopBlock?['strain'],
       'whoop_z13_min': whoopZoneSum(const ['z1', 'z2', 'z3']),
       'whoop_z45_min': whoopZoneSum(const ['z4', 'z5']),
+      for (var z = 1; z <= 5; z++) 'whoop_z${z}_min': whoopZoneSum(['z$z']),
       'whoop_max_hr': whoopBlock?['max_hr'],
       'whoop_spo2_pct': bandSpo2?.pct,
       'whoop_spo2_samples': bandSpo2?.samples,

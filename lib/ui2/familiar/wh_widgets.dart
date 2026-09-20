@@ -614,10 +614,21 @@ class WhChangeChip extends StatelessWidget {
   Widget build(BuildContext c) {
     final dir = delta > 0 ? 'up' : delta < 0 ? 'dn' : 'eq';
     final color = dir == 'up' ? W.action : dir == 'dn' ? W.neg : W.ink2;
+    // Icons, not glyphs: the numeric face has no ▲ ▼ ● and drew boxes.
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(color: W.card2, borderRadius: WR.rBar),
-      child: Text('${dir == 'up' ? '▲' : dir == 'dn' ? '▼' : '●'} ${delta.abs().round()} % $suffix', style: FW.n9.copyWith(color: color)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (dir == 'eq')
+            Container(width: 5, height: 5, decoration: BoxDecoration(color: color, shape: BoxShape.circle))
+          else
+            WhIcon(dir == 'up' ? 'tiny_triangle_up' : 'tiny_triangle_down', size: 8, color: color),
+          const SizedBox(width: 4),
+          Text('${delta.abs().round()} % $suffix', style: FW.n9.copyWith(color: color)),
+        ],
+      ),
     );
   }
 }

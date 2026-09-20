@@ -10,7 +10,7 @@ import '../profile/devices.dart';
 import '../revision.dart';
 import '../screens/home_screen.dart' show repoOf;
 import '../screens/log_workout.dart';
-import '../screens/workout_screen.dart' show openFamiliarActivityPicker, familiarActivityName;
+import '../screens/workout_screen.dart' show openFamiliarActivityPicker;
 import '../theme.dart';
 import 'data.dart';
 import 'wh_data.dart';
@@ -249,7 +249,7 @@ class _FamiliarDashboardState extends State<FamiliarDashboard> with RevisionRelo
               _ActivityRow(
                 icon: activityIconOf(row['type']?.toString()),
                 tag: ruDecimal((row['whoop_strain'] as num?) ?? (row['strain'] as num?)),
-                name: familiarActivityName(c, row['type']?.toString()),
+                name: activityRowName(c, row),
                 start: clockOf((row['start_ts'] as num?)?.toInt()),
                 end: clockOf((row['end_ts'] as num?)?.toInt()),
                 color: W.strain,

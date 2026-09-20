@@ -1736,7 +1736,10 @@ import 'substrate.dart';
 // calories, worn minutes, deep/REM, the sleeping-HR nadir and the HR ceiling.
 // Strain, readiness, sleep and the v98 family are unchanged; upstream
 // analytics/protocol pins unchanged; no new BLE commands.
-const int kAlgoVersion = 99;
+// v100: minutes per HR zone (`whoop_z1_min` … `whoop_z5_min`) join the
+// metric series beside the 1–3 / 4–5 sums, so the zone trends can stack the
+// zones the way the design does. No score changes.
+const int kAlgoVersion = 100;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -4743,6 +4746,8 @@ class DerivationEngine {
         'whoop_strain': sc('whoop_strain'),
         'whoop_z13_min': sc('whoop_z13_min'),
         'whoop_z45_min': sc('whoop_z45_min'),
+        // v100: minutes per HR zone, for the zone trends' stacked bars.
+        for (var z = 1; z <= 5; z++) 'whoop_z${z}_min': sc('whoop_z${z}_min'),
         // v99: the band's overnight SpO₂ estimate and nightly skin temperature
         // in °C (gen5), for the health monitor ranges and the W/M/6M trends.
         'whoop_max_hr': sc('whoop_max_hr'),

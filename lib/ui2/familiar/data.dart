@@ -134,6 +134,7 @@ class FamiliarData {
       'whoop_strain', 'whoop_z13_min', 'whoop_z45_min', 'whoop_recovery',
       'whoop_sleep_perf', 'whoop_consistency', 'whoop_hours_vs_need', 'whoop_need_min',
       'whoop_spo2_pct', 'whoop_skin_temp_c',
+      'whoop_z1_min', 'whoop_z2_min', 'whoop_z3_min', 'whoop_z4_min', 'whoop_z5_min',
     ]) {
       try {
         series[k] = pointsOf(await repo.getChart(k));

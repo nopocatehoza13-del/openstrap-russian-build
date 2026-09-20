@@ -115,7 +115,7 @@ class WcTrendPainter extends CustomPainter {
       for (var i = 0; i < n; i++) {
         final v = vals[i];
         final x0 = left + i * segW + 6, x1 = left + (i + 1) * segW - 6;
-        _txt(c, labels[i], Offset((x0 + x1) / 2, h - 6), FW.axis.copyWith(color: W.axis), align: TextAlign.center);
+        if (i < labels.length) _txt(c, labels[i], Offset((x0 + x1) / 2, h - 6), FW.axis.copyWith(color: W.axis), align: TextAlign.center);
         if (v == null) continue;
         final prev = i > 0 ? vals[i - 1] : null;
         final ch = prev == null || prev == 0 ? 0 : ((v - prev) / prev * 100).round();
@@ -169,7 +169,7 @@ class WcTrendPainter extends CustomPainter {
             ..strokeWidth = 1.6);
           _txt(c, fmt(v), Offset(x(i), y(v) - 11), FW.n10.copyWith(color: W.ink), align: TextAlign.center);
         }
-        _twoLine(c, x(i), h - 14, labels[i], W.axis);
+        if (i < labels.length) _twoLine(c, x(i), h - 14, labels[i], W.axis);
       }
     } else {
       var li = vals.length - 1;
@@ -184,8 +184,11 @@ class WcTrendPainter extends CustomPainter {
           ..strokeWidth = 1.6);
         _txt(c, fmt(vals[li]!), Offset(x(li) + 1, y(vals[li]!) - 11), FW.n10.copyWith(color: W.ink), align: TextAlign.center);
       }
-      for (var i = vals.length - 1; i >= 0; i -= 7) {
-        _twoLine(c, x(i).clamp(13, w - 13).toDouble(), h - 14, labels[i], W.axis);
+      // The mock's picking: every ~quarter of the window from its start, plus
+      // the last day (22 авг · 30 авг · 7 сен · 15 сен · 20 сен for a month).
+      final step = math.max(1, (vals.length / 4).round());
+      for (var i = 0; i < vals.length && i < labels.length; i++) {
+        if (i % step == 0 || i == vals.length - 1) _twoLine(c, x(i).clamp(13, w - 13).toDouble(), h - 14, labels[i], W.axis);
       }
     }
   }
@@ -837,8 +840,11 @@ class WcHatchRow extends StatelessWidget {
           ],
         ),
         const SizedBox(height: S.x2),
+        // Full width whatever the parent's cross alignment: a bare CustomPaint
+        // in a start-aligned Column collapsed to zero width and drew nothing.
         SizedBox(
           height: 22,
+          width: double.infinity,
           child: CustomPaint(painter: _HatchPainter(pct: pct, color: color, range: range)),
         ),
       ],

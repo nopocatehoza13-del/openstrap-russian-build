@@ -221,7 +221,7 @@ void main() {
   for (final e in screens.entries) {
     testWidgets('detail ${e.key}', (t) async {
       t.view.devicePixelRatio = 1;
-      t.view.physicalSize = const Size(390, 1500);
+      t.view.physicalSize = const Size(390, 3600);
       addTearDown(t.view.resetPhysicalSize);
       addTearDown(t.view.resetDevicePixelRatio);
       await t.pumpWidget(app(e.value));

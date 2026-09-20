@@ -232,6 +232,7 @@ class _WhSleepState extends State<WhSleep> {
         ),
         _sleepStressCard(v),
         const WhSection('Недельные тренды'),
+        _weekCard('Показатель сна', 'trend-sleepperf', nav, WcBarsPainter(mode: WcMode.week, vals: trailing(d.series['whoop_sleep_perf'] ?? const [], v.date, 7, excludeEnd: false).asMap().entries.map((e) => e.key == 6 ? perf : e.value).toList(), labels: _weekLabels(v.date), colors: const [W.sleep], fmt: (x) => '${x.round()}%', yTicks: const [0, 25, 50, 75, 100], yFmt: (x) => '${x.round()}%', todayIdx: 6, valueColor: W.ink)),
         _weekCard('Часы против потребности', 'trend-hours', nav, WcBarsPainter(mode: WcMode.week, vals: trailing(d.health.points('sleep'), v.date, 7, excludeEnd: false).asMap().entries.map((e) => e.key == 6 ? tst : e.value).toList(), labels: _weekLabels(v.date), colors: const [W.sleep], fmt: hmOf, yTicks: const [0, 150, 300, 450, 600], yFmt: hmOf, todayIdx: 6, valueColor: W.ink)),
         _weekCard('Восстанавливающий сон', 'trend-restorative', nav, WcStackedPainter(groups: _pairs(trailing(d.series['deep'] ?? const [], v.date, 7, excludeEnd: false), trailing(d.series['rem'] ?? const [], v.date, 7, excludeEnd: false), v.deepMin, v.remMin), colors: const [W.deep, W.rem], labels: _weekLabels(v.date), values: true, todayIdx: 6), legend: const WhLegend([(W.deep, 'Глубокий'), (W.rem, 'REM')])),
         _weekCard('Время в постели', 'trend-tib', nav, WcClockPainter(spans: bedSpans, labels: _weekLabels(v.date), todayIdx: 6), height: 200),

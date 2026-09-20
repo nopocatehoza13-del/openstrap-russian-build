@@ -360,13 +360,16 @@ class WhCountBadge extends StatelessWidget {
     width: 24,
     height: 40,
     decoration: BoxDecoration(color: W.ink, borderRadius: WR.rBar),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const WhIcon('checkmark', size: 11, color: W.onLight),
-        const SizedBox(height: 2),
-        Text('$count', style: FW.n11.copyWith(color: W.onLight)),
-      ],
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const WhIcon('checkmark', size: 11, color: W.onLight),
+          const SizedBox(height: 2),
+          Text('$count', style: FW.n11.copyWith(color: W.onLight)),
+        ],
+      ),
     ),
   );
 }

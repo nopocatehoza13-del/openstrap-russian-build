@@ -693,15 +693,21 @@ class WcOrb extends StatelessWidget {
       child: CustomPaint(
         painter: _OrbPainter(),
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(big, style: (size >= 260 ? FW.n52 : FW.n44).copyWith(color: W.ink)),
-              const SizedBox(height: S.x2),
-              Text(caption.toUpperCase(), style: FW.label.copyWith(color: W.awake), textAlign: TextAlign.center),
-              const SizedBox(height: S.x1 + 2),
-              Text(delta, style: FW.sub.copyWith(color: deltaColor), textAlign: TextAlign.center),
-            ],
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: EdgeInsets.all(size * .18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(big, style: (size >= 260 ? FW.n52 : FW.n44).copyWith(color: W.ink)),
+                  const SizedBox(height: S.x2),
+                  Text(caption.toUpperCase(), style: FW.label.copyWith(color: W.awake), textAlign: TextAlign.center),
+                  const SizedBox(height: S.x1 + 2),
+                  Text(delta, style: FW.sub.copyWith(color: deltaColor), textAlign: TextAlign.center),
+                ],
+              ),
+            ),
           ),
         ),
       ),

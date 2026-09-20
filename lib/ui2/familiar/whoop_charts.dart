@@ -741,7 +741,9 @@ class WcDial extends StatelessWidget {
         duration: motion(c, Motion.slow),
         builder: (c, v, child) => CustomPaint(painter: WcRingPainter(v, color, stroke: 16, goal: goal), child: child),
         child: Center(
-          child: Column(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(padding: const EdgeInsets.all(S.x6), child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(wordmark, style: FW.wordmark.copyWith(color: W.axis)),
@@ -758,6 +760,7 @@ class WcDial extends StatelessWidget {
               Text(caption.toUpperCase(), style: FW.label.copyWith(color: W.ink), textAlign: TextAlign.center),
               if (seg != null) Padding(padding: const EdgeInsets.only(top: S.x2 + 2), child: WhSeg3(seg!)),
             ],
+          )),
           ),
         ),
       ),
@@ -810,16 +813,26 @@ class WcHatchRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (circle)
               Container(width: 20, height: 20, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: filled ? color : W.ink, width: 2), color: filled ? color : null))
             else
-              Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: WR.rTiny)),
+              Padding(padding: const EdgeInsets.only(top: 3), child: Container(width: 12, height: 12, decoration: BoxDecoration(color: color, borderRadius: WR.rTiny))),
             const SizedBox(width: S.x2 + 2),
-            Text(label.toUpperCase(), style: FW.label.copyWith(color: W.ink)),
-            if (sub != null) ...[const SizedBox(width: S.x2), Text(sub!, style: FW.hint.copyWith(color: W.ink3))],
-            if (pct != null) ...[const SizedBox(width: S.x2), Text('$pct%', style: FW.n11.copyWith(color: color))],
-            const Spacer(),
+            Expanded(
+              child: Wrap(
+                spacing: S.x2,
+                runSpacing: 2,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(label.toUpperCase(), style: FW.label.copyWith(color: W.ink)),
+                  if (sub != null) Text(sub!, style: FW.hint.copyWith(color: W.ink3)),
+                  if (pct != null) Text('$pct%', style: FW.n11.copyWith(color: color)),
+                ],
+              ),
+            ),
+            const SizedBox(width: S.x2),
             value,
           ],
         ),
@@ -1117,7 +1130,7 @@ class WcBreakdown extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [Text(title.toUpperCase(), style: FW.label.copyWith(color: W.ink)), const SizedBox(width: S.x1 + 2), Text('(дни)', style: FW.hint.copyWith(color: W.ink3))]),
+        Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: S.x1 + 2, children: [Text(title.toUpperCase(), style: FW.label.copyWith(color: W.ink)), Text('(дни)', style: FW.hint.copyWith(color: W.ink3))]),
         const SizedBox(height: S.x2),
         ClipRRect(
           borderRadius: WR.rTiny,
@@ -1136,11 +1149,12 @@ class WcBreakdown extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: S.x1 + 2),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(width: 10, height: 10, decoration: BoxDecoration(color: col, borderRadius: WR.rTiny)),
+                Padding(padding: const EdgeInsets.only(top: 2), child: Container(width: 10, height: 10, decoration: BoxDecoration(color: col, borderRadius: WR.rTiny))),
                 const SizedBox(width: S.x2),
-                SizedBox(width: 26, child: Text('$n×', style: FW.n12.copyWith(color: W.ink))),
-                Text(label, style: FW.sub.copyWith(color: W.ink2)),
+                ConstrainedBox(constraints: const BoxConstraints(minWidth: 26), child: Text('$n×', style: FW.n12.copyWith(color: W.ink))),
+                Expanded(child: Text(label, style: FW.sub.copyWith(color: W.ink2, height: 1.3))),
               ],
             ),
           ),

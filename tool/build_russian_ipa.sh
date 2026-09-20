@@ -26,7 +26,7 @@ STAGING=$(mktemp -d "$PWD/build/ru-ipa.XXXXXX")
 mkdir -p "$STAGING/Payload"
 ditto "$APP" "$STAGING/Payload/Runner.app"
 mkdir -p dist
-IPA="$PWD/dist/OpenStrap-Familiar-RU-0.9.29-v6-unsigned.ipa"
+IPA="$PWD/dist/OpenStrap-Familiar-RU-0.9.30-v7-unsigned.ipa"
 (cd "$STAGING" && zip -qry -y "$STAGING/fresh.ipa" Payload)
 mv "$STAGING/fresh.ipa" "$IPA"
 python3 tool/verify_russian_ipa.py "$IPA"

@@ -41,11 +41,13 @@ with zipfile.ZipFile(p) as z:
     assert not any(n.startswith(base+'Watch/') for n in names)
     verify_device_macho(z.read(base+'Runner'), 'Runner')
     verify_device_macho(z.read(base+'Frameworks/App.framework/App'), 'Flutter AOT')
-    assert info['CFBundleVersion'] == '68', 'Expected familiar UI v7 build 68'
-    assert info['CFBundleShortVersionString'] == '0.9.30', 'Expected marketing version 0.9.30'
+    assert info['CFBundleVersion'] == '69', 'Expected familiar UI v8 build 69'
+    assert info['CFBundleShortVersionString'] == '0.9.31', 'Expected marketing version 0.9.31'
     aot = z.read(base+'Frameworks/App.framework/App')
     assert b'WHOOD' in aot, 'Missing v7 wordmark marker'
     assert b'familiar.obs.dismissed' in aot, 'Missing v7 observations engine marker'
+    assert b'spo2_band_raw' in aot, 'Missing v8 band SpO2 column marker'
+    assert b'notif_obs_cap' in aot, 'Missing v8 observation push prefs marker'
     assert b'experimental_hr_activation_v1' in aot, 'Missing intraday stress model'
     print('ZIP CRC: OK; Runner and Flutter AOT: ARM64/iOS device; Russian iOS strings: present')
     print('Bundle:',info['CFBundleIdentifier'],'version:',info['CFBundleShortVersionString'],'min iOS:',info['MinimumOSVersion'])

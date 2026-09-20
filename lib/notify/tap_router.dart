@@ -103,6 +103,12 @@ const String kRouteProfile = '/profile';
 /// `domainForRoute` claimed otherwise.
 const String kRouteRecap = '/recap';
 
+/// v8: the Familiar observations feed (a tapped observation push lands here;
+/// `id` is the observation id so the feed can scroll to it).
+const String kRouteObservations = '/observations';
+String observationRoute(String id) =>
+    Uri(path: kRouteObservations, queryParameters: {'id': id}).toString();
+
 /// Emitted by the two alarm safety notifications (latch-failure, the 7pm
 /// no-alarm-tonight check-in). Lands on the Alarm screen itself, the one place
 /// either can actually be fixed — see `screenForRoute` in app.dart.

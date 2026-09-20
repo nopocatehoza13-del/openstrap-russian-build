@@ -80,4 +80,36 @@ void main() {
     expect(bundle['whoop'], isA<Map>());
     expect((bundle['whoop'] as Map)['need'], isA<Map>());
   });
+
+  test('v99: vitals ranges, records, previous-week zones and patterns', () {
+    final days = rows(40, tstMin: 450, strain: 8);
+    for (var i = 0; i < days.length; i++) {
+      days[i]['whoop_spo2_pct'] = 96.0 + (i % 3);
+      days[i]['whoop_skin_temp_c'] = 33.5 + (i % 4) * .1;
+      days[i]['whoop_strain'] = i % 2 == 0 ? 6.0 : 16.0;
+      // readiness follows the PREVIOUS day's strain: hard (16) → 50, easy → 72
+      days[i]['readiness'] = i % 2 == 0 ? 50.0 : 72.0;
+    }
+    final wh = whoopCrossDayBlock(days, profile);
+    final vit = wh['vitals'] as Map;
+    final spo2 = vit['spo2'] as Map;
+    expect(spo2['value'], 96.0);
+    expect(spo2['nights'], 31);
+    expect(spo2['lo'], 96.0);
+    expect(spo2['hi'], 98.0);
+    expect((vit['skin_temp_c'] as Map)['median'], isNotNull);
+    final rec = wh['records'] as Map;
+    expect(rec['nights'], 30);
+    expect(rec['tst_prev_max'], 450.0);
+    expect(rec['readiness_prev_max'], 72.0);
+    final pat = wh['patterns'] as Map;
+    expect(pat['hard_day_recovery'], closeTo(50, .01));
+    expect(pat['easy_day_recovery'], closeTo(72, .01));
+    expect(pat['pattern_days'], 39);
+    expect(pat['rhr_rising_days'], 3);
+    expect(pat['hrv_cv7'], isNotNull);
+    expect(pat['hrv_cv30'], isNotNull);
+    expect((wh['zones_prev_week'] as Map)['z13_min'], isNotNull);
+    expect(((wh['week'] as List).last as Map).containsKey('whoop_max_hr'), isTrue);
+  });
 }

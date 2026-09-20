@@ -99,4 +99,149 @@ void main() {
     }
     expect(obs.map((o) => o.id).toSet().length, obs.length);
   });
+
+  // ── v8 ──
+  test('v8: unified morning report replaces the two summaries and is push-worthy', () {
+    final obs = buildObservations(ObservationInput(now: now, recovery: 76, hrv: 64, hrvLo: 52, hrvHi: 71, sleepPerf: 85, tstMin: 462, needMin: 495, hoursVsNeed: 93, targetLo: 10, targetHi: 14));
+    final m = obs.singleWhere((o) => o.kind == ObservationKind.morning);
+    expect(m.title, 'Восстановление 76 % · сон 85 %');
+    expect(m.text, contains('Зелёная зона: ВСР 64 мс в вашем диапазоне 52–71'));
+    expect(m.text, contains('Сон оптимальный: 7 ч 42 мин из 8:15'));
+    expect(m.text, contains('Цель нагрузки на сегодня 10,0–14,0'));
+    expect(m.push, isTrue);
+    expect(m.priority, 99);
+    expect(obs.any((o) => o.id.startsWith('recovery.summary')), isFalse);
+    expect(obs.any((o) => o.id.startsWith('sleep.summary')), isFalse);
+    final split = buildObservations(ObservationInput(now: now, recovery: 76, sleepPerf: 85, tstMin: 462, unifiedMorning: false));
+    expect(split.any((o) => o.id.startsWith('recovery.summary')), isTrue);
+    expect(split.any((o) => o.id.startsWith('sleep.summary')), isTrue);
+    expect(split.any((o) => o.kind == ObservationKind.morning), isFalse);
+  });
+  test('v8: night detail — lowest HR, latency, nap, time in bed, alarm plan', () {
+    final obs = buildObservations(ObservationInput(
+      now: now,
+      nightHrMin: 46,
+      nightHrMinAtMinOfDay: 3 * 60 + 12,
+      nightHrMinBaseline: 49,
+      latencyMin: 42,
+      latencyTypicalMin: 12,
+      napMin: 35,
+      needTonightMin: 470,
+      inBedMin: 540,
+      tstMin: 450,
+      alarmTomorrowMinOfDay: 7 * 60,
+      wokeBeforeAlarmMin: 20,
+    ));
+    String titleOf(String rule) => obs.singleWhere((o) => o.id.startsWith(rule)).title;
+    expect(titleOf('sleep.night_hr_min'), 'Пульс ночью опускался до 46 в 03:12');
+    expect(obs.singleWhere((o) => o.id.startsWith('sleep.night_hr_min')).tone, 1);
+    expect(titleOf('sleep.latency_long'), 'Долго засыпали: 42 мин');
+    expect(titleOf('sleep.nap'), 'Дрёма 35 мин зачтена');
+    expect(titleOf('sleep.tib_vs_sleep'), 'В постели 9 ч, спали 7 ч 30 мин');
+    expect(titleOf('sleep.alarm_plan'), 'Будильник на 07:00: отбой до 00:20 для 85 %');
+    expect(titleOf('sleep.woke_before_alarm'), 'Проснулись за 20 минут до будильника');
+    final high = buildObservations(ObservationInput(now: now, nightHrMin: 54, nightHrMinAtMinOfDay: 5 * 60, nightHrMinBaseline: 49));
+    expect(high.single.tone, 2);
+    expect(high.single.text, contains('не опустился до нормы'));
+  });
+  test('v8: records, social jetlag and a night without data', () {
+    final obs = buildObservations(ObservationInput(
+      now: now,
+      recordNights: 20,
+      tstMin: 520,
+      sleepRecordPrevMax: 500,
+      recovery: 91,
+      recoveryRecordPrevMax: 88,
+      restorativeMin: 240,
+      restorativeRecordPrevMax: 230,
+      weekendBedShiftMin: 95,
+      noNightData: true,
+      noNightReason: 'Браслет разряжен',
+    ));
+    expect(obs.map((o) => o.title), containsAll(['Самый долгий сон за 20 дней', 'Лучшее восстановление за 20 дней', 'Рекорд восстанавливающего сна', 'В выходные отбой на 1 ч 35 мин позже, чем в будни', 'Ночь без данных']));
+    expect(obs.singleWhere((o) => o.id.startsWith('sleep.no_night')).text, startsWith('Браслет разряжен.'));
+    final thin = buildObservations(ObservationInput(now: now, recordNights: 10, tstMin: 520, sleepRecordPrevMax: 500));
+    expect(thin.any((o) => o.id.startsWith('sleep.record')), isFalse);
+  });
+  test('v8: wear gap, activity summary, new max HR, calories, rest days', () {
+    final obs = buildObservations(ObservationInput(
+      now: now,
+      wearGapMin: 130,
+      wearGapStartMinOfDay: 14 * 60 + 20,
+      wearGapEndMinOfDay: 16 * 60 + 30,
+      wornMin: 900,
+      lastActivityName: 'Бег',
+      lastActivityStrain: 12.4,
+      lastActivityDurationMin: 48,
+      lastActivityZoneMin: [5, 12, 20, 9, 2],
+      lastActivityAvgHr: 152,
+      lastActivityMaxHr: 178,
+      lastActivityPrevStrain: 11.1,
+      lastActivityEndMinOfDay: 18 * 60 + 5,
+      maxHrNew: 187,
+      maxHrPrev: 184,
+      caloriesToday: 2900,
+      caloriesWeekAvg: 2300,
+    ));
+    String titleOf(String rule) => obs.singleWhere((o) => o.id.startsWith(rule)).title;
+    expect(titleOf('device.wear_gap'), 'Браслет не на руке 2 ч 10 мин');
+    expect(obs.singleWhere((o) => o.id.startsWith('device.wear_gap')).text, contains('С 14:20 до 16:30'));
+    expect(titleOf('strain.activity_summary'), '«Бег»: нагрузка 12,4 за 48 мин');
+    final a = obs.singleWhere((o) => o.id.startsWith('strain.activity_summary'));
+    expect(a.text, contains('Зоны: 1 — 5 мин, 2 — 12 мин, 3 — 20 мин, 4 — 9 мин, 5 — 2 мин.'));
+    expect(a.text, contains('Пульс 152 средний, 178 макс.'));
+    expect(a.text, contains('Прошлая такая же: 11,1.'));
+    expect(a.time, '18:05');
+    expect(a.push, isTrue);
+    expect(titleOf('strain.max_hr_new'), 'Новый максимум пульса: 187 уд/мин');
+    expect(titleOf('strain.calories').replaceAll(RegExp(r'\s'), ' '), 'Калорий за день 2 900 — на 26 % больше обычного');
+    final morningObs = buildObservations(ObservationInput(now: DateTime(2026, 9, 21, 9), restDays: 2, recovery: 80));
+    expect(morningObs.map((o) => o.title), contains('Два дня без тренировок при зелёном восстановлении'));
+    final noNew = buildObservations(ObservationInput(now: now, maxHrNew: 184, maxHrPrev: 184));
+    expect(noNew, isEmpty);
+  });
+  test('v8: vitals — rising RHR, respiratory rate alone, band SpO₂, skin temperature', () {
+    final a = buildObservations(ObservationInput(now: now, rhr: 56, rhrBaseline: 53, rhrRisingDays: 3, resp: 16.4, respHi: 15.2, respAboveStreak: 2));
+    expect(a.singleWhere((o) => o.id.startsWith('recovery.rhr_rising')).title, 'Пульс покоя растёт третий день подряд');
+    expect(a.singleWhere((o) => o.id.startsWith('health.resp_high')).title, 'Дыхание выше нормы вторую ночь подряд');
+    final b = buildObservations(ObservationInput(now: now, spo2: 93, spo2Lo: 94, spo2Source: 'band', spo2Samples: 41, skinTempC: 33.9, skinTempDevC: 0.4));
+    final sp = b.singleWhere((o) => o.id.startsWith('health.spo2_band'));
+    expect(sp.title, 'SpO₂ ночью 93 % — ниже нормы');
+    expect(sp.text, contains('замеров: 41'));
+    expect(sp.tone, 2);
+    expect(b.singleWhere((o) => o.id.startsWith('health.skin_temp_dev')).title, 'Температура кожи на 0,4 °C выше вашей нормы');
+    final imported = buildObservations(ObservationInput(now: now, spo2: 97, spo2Lo: 94, spo2Source: 'import'));
+    expect(imported.any((o) => o.id.startsWith('health.spo2_band')), isFalse);
+  });
+  test('v8: patterns and the monthly Healthspan step', () {
+    final obs = buildObservations(ObservationInput(
+      now: DateTime(2026, 10, 2, 9), // a Friday, 2nd of the month
+      patternDays: 24,
+      hardDayRecovery: 48,
+      easyDayRecovery: 63,
+      weekdayLow: 'пятница',
+      weekdayLowIndex: DateTime.friday,
+      weekdayLowDelta: -12,
+      weekdayN: 6,
+      hrvCv7: .31,
+      hrvCv30: .12,
+      whoopAge: 31.4,
+      ageDelta30: -0.4,
+      ageTopChangeFactor: 'часы сна',
+      ageTopChangeYears: -0.3,
+    ));
+    expect(obs.map((o) => o.title), containsAll([
+      'После тяжёлых дней восстановление 48 % против 63 %',
+      'Сегодня пятница: восстановление обычно ниже на 12',
+      'ВСР скачет: разброс за неделю вдвое выше обычного',
+      'За месяц возраст организма −0,4 года',
+    ]));
+    final other = buildObservations(ObservationInput(now: DateTime(2026, 10, 1, 9), weekdayLow: 'пятница', weekdayLowIndex: DateTime.friday, weekdayLowDelta: -12, weekdayN: 6));
+    expect(other.any((o) => o.id.startsWith('weekly.pattern_weekday')), isFalse);
+  });
+  test('v8: push eligibility follows kPushRules', () {
+    final obs = buildObservations(ObservationInput(now: now, batteryPct: 15, journalTracked: true, journalStreak: 3));
+    expect(obs.singleWhere((o) => o.id.startsWith('device.battery')).push, isTrue);
+    expect(obs.singleWhere((o) => o.id.startsWith('journal.fill')).push, isFalse);
+  });
 }

@@ -1725,7 +1725,18 @@ import 'substrate.dart';
 // thresholds, baseline-relative recovery, Healthspan Δage = 10·ln(HR) and pace
 // of aging). Banister strain, readiness and the sleep coach are unchanged;
 // upstream analytics/protocol pins unchanged; no new BLE commands.
-const int kAlgoVersion = 98;
+// v99: WHOOP vitals and patterns. The gen5 SpO₂ status byte is now stored
+// (`decoded_onehz.spo2_band_raw`, raw) and a night of it becomes the band's
+// own SpO₂ ESTIMATE with a sample count (`whoop.spo2`, `whoop_spo2_pct`);
+// nightly skin temperature is published in °C on gen5 with its deviation from
+// the 30-night mean (`whoop.skin_temp`, `whoop_skin_temp_c`). Cross-day
+// `whoop` gains `vitals` (10–90 % ranges), `records`, `zones_prev_week` and
+// `patterns` (strain → next-day readiness, weekday effect, HRV volatility,
+// monthly Healthspan delta). Cross-day rows carry latency, awakenings,
+// calories, worn minutes, deep/REM, the sleeping-HR nadir and the HR ceiling.
+// Strain, readiness, sleep and the v98 family are unchanged; upstream
+// analytics/protocol pins unchanged; no new BLE commands.
+const int kAlgoVersion = 99;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -4123,6 +4134,12 @@ class DerivationEngine {
     final stepSpans = [
       for (final s in liveSteps.spans) [s.startTs, s.endTs, s.steps],
     ];
+    // The band's raw SpO₂ bytes over the sleep window (gen5 only; empty
+    // otherwise). Read here rather than through the substrate so the 1 Hz
+    // arrays keep their shape; `whoopBandSpo2` needs no timestamps.
+    final sleepSpo2Band = day.sleepOnsetSec > 0 && day.sleepOffsetSec > day.sleepOnsetSec
+        ? await LocalDb.spo2BandBetween(day.sleepOnsetSec, day.sleepOffsetSec)
+        : const <int>[];
     final input = DayBundleInput(
       date: day.date,
       dayTsSec: daySub.tsSec,
@@ -4135,6 +4152,7 @@ class DerivationEngine {
       sleepRrTsMs: sleepSub.rrTsMs,
       sleepRrMs: sleepSub.rrMs,
       sleepSkinTemp: sleepSub.skinTemp,
+      sleepSpo2Band: sleepSpo2Band,
       sleepJson: day.sleepJson,
       hypnoStages: day.hypnoStages,
       sleepOnsetSec: day.sleepOnsetSec,
@@ -4725,6 +4743,11 @@ class DerivationEngine {
         'whoop_strain': sc('whoop_strain'),
         'whoop_z13_min': sc('whoop_z13_min'),
         'whoop_z45_min': sc('whoop_z45_min'),
+        // v99: the band's overnight SpO₂ estimate and nightly skin temperature
+        // in °C (gen5), for the health monitor ranges and the W/M/6M trends.
+        'whoop_max_hr': sc('whoop_max_hr'),
+        'whoop_spo2_pct': sc('whoop_spo2_pct'),
+        'whoop_skin_temp_c': sc('whoop_skin_temp_c'),
         // `strain_effort`, `spo2` and `odi_per_hour` used to be listed here.
         // Nothing in the tree ever produced them (12 rows, 0 values per key on
         // a real install), so they were three permanently-null series with a
@@ -5549,6 +5572,19 @@ class DerivationEngine {
       'whoop_strain': sc('whoop_strain'),
       'whoop_z13_min': sc('whoop_z13_min'),
       'whoop_z45_min': sc('whoop_z45_min'),
+      // v99: inputs for the WHOOP vitals ranges, records and patterns.
+      'whoop_max_hr': sc('whoop_max_hr'),
+      'whoop_spo2_pct': sc('whoop_spo2_pct'),
+      'whoop_skin_temp_c': sc('whoop_skin_temp_c'),
+      'sol_min': sc('sol_min'),
+      'awakenings': sc('awakenings'),
+      'calories': sc('calories'),
+      'worn_min': sc('worn_min'),
+      'deep_min': sc('deep_min'),
+      'rem_min': sc('rem_min'),
+      'sleeping_hr_nadir': sc('sleeping_hr_nadir'),
+      'sleeping_hr_nadir_ts': sc('sleeping_hr_nadir_ts'),
+      'max_hr_used': sc('max_hr_used'),
       'in_bed_min': inBedSec == null ? null : inBedSec / 60,
       'sleep_high_stress_pct': _sleepHighStressPct(payload),
       'onset_sec': onsetMs == null ? null : (onsetMs / 1000).round(),

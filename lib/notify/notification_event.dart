@@ -54,6 +54,12 @@ enum NotifClass {
   /// may interrupt, and filing "did you work out?" under `exception` would make
   /// the one honest list in the notification system lie.
   prompt,
+
+  /// v8: a WHOOP-style observation from the Familiar feed, promoted to a push.
+  /// Opt-in (NotificationPrefs.observationsEnabled), capped per day, once per
+  /// observation id, quiet hours apply. Keyed on its route, never on a
+  /// category, so nothing else can ride it.
+  observation,
 }
 
 /// Which class [e] belongs to, or null for anything that is not one of the
@@ -75,6 +81,8 @@ enum NotifClass {
 /// gate opening for a whole category. `shouldFireOs` already reads the route
 /// for the same reason (the auto-detect off switch).
 NotifClass? classOf(NotificationEvent e) => switch (e.category) {
+      _ when routePath(e.route ?? '') == kRouteObservations =>
+        NotifClass.observation,
       NotifCategory.health || NotifCategory.device => NotifClass.exception,
       NotifCategory.reminders
           when e.priority == NotifPriority.critical =>

@@ -1,8 +1,12 @@
 // “Ещё”, “Настройки” and the observations feed in WHOOP styling.
 import 'package:flutter/material.dart';
 import 'package:personal_analytics/whoop_observations.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/day_label.dart';
+import '../../notify/notification_prefs.dart';
+import '../../state/app_state.dart';
+import '../../state/prefs.dart';
 import '../profile/alarm.dart';
 import '../profile/data.dart';
 import '../profile/devices.dart';
@@ -14,6 +18,7 @@ import '../screens/wellness_screen.dart';
 import '../screens/what_changed.dart';
 import '../screens/workout_screen.dart';
 import '../theme.dart';
+import 'data.dart';
 import 'wh_data.dart';
 import 'wh_nav.dart';
 import 'wh_widgets.dart';
@@ -90,6 +95,7 @@ class FamiliarSettings extends StatelessWidget {
         ]),
         WhMenu([
           WhMenuItem('Уведомления и напоминания', icon: 'notifications', onTap: () => _push(c, const NotificationSettings())),
+          WhMenuItem('Наблюдения и push', icon: 'coach', subtitle: 'утренний отчёт, вечерняя сводка, отбой, лимит в день', onTap: () => _push(c, const WhObservationSettings())),
           WhMenuItem('Оформление, язык и единицы', icon: 'languages', subtitle: 'Русский · °C · 24 ч', onTap: () => _push(c, const MoreSettings())),
           WhMenuItem('Данные, импорт и резервные копии', icon: 'data', onTap: () => _push(c, const DataScreen())),
           WhMenuItem('Будильник', icon: 'strap_settings', onTap: () => _push(c, const AlarmScreen())),
@@ -143,6 +149,7 @@ class _WhObservationsScreenState extends State<WhObservationsScreen> {
 }
 
 String _kindName(ObservationKind k) => switch (k) {
+  ObservationKind.morning => 'Утренний отчёт',
   ObservationKind.recovery => 'Восстановление',
   ObservationKind.sleep => 'Сон',
   ObservationKind.strain => 'Нагрузка',
@@ -153,3 +160,104 @@ String _kindName(ObservationKind k) => switch (k) {
   ObservationKind.device => 'Браслет',
   ObservationKind.weekly => 'Итоги недели',
 };
+
+/// v8: the observations feed opened from a notification tap, when no view is
+/// on screen yet. Loads today's data the same way the dashboard does.
+class WhObservationsRoute extends StatefulWidget {
+  const WhObservationsRoute({super.key});
+  @override
+  State<WhObservationsRoute> createState() => _WhObservationsRouteState();
+}
+
+class _WhObservationsRouteState extends State<WhObservationsRoute> {
+  Future<FamiliarData>? _load;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_load != null) return;
+    final app = context.read<AppState>();
+    final repo = app.repo;
+    if (repo == null) return;
+    _load = FamiliarData.load(repo, DateTime.now(), batteryPct: app.device.batteryPct, charging: app.device.charging == true);
+  }
+
+  @override
+  Widget build(BuildContext c) => FutureBuilder<FamiliarData>(
+    future: _load,
+    builder: (c, snap) {
+      final d = snap.data;
+      if (d == null) {
+        return WhPage(title: 'Наблюдения', children: [WhNote(snap.hasError ? 'Не удалось прочитать данные. Откройте главную и повторите.' : 'Загрузка…')]);
+      }
+      return WhObservationsScreen(view: WhView(d, DateTime.now()));
+    },
+  );
+}
+
+/// v8: what the observation feed may push, how often, and when it stays quiet.
+class WhObservationSettings extends StatefulWidget {
+  const WhObservationSettings({super.key});
+  @override
+  State<WhObservationSettings> createState() => _WhObservationSettingsState();
+}
+
+class _WhObservationSettingsState extends State<WhObservationSettings> {
+  NotificationPrefs? _prefs;
+  bool _unified = Prefs.getBool('familiar.obs.unified', true);
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationPrefs.load().then((p) {
+      if (mounted) setState(() => _prefs = p);
+    }).catchError((Object _) {
+      if (mounted) setState(() => _prefs = const NotificationPrefs());
+    });
+  }
+
+  Future<void> _save(NotificationPrefs p) async {
+    setState(() => _prefs = p);
+    try {
+      await p.save();
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final p = _prefs;
+    String onOff(bool v) => v ? 'Вкл' : 'Выкл';
+    return WhPage(
+      title: 'Наблюдения и push',
+      subtitle: 'правила те же, что в ленте',
+      children: [
+        const WhSection('Лента'),
+        WhMenu([
+          WhMenuItem('Единая утренняя карточка', subtitle: 'восстановление и сон одним отчётом, как у WHOOP', icon: 'recovery', trailing: WhPill(onOff(_unified)), onTap: () {
+            setState(() => _unified = !_unified);
+            Prefs.setBool('familiar.obs.unified', _unified);
+          }),
+        ]),
+        const WhSection('Push-уведомления'),
+        if (p == null)
+          const WhNote('Загрузка настроек…')
+        else
+          WhMenu([
+            WhMenuItem('Наблюдения как уведомления', subtitle: 'утренний отчёт, монитор здоровья, стресс, отбой, браслет', icon: 'notifications', trailing: WhPill(onOff(p.observationsEnabled)), onTap: () => _save(p.copyWith(observationsEnabled: !p.observationsEnabled))),
+            WhMenuItem('Утренний отчёт после синхронизации', icon: 'sleep', trailing: WhPill(onOff(p.observationsMorning)), onTap: () => _save(p.copyWith(observationsMorning: !p.observationsMorning))),
+            WhMenuItem('Вечерняя сводка и план на ночь', subtitle: 'с 17:00: стресс за день, нагрузка, потребность во сне', icon: 'stress_monitor', trailing: WhPill(onOff(p.observationsEvening)), onTap: () => _save(p.copyWith(observationsEvening: !p.observationsEvening))),
+            WhMenuItem('Напоминание об отбое', subtitle: 'за 30 мин до отбоя для 85 % потребности', icon: 'bedtime', trailing: WhPill(onOff(p.observationsBedtime)), onTap: () => _save(p.copyWith(observationsBedtime: !p.observationsBedtime))),
+            WhMenuItem('Не больше в день', subtitle: 'остальное остаётся в ленте; тап меняет', icon: 'time', trailing: WhPill('${p.observationsDailyCap}'), onTap: () => _save(p.copyWith(observationsDailyCap: p.observationsDailyCap >= 8 ? 2 : p.observationsDailyCap + 2))),
+          ]),
+        const WhSection('Тихие часы'),
+        if (p != null)
+          WhMenu([
+            WhMenuItem('Тихие часы', subtitle: 'наблюдения не приходят; критичные — по общей настройке', icon: 'sleep_schedule', trailing: WhPill(onOff(p.quietEnabled)), onTap: () => _save(p.copyWith(quietEnabled: !p.quietEnabled))),
+            WhMenuItem('Начало', subtitle: 'тап: +30 мин', icon: 'bedtime', trailing: WhPill(clockMinutes(p.quietStartMin)), onTap: () => _save(p.copyWith(quietStartMin: (p.quietStartMin + 30) % 1440))),
+            WhMenuItem('Конец', subtitle: 'тап: +30 мин', icon: 'waketime', trailing: WhPill(clockMinutes(p.quietEndMin)), onTap: () => _save(p.copyWith(quietEndMin: (p.quietEndMin + 30) % 1440))),
+          ]),
+        const WhNote('Push приходят из тех же правил, что и лента: ничего не выдумывается. Каждое наблюдение уходит не больше одного раза, ночью действуют тихие часы, дневной лимит защищает от шума.'),
+      ],
+    );
+  }
+}

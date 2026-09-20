@@ -1328,6 +1328,8 @@ class LocalDb {
       // See Sample.bandSleepState for the evidence that it varies and means
       // what it says.
       'band_sleep_state': 'INTEGER',
+      // gen5 SpO₂ status byte, raw. See Sample.spo2BandRaw.
+      'spo2_band_raw': 'INTEGER',
     };
     final have = await _columnsOf(db, 'decoded_onehz');
     if (have.isEmpty) return; // table not created yet — the DDL carries them
@@ -1771,6 +1773,26 @@ class LocalDb {
   /// nullable (a v25 record with no usable gravity vector, see the
   /// v25-exclusion note near `FirmwareAwareR24Decoder().decode`'s call site),
   /// and `SmartWakeSample.fromRow` requires all four non-null.
+  /// The band's raw SpO₂ status bytes (gen5 v18 @inner[74]) between two epoch
+  /// seconds, non-zero ones only, in time order. The day pipeline reads the
+  /// sleep window through this; `whoopBandSpo2` decides what a night of them
+  /// means. Empty on gen4 and on every day before the column existed.
+  static Future<List<int>> spo2BandBetween(
+    int sinceEpochSec,
+    int untilEpochSec,
+  ) async {
+    final db = await instance;
+    final rows = await db.query(
+      'decoded_onehz',
+      columns: const ['spo2_band_raw'],
+      where: 'rec_ts >= ? AND rec_ts <= ? '
+          'AND spo2_band_raw IS NOT NULL AND spo2_band_raw > 0',
+      whereArgs: [sinceEpochSec, untilEpochSec],
+      orderBy: 'rec_ts ASC',
+    );
+    return [for (final r in rows) (r['spo2_band_raw'] as num).toInt()];
+  }
+
   static Future<List<Map<String, Object?>>> onehzHrAccelBetween(
     int sinceEpochSec,
     int untilEpochSec,
@@ -5465,6 +5487,7 @@ class LocalDb {
             dynAccelG: g.dynamicAccelerationG,
             tsSubsec: g.tsSubsec,
             bandSleepState: g.sleepStateRawNibble,
+            spo2BandRaw: g.spo2CandidateRaw,
           );
         }
       } catch (_) {}
@@ -5636,6 +5659,8 @@ class LocalDb {
       // everything the mid-ladder backfill can replay — but omitted-when-null
       // regardless, for the same reason.
       'band_sleep_state': ?decoded.bandSleepState,
+      // Raw gen5 SpO₂ byte; omitted-when-null like the fields above.
+      'spo2_band_raw': ?decoded.spo2BandRaw,
       // 0 IS THE ABSENT SENTINEL, NOT A READING. records.dart:501 emits
       // `ambientRaw: optical ? u16@70 : 0`, so every unconfirmed record version
       // reports 0 — writing that through would turn "we did not read the

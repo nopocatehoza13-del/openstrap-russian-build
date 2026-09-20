@@ -269,4 +269,23 @@ void main() {
       expect(sampleFromGen5Historical(decoded), isNull);
     });
   });
+
+  group('sampleFromGen5Historical — v18 SpO₂ status byte (v8)', () {
+    test('the raw byte @inner[74] reaches Sample.spo2BandRaw untouched', () {
+      final inner = v18Inner(skinTempRaw: 3300);
+      inner[74] = 97;
+      expect(sampleFromGen5Historical(parseGen5Historical(inner))!.spo2BandRaw, 97);
+      final flagged = v18Inner(skinTempRaw: 3300);
+      flagged[74] = 128 + 96;
+      // Stored raw — bit 7 is interpreted by whoopBandSpo2, never here.
+      expect(sampleFromGen5Historical(parseGen5Historical(flagged))!.spo2BandRaw, 224);
+      expect(sampleFromGen5Historical(parseGen5Historical(v18Inner(skinTempRaw: 3300)))!.spo2BandRaw, 0);
+    });
+    test('gen4 carries no such byte', () {
+      expect(Sample(tsEpoch: 1, counter: 1, hr: 60).spo2BandRaw, isNull);
+    });
+    test('the byte survives fromMap', () {
+      expect(Sample.fromDecodedRow(const {'rec_ts': 1, 'counter': 1, 'hr': 60, 'spo2_band_raw': 96}).spo2BandRaw, 96);
+    });
+  });
 }

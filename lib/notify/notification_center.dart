@@ -851,4 +851,83 @@ class NotificationCenter {
       );
     }
   }
+
+  // ── v8: WHOOP-style observations as pushes ───────────────────────────────
+  static const String _kObsDay = 'notif_obs_day';
+  static const String _kObsCount = 'notif_obs_count';
+
+  /// Present one Familiar observation as an OS notification: at most
+  /// [NotificationPrefs.observationsDailyCap] per local day, once per
+  /// observation id (the FiredKeyStore dedupes on it), quiet hours and the
+  /// master switch applied by [NotificationPrefs.shouldFireOs] through [emit].
+  Future<bool> emitObservation({
+    required String id,
+    required String title,
+    required String body,
+    required String date,
+    NotifCategory category = NotifCategory.recovery,
+  }) async {
+    try {
+      final prefs = await NotificationPrefs.load();
+      if (!prefs.observationsEnabled) return false;
+      final sp = await SharedPreferences.getInstance();
+      final today = todayLabel();
+      final count =
+          sp.getString(_kObsDay) == today ? (sp.getInt(_kObsCount) ?? 0) : 0;
+      if (count >= prefs.observationsDailyCap) return false;
+      final shown = await emit(
+        NotificationEvent(
+          dedupeKey: id,
+          category: category,
+          priority: NotifPriority.normal,
+          title: title,
+          body: body,
+          date: date,
+          route: observationRoute(id),
+        ),
+        allowPermissionPrompt: false,
+      );
+      if (shown) {
+        await sp.setString(_kObsDay, today);
+        await sp.setInt(_kObsCount, count + 1);
+      }
+      return shown;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Arm tonight's bedtime push at [minuteOfDay] (already 30 min before the
+  /// 85 % bedtime), or clear it. A slot inside quiet hours moves to 15 min
+  /// before they start; a slot already behind the clock is dropped.
+  Future<void> armWhoopBedtime(
+    NotificationPrefs prefs, {
+    int? minuteOfDay,
+    String? body,
+  }) async {
+    final svc = NotificationService.instance;
+    await svc.cancel(NotificationService.idWhoopBedtime);
+    if (!prefs.observationsEnabled ||
+        !prefs.observationsBedtime ||
+        minuteOfDay == null ||
+        body == null) {
+      return;
+    }
+    var t = ((minuteOfDay % 1440) + 1440) % 1440;
+    if (prefs.inQuietHours(t)) {
+      t = ((prefs.quietStartMin - 15) % 1440 + 1440) % 1440;
+      if (prefs.inQuietHours(t)) return;
+    }
+    final now = DateTime.now();
+    if (t <= now.hour * 60 + now.minute) return;
+    await svc.ensureTimezone();
+    await svc.scheduleOnce(
+      id: NotificationService.idWhoopBedtime,
+      category: NotifCategory.recovery,
+      title: 'Пора готовиться ко сну',
+      body: body,
+      at: svc.nextDailyInstant(t ~/ 60, t % 60),
+      route: kRouteObservations,
+    );
+  }
 }

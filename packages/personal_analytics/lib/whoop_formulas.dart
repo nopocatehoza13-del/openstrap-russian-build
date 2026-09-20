@@ -695,3 +695,61 @@ double _z(double x, List<double> base, {required double minSd}) {
 
 double? _r1(double? v) => v == null || !v.isFinite ? null : (v * 10).round() / 10;
 double? _r2(double? v) => v == null || !v.isFinite ? null : (v * 100).round() / 100;
+
+// ── v8: vitals ────────────────────────────────────────────────────────────────
+
+/// A night of the strap's own SpO₂ estimate.
+///
+/// Source: the gen5 v18 record byte @inner[74] (protocol `spo2CandidateRaw`).
+/// WHOOP does not document the encoding; what is established on real records:
+/// the byte is zero on ~99 % of seconds and non-zero only while the band
+/// declares sleep, the non-zero values cluster at 95–99 (a scheduled overnight
+/// sampling cadence, exactly how WHOOP describes its own SpO₂), and values
+/// above 128 decompose as 128 + a value from the same low set — so bit 7 is a
+/// flag, not part of the number. This helper therefore masks bit 7, keeps
+/// 70–100 and reports the MEDIAN of a night with its sample count and spread.
+/// It is the band's estimate, never a calibrated saturation; the sample count
+/// is part of the value so a thin night can be shown as such.
+class WhoopBandSpo2 {
+  final double pct;
+  final int samples;
+  final double lo, hi;
+  const WhoopBandSpo2({required this.pct, required this.samples, required this.lo, required this.hi});
+  Map<String, dynamic> toJson() => {'pct': pct, 'samples': samples, 'lo': lo, 'hi': hi, 'source': 'band'};
+}
+
+WhoopBandSpo2? whoopBandSpo2(Iterable<int> rawBytes, {int minSamples = 8}) {
+  final vals = <int>[];
+  for (final b in rawBytes) {
+    if (b <= 0) continue;
+    final v = b & 0x7F;
+    if (v >= 70 && v <= 100) vals.add(v);
+  }
+  if (vals.length < minSamples) return null;
+  vals.sort();
+  final mid = vals.length ~/ 2;
+  final med = vals.length.isOdd ? vals[mid].toDouble() : (vals[mid - 1] + vals[mid]) / 2;
+  return WhoopBandSpo2(pct: med, samples: vals.length, lo: vals.first.toDouble(), hi: vals.last.toDouble());
+}
+
+/// Coefficient of variation (sample SD / mean) of a series, null under
+/// [minN] values or a non-positive mean.
+double? whoopCv(Iterable<double> xs, {int minN = 6}) {
+  final l = xs.toList();
+  if (l.length < minN) return null;
+  final m = l.reduce((a, b) => a + b) / l.length;
+  if (m <= 0) return null;
+  var ss = 0.0;
+  for (final x in l) {
+    ss += (x - m) * (x - m);
+  }
+  return math.sqrt(ss / (l.length - 1)) / m;
+}
+
+/// Median and 10–90 % band of a series (null under [minN] values).
+({double lo, double median, double hi})? whoopRange(Iterable<double> xs, {int minN = 3}) {
+  final l = xs.toList()..sort();
+  if (l.length < minN) return null;
+  double at(double q) => l[((l.length - 1) * q).round()];
+  return (lo: at(.1), median: at(.5), hi: at(.9));
+}

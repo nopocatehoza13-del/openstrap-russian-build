@@ -2,6 +2,7 @@ import 'dart:isolate';
 import 'package:personal_analytics/personal_analytics.dart';
 import '../../compute/intraday_stress_bridge.dart';
 import '../../data/day_label.dart';
+import '../../data/db.dart' show LocalDb;
 import '../../data/local_repository.dart';
 import '../screens/health_screen.dart';
 import '../screens/home_screen.dart';
@@ -41,6 +42,14 @@ class FamiliarData {
   final double? batteryPct;
   final bool charging;
 
+  /// v8: the day's wear segments (`getDayWear`), naps (`getDayNaps`), the band
+  /// alarm schedule rows and the last 30 days of sessions, newest first (for
+  /// "the previous same activity" and rest-day counts).
+  final Map<String, dynamic> wear;
+  final Map<String, dynamic> naps;
+  final List<Map<String, Object?>> alarmSchedule;
+  final List<Map<String, dynamic>> recentSessions;
+
   /// The cross-day WHOOP-formula block (`insights['whoop']`): tonight's need,
   /// last night's performance, recovery, Healthspan age. Empty when the rollup
   /// is stale or absent.
@@ -79,6 +88,10 @@ class FamiliarData {
     this.nightHr = const [],
     this.batteryPct,
     this.charging = false,
+    this.wear = const {},
+    this.naps = const {},
+    this.alarmSchedule = const [],
+    this.recentSessions = const [],
   });
 
   static Future<FamiliarData> load(
@@ -101,6 +114,7 @@ class FamiliarData {
       'deep', 'rem', 'light', 'efficiency', 'calories',
       'whoop_strain', 'whoop_z13_min', 'whoop_z45_min', 'whoop_recovery',
       'whoop_sleep_perf', 'whoop_consistency', 'whoop_hours_vs_need', 'whoop_need_min',
+      'whoop_spo2_pct', 'whoop_skin_temp_c',
     ]) {
       try {
         series[k] = pointsOf(await repo.getChart(k));
@@ -125,7 +139,7 @@ class FamiliarData {
         : const <String, dynamic>{};
     final rows = await repo.getSessions(
       from:
-          DateTime(date.year, date.month, date.day).millisecondsSinceEpoch ~/
+          DateTime(date.year, date.month, date.day - 30).millisecondsSinceEpoch ~/
           1000,
       to:
           DateTime(
@@ -167,6 +181,39 @@ class FamiliarData {
     activities.sort(
       (a, b) => (a['start_ts'] as num).compareTo(b['start_ts'] as num),
     );
+    // WHOOP strain and zone minutes of the day's last activity and of the
+    // previous activity of the same type, from their own 1 Hz rows (one read
+    // each; the session rows carry only the Banister headline).
+    final recent = [for (final r in rows) r.cast<String, dynamic>()];
+    if (activities.isNotEmpty) {
+      Future<void> attach(Map<String, dynamic> a) async {
+        try {
+          final w = await repo.getWorkout(a['id'].toString());
+          if (w['whoop_strain'] != null) a['whoop_strain'] = w['whoop_strain'];
+          if (w['whoop_zone_min'] != null) a['whoop_zone_min'] = w['whoop_zone_min'];
+        } catch (_) {}
+      }
+      final last = activities.last;
+      await attach(last);
+      final lastStart = (last['start_ts'] as num?)?.toInt() ?? 0;
+      for (final r in recent) {
+        if (r['type'] != last['type'] || ((r['start_ts'] as num?)?.toInt() ?? 0) >= lastStart) continue;
+        await attach(r);
+        break;
+      }
+    }
+    Map<String, dynamic> wear = const {};
+    Map<String, dynamic> naps = const {};
+    List<Map<String, Object?>> alarms = const [];
+    try {
+      wear = await repo.getDayWear(label);
+    } catch (_) {}
+    try {
+      naps = await repo.getDayNaps(label);
+    } catch (_) {}
+    try {
+      alarms = await LocalDb.alarmScheduleRows();
+    } catch (_) {}
     List<DailyValue> daily(List<ChartPoint> points, [double scale = 1]) => [
       for (final p in points)
         (
@@ -220,6 +267,10 @@ class FamiliarData {
       nightHr: nightHr,
       batteryPct: batteryPct,
       charging: charging,
+      wear: wear,
+      naps: naps,
+      alarmSchedule: alarms,
+      recentSessions: recent,
     );
   }
 }

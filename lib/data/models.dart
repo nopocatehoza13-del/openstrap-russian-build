@@ -150,6 +150,15 @@ class Sample {
   /// [tempCh2C] and [dynAccelG].
   final int? bandSleepState;
 
+  /// gen5 v18 @inner[74] — the band's SpO₂ estimate/status byte, stored RAW.
+  /// Zero on ~99 % of records and non-zero only during band-declared sleep,
+  /// clustering at 95–99; bit 7 reads as a flag (values above 128 decompose as
+  /// 128 + a low-set value). The encoding is not pinned by the vendor, so the
+  /// byte is never published as a percentage here — `whoopBandSpo2` in
+  /// personal_analytics aggregates a night of them into the band's ESTIMATE
+  /// with its sample count. Null on gen4 (the record has no such byte).
+  final int? spo2BandRaw;
+
   Sample({
     required this.tsEpoch,
     required this.counter,
@@ -175,6 +184,7 @@ class Sample {
     this.dynAccelG,
     this.tsSubsec,
     this.bandSleepState,
+    this.spo2BandRaw,
   });
 
   /// Copy with an overridden [tsEpoch] — used by the clock-offset salvage path
@@ -206,6 +216,7 @@ class Sample {
     dynAccelG: dynAccelG,
     tsSubsec: tsSubsec,
     bandSleepState: bandSleepState,
+    spo2BandRaw: spo2BandRaw,
   );
 
   bool get hasDecodedOneHz =>
@@ -251,6 +262,7 @@ class Sample {
       dynAccelG: (m['dyn_accel_g'] as num?)?.toDouble(),
       tsSubsec: (m['ts_subsec'] as num?)?.toInt(),
       bandSleepState: (m['band_sleep_state'] as num?)?.toInt(),
+      spo2BandRaw: (m['spo2_band_raw'] as num?)?.toInt(),
     );
   }
 }

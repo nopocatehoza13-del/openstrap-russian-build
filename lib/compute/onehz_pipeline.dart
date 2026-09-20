@@ -155,6 +155,10 @@ class DayBundleInput {
   final List<double> sleepRrMs;
   final List<int> sleepSkinTemp;
 
+  /// Raw gen5 SpO₂ status bytes over the sleep window (non-zero only); empty
+  /// on gen4. See `whoopBandSpo2`.
+  final List<int> sleepSpo2Band;
+
   // ── the SINGLE-SOURCE sleep segmentation (JSON of SleepSegmentation) ──────
   final Map<String, dynamic> sleepJson; // {window,tst_sec,…,confidence}
   final List<String> hypnoStages; // per-second 'wake'|'nrem'|'rem' over window
@@ -226,6 +230,7 @@ class DayBundleInput {
     required this.sleepRrTsMs,
     required this.sleepRrMs,
     required this.sleepSkinTemp,
+    this.sleepSpo2Band = const [],
     required this.sleepJson,
     required this.hypnoStages,
     required this.sleepOnsetSec,
@@ -256,6 +261,7 @@ class DayBundleInput {
     'sleep_rr_ts_ms': sleepRrTsMs,
     'sleep_rr_ms': sleepRrMs,
     'sleep_skin_temp': sleepSkinTemp,
+    'sleep_spo2_band': sleepSpo2Band,
     'sleep_json': sleepJson,
     'hypno_stages': hypnoStages,
     'sleep_onset_sec': sleepOnsetSec,
@@ -303,6 +309,7 @@ class DayBundleInput {
       sleepRrTsMs: dbls('sleep_rr_ts_ms'),
       sleepRrMs: dbls('sleep_rr_ms'),
       sleepSkinTemp: ints('sleep_skin_temp'),
+      sleepSpo2Band: ints('sleep_spo2_band'),
       sleepJson: ((m['sleep_json'] as Map?) ?? const {})
           .cast<String, dynamic>(),
       hypnoStages: strs('hypno_stages'),
@@ -904,6 +911,33 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
       }
     }
   }
+  // ── WHOOP vitals beside the strain family: the band's own overnight SpO₂
+  //    estimate and the nightly skin temperature in °C (gen5 stores centi-°C;
+  //    gen4's raw ADC count has no °C and stays a z only). Deviation is
+  //    against the mean of the prior nightly means (≥3 nights), the same
+  //    history `skinTempZ` standardises on.
+  final bandSpo2 = whoopBandSpo2(d.sleepSpo2Band);
+  double? whoopSkinC, whoopSkinBaseC, whoopSkinDevC;
+  if (d.deviceFamily == 'gen5' && skinTempAdc != null) {
+    whoopSkinC = skinTempAdc / 100;
+    if (d.skinTempAdcHistory.length >= 3) {
+      whoopSkinBaseC = _mean(d.skinTempAdcHistory)! / 100;
+      whoopSkinDevC = whoopSkinC - whoopSkinBaseC;
+    }
+  }
+  if (bandSpo2 != null || whoopSkinC != null) {
+    whoopBlock = {
+      ...?whoopBlock,
+      if (bandSpo2 != null) 'spo2': bandSpo2.toJson(),
+      if (whoopSkinC != null)
+        'skin_temp': {
+          'c': _round(whoopSkinC, 2),
+          'baseline_c': whoopSkinBaseC == null ? null : _round(whoopSkinBaseC, 2),
+          'dev_c': whoopSkinDevC == null ? null : _round(whoopSkinDevC, 2),
+          'nights': d.skinTempAdcHistory.length,
+        },
+    };
+  }
   final whoopZones = (whoopBlock?['zones'] as Map?)?.cast<String, dynamic>();
   double? whoopZoneSum(List<String> keys) {
     if (whoopZones == null) return null;
@@ -1471,6 +1505,10 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
       'whoop_strain': whoopBlock?['strain'],
       'whoop_z13_min': whoopZoneSum(const ['z1', 'z2', 'z3']),
       'whoop_z45_min': whoopZoneSum(const ['z4', 'z5']),
+      'whoop_max_hr': whoopBlock?['max_hr'],
+      'whoop_spo2_pct': bandSpo2?.pct,
+      'whoop_spo2_samples': bandSpo2?.samples,
+      'whoop_skin_temp_c': whoopSkinC == null ? null : _round(whoopSkinC, 2),
       'max_hr_used': hrMax,
       'ln_rmssd': lnToday,
       'resp_rate': respToday,

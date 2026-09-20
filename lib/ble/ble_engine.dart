@@ -222,6 +222,8 @@ Sample? sampleFromGen5Historical(Gen5HistoricalRecord? g) {
     // enum: a stored name freezes a meaning, a stored 2-bit code does not.
     // Corroboration only, never a stage — see Sample.bandSleepState.
     bandSleepState: g.sleepStateRawNibble,
+    // The band's own overnight SpO₂ byte, raw (see Sample.spo2BandRaw).
+    spo2BandRaw: g.spo2CandidateRaw,
   );
 }
 

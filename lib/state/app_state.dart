@@ -50,6 +50,9 @@ import '../compute/manual_session.dart'
 import '../compute/hr_max.dart';
 import '../compute/profile.dart';
 import '../data/day_label.dart';
+import 'package:personal_analytics/whoop_observations.dart' show Observation, ObservationKind;
+import '../ui2/familiar/data.dart' show FamiliarData;
+import '../ui2/familiar/wh_data.dart' show WhView;
 import '../data/journal_fields.dart'
     show JournalMetricValue, kJournalFieldsByKey;
 import '../data/med_store.dart' show MedDb, MedDef;
@@ -1663,6 +1666,7 @@ class AppState extends ChangeNotifier {
       // new physiological day lands — fire the "recovery ready" push off it.
       if (heavy) {
         unawaited(_maybeNotifyRecoveryReady());
+        unawaited(_maybeNotifyWhoopObservations(morning: true));
         // Baseline-dirty rescan: new data may have shifted the rolling baseline,
         // so refresh baseline-dependent scalars (readiness/illness/stress) on
         // recent FINALIZED days. Cheap when the baseline is unchanged (a single
@@ -1749,9 +1753,123 @@ class AppState extends ChangeNotifier {
   ///
   /// This is the user-need cadence hook from the derive-completion path: you
   /// wake into a new day and your recovery is ready.
+  // ── v8: WHOOP-style observations as OS notifications ─────────────────────
+  String? _whoopObsMorningDay, _whoopObsEveningDay;
+
+  /// Morning batch (after a heavy derive) or evening batch (cadence pass from
+  /// 17:00): the push-worthy observations of the Familiar feed, once per id,
+  /// capped per day by NotificationPrefs.observationsDailyCap. Every pass also
+  /// re-arms tonight's bedtime reminder from the WHOOP sleep need.
+  Future<void> _maybeNotifyWhoopObservations({required bool morning}) async {
+    try {
+      final r = repo;
+      if (r == null || !isPaired) return;
+      final prefs = await NotificationPrefs.load();
+      if (!prefs.observationsEnabled) return;
+      final now = DateTime.now();
+      final today = todayLabel();
+      final data = await FamiliarData.load(
+        r,
+        now,
+        batteryPct: device.batteryPct,
+        charging: device.charging == true,
+      );
+      final view = WhView(data, now);
+      final input = view.observationInput();
+      final need = input.needTonightMin;
+      if (need != null) {
+        final wake = input.alarmTomorrowMinOfDay?.toDouble() ??
+            input.wakeMinOfDay ??
+            7 * 60 + 30;
+        final bed85 = ((wake - need * .85) % 1440 + 1440) % 1440;
+        final bed100 = ((wake - need) % 1440 + 1440) % 1440;
+        await NotificationCenter.instance.armWhoopBedtime(
+          prefs,
+          minuteOfDay: ((bed85 - 30) % 1440 + 1440).round() % 1440,
+          body: 'Для 85 % потребности (${_hmRu(need)}) лечь до '
+              '${_clockRu(bed85)}, для 100 % — до ${_clockRu(bed100)}.',
+        );
+      } else {
+        await NotificationCenter.instance.armWhoopBedtime(prefs);
+      }
+      if (morning ? !prefs.observationsMorning : !prefs.observationsEvening) {
+        return;
+      }
+      if (!morning && now.hour < 17) return;
+      if (morning
+          ? _whoopObsMorningDay == today
+          : _whoopObsEveningDay == today) {
+        return;
+      }
+      const morningKinds = {
+        ObservationKind.morning,
+        ObservationKind.recovery,
+        ObservationKind.health,
+        ObservationKind.device,
+        ObservationKind.weekly,
+        ObservationKind.healthspan,
+      };
+      const eveningKinds = {
+        ObservationKind.stress,
+        ObservationKind.strain,
+        ObservationKind.device,
+      };
+      bool pick(Observation o) {
+        final rule = o.id.split('.').take(2).join('.');
+        if (rule == 'sleep.tonight' || rule == 'sleep.alarm_plan') {
+          return !morning;
+        }
+        if (o.kind == ObservationKind.sleep) return morning;
+        return (morning ? morningKinds : eveningKinds).contains(o.kind);
+      }
+
+      final picked = [
+        for (final o in view.observations())
+          if (o.push && pick(o)) o,
+      ];
+      if (picked.isEmpty) return; // e.g. the night is not derived yet: retry
+      var sent = 0;
+      for (final o in picked) {
+        final shown = await NotificationCenter.instance.emitObservation(
+          id: o.id,
+          title: o.title,
+          body: o.text,
+          date: today,
+          category: o.kind == ObservationKind.health
+              ? NotifCategory.health
+              : o.kind == ObservationKind.device
+                  ? NotifCategory.device
+                  : NotifCategory.recovery,
+        );
+        if (shown) sent++;
+      }
+      if (morning) {
+        _whoopObsMorningDay = today;
+      } else {
+        _whoopObsEveningDay = today;
+      }
+      _log('[notify] whoop observations ${morning ? 'morning' : 'evening'}: '
+          '$sent of ${picked.length} sent');
+    } catch (e) {
+      _log('[notify] whoop observations skipped: $e');
+    }
+  }
+
+  static String _hmRu(double min) =>
+      '${min.round() ~/ 60}:${(min.round() % 60).toString().padLeft(2, '0')}';
+  static String _clockRu(double minOfDay) {
+    final m = ((minOfDay % 1440) + 1440) % 1440;
+    return '${(m ~/ 60).toString().padLeft(2, '0')}:'
+        '${(m % 60).round().toString().padLeft(2, '0')}';
+  }
+
   static const String _kLastRecoveryNotifDay = 'last_recovery_notif_day';
   Future<void> _maybeNotifyRecoveryReady() async {
     try {
+      final obsPrefs = await NotificationPrefs.load();
+      if (obsPrefs.observationsEnabled && obsPrefs.observationsMorning) {
+        return; // v8: the WHOOP morning report replaces this notification
+      }
       final row = await LocalDb.latestDayResult();
       if (row == null) return;
       final dayId = (row['day_id'] ?? row['date'])?.toString();
@@ -1824,6 +1942,7 @@ class AppState extends ChangeNotifier {
     try {
       if (!isPaired) return;
       await _ensureRemindersScheduled();
+      unawaited(_maybeNotifyWhoopObservations(morning: false));
       await _maybeNotifyStepGoal();
       await _maybeNotifyInactivity();
       // Opt-in auto-import of Health workouts (off by default; self-gates on

@@ -371,6 +371,7 @@ ShellDomain domainForRoute(String route) => switch (routePath(route)) {
       // recovery actually lives, so it is the nearest true destination — but
       // the notification promises a REPORT, and until one is built the honest
       // fix is upstream, in what that notification claims.
+      kRouteObservations => ShellDomain.home,
       kRouteRecap => ShellDomain.health,
       _ => ShellDomain.home,
     };
@@ -428,6 +429,7 @@ Widget? screenForRoute(String route) => switch (routePath(route)) {
       // because there was no recap screen to push. There is now: the sweep's
       // findings, which the app has been computing every night and delivering
       // only as a notification you could dismiss into nothing.
+      kRouteObservations => const WhObservationsRoute(),
       kRouteRecap => const WhatChangedScreen(),
       _ => null,
     };

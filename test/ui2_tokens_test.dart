@@ -193,6 +193,8 @@ void main() {
 /// this list fails the test above, so the choice has to be made rather than
 /// drifted into.
 const _notComponents = {
+  // v8 screens (own data lifecycle / prefs), swept in familiar_ui_test.
+  'WhObservationsRoute', 'WhObservationSettings',
   // Native familiar routes own Scaffolds, persistence or a repository lifecycle;
   // explicitly swept at 320/390 px in familiar_ui_test instead of nested inside
   // the component gallery. Pure cards and controls remain in the gallery below.

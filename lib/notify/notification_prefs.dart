@@ -124,6 +124,12 @@ class NotificationPrefs {
   /// armed for tonight, so it only ever speaks up about an actual gap.
   final bool alarmNightCheckEnabled;
 
+  /// v8: observations as pushes — the master switch, the three batches and the
+  /// per-day cap (the feed itself is unaffected).
+  final bool observationsEnabled;
+  final bool observationsMorning, observationsEvening, observationsBedtime;
+  final int observationsDailyCap;
+
   /// Allowed bounds for [batteryAlertPct]. Below 5% a band is dying, not low;
   /// above 40% the alert would fire constantly and be muted forever.
   static const int batteryPctMin = 5;
@@ -153,6 +159,11 @@ class NotificationPrefs {
     this.windDownEnabled = false,
     this.alarmLatchFailedEnabled = true,
     this.alarmNightCheckEnabled = true,
+    this.observationsEnabled = true,
+    this.observationsMorning = true,
+    this.observationsEvening = true,
+    this.observationsBedtime = true,
+    this.observationsDailyCap = 4,
   });
 
   static const _kHealth = 'notif_health';
@@ -180,6 +191,11 @@ class NotificationPrefs {
   static const _kWindDown = 'notif_winddown';
   static const _kAlarmLatchFailed = 'notif_alarm_latch_failed';
   static const _kAlarmNightCheck = 'notif_alarm_night_check';
+  static const _kObs = 'notif_obs';
+  static const _kObsMorning = 'notif_obs_morning';
+  static const _kObsEvening = 'notif_obs_evening';
+  static const _kObsBedtime = 'notif_obs_bedtime';
+  static const _kObsCap = 'notif_obs_cap';
 
   static Future<NotificationPrefs> load() async {
     final p = await SharedPreferences.getInstance();
@@ -205,6 +221,11 @@ class NotificationPrefs {
       windDownEnabled: p.getBool(_kWindDown) ?? false,
       alarmLatchFailedEnabled: p.getBool(_kAlarmLatchFailed) ?? true,
       alarmNightCheckEnabled: p.getBool(_kAlarmNightCheck) ?? true,
+      observationsEnabled: p.getBool(_kObs) ?? true,
+      observationsMorning: p.getBool(_kObsMorning) ?? true,
+      observationsEvening: p.getBool(_kObsEvening) ?? true,
+      observationsBedtime: p.getBool(_kObsBedtime) ?? true,
+      observationsDailyCap: (p.getInt(_kObsCap) ?? 4).clamp(1, 12).toInt(),
     );
   }
 
@@ -230,6 +251,11 @@ class NotificationPrefs {
     await p.setBool(_kWindDown, windDownEnabled);
     await p.setBool(_kAlarmLatchFailed, alarmLatchFailedEnabled);
     await p.setBool(_kAlarmNightCheck, alarmNightCheckEnabled);
+    await p.setBool(_kObs, observationsEnabled);
+    await p.setBool(_kObsMorning, observationsMorning);
+    await p.setBool(_kObsEvening, observationsEvening);
+    await p.setBool(_kObsBedtime, observationsBedtime);
+    await p.setInt(_kObsCap, observationsDailyCap);
   }
 
   NotificationPrefs copyWith({
@@ -252,6 +278,11 @@ class NotificationPrefs {
     bool? windDownEnabled,
     bool? alarmLatchFailedEnabled,
     bool? alarmNightCheckEnabled,
+    bool? observationsEnabled,
+    bool? observationsMorning,
+    bool? observationsEvening,
+    bool? observationsBedtime,
+    int? observationsDailyCap,
   }) =>
       NotificationPrefs(
         healthEnabled: healthEnabled ?? this.healthEnabled,
@@ -276,6 +307,11 @@ class NotificationPrefs {
             alarmLatchFailedEnabled ?? this.alarmLatchFailedEnabled,
         alarmNightCheckEnabled:
             alarmNightCheckEnabled ?? this.alarmNightCheckEnabled,
+        observationsEnabled: observationsEnabled ?? this.observationsEnabled,
+        observationsMorning: observationsMorning ?? this.observationsMorning,
+        observationsEvening: observationsEvening ?? this.observationsEvening,
+        observationsBedtime: observationsBedtime ?? this.observationsBedtime,
+        observationsDailyCap: observationsDailyCap ?? this.observationsDailyCap,
       );
 
   bool categoryEnabled(NotifCategory c) => switch (c) {
@@ -336,6 +372,11 @@ class NotificationPrefs {
     // it FOR a time, usually inside the quiet window, and its off switch is
     // cancelling the alarm rather than a preference buried in settings.
     if (klass == NotifClass.alarm) return true;
+    if (klass == NotifClass.observation) {
+      // Its own switch and quiet hours; the per-day cap and the once-per-id
+      // guard live in NotificationCenter.emitObservation.
+      return observationsEnabled && !inQuietHours(minuteOfDay);
+    }
     if (!categoryEnabled(event.category)) return false;
     if (inQuietHours(minuteOfDay)) {
       return event.priority == NotifPriority.critical && criticalOverridesQuiet;

@@ -1265,12 +1265,189 @@ Map<String, dynamic> whoopCrossDayBlock(
     return rows == 0 ? null : sum;
   }
 
+  // ── v99: vitals — last value plus the 10–90 % band of the prior 30 nights ──
+  Map<String, dynamic>? vital(String key) {
+    double? last;
+    String? lastDate;
+    final prior = <double>[];
+    for (var i = n - 1; i >= 0 && prior.length < 30; i--) {
+      final v = _numOrNull(days[i][key]);
+      if (v == null) continue;
+      if (last == null) {
+        last = v;
+        lastDate = days[i]['date'] as String?;
+        continue;
+      }
+      prior.add(v);
+    }
+    if (last == null) return null;
+    final r = whoopRange(prior);
+    return {
+      'value': last,
+      'date': lastDate,
+      'nights': prior.length + 1,
+      'lo': r?.lo,
+      'median': r?.median,
+      'hi': r?.hi,
+      'mean': _mean(prior),
+    };
+  }
+
+  // ── v99: records — the maxima of the prior 30 nights, for "best in 30 days" ──
+  double? priorMax(double? Function(Map<String, dynamic>) f) {
+    double? m;
+    var count = 0;
+    for (var i = n - 2; i >= 0 && count < 30; i--) {
+      final v = f(days[i]);
+      if (v == null) continue;
+      count++;
+      if (m == null || v > m) m = v;
+    }
+    return m;
+  }
+
+  var recordNights = 0;
+  for (var i = n - 2; i >= 0 && recordNights < 30; i--) {
+    if ((_numOrNull(days[i]['tst_min']) ?? 0) > 0) recordNights++;
+  }
+
+  // ── v99: patterns ──
+  // Strain → next-morning readiness: hard days (WHOOP strain ≥ 15) against
+  // easy ones (< 10), adjacent calendar days only.
+  final hard = <double>[], easy = <double>[];
+  for (var i = 1; i < n; i++) {
+    if (!adjacent(i)) continue;
+    final st = _numOrNull(days[i - 1]['whoop_strain']);
+    final rec = _numOrNull(days[i]['readiness']);
+    if (st == null || rec == null) continue;
+    if (st >= 15) {
+      hard.add(rec);
+    } else if (st < 10) {
+      easy.add(rec);
+    }
+  }
+  // Weekday effect on readiness: the weakest weekday against the overall mean,
+  // ≥ 4 samples for that weekday and ≥ 20 scored days in all.
+  final byWeekday = List.generate(8, (_) => <double>[]);
+  for (var i = 0; i < n; i++) {
+    final rec = _numOrNull(days[i]['readiness']);
+    final ds = days[i]['date'];
+    if (rec == null || ds is! String) continue;
+    final dt = DateTime.tryParse(ds);
+    if (dt == null) continue;
+    byWeekday[dt.weekday].add(rec);
+  }
+  final allRec = [for (var w = 1; w <= 7; w++) ...byWeekday[w]];
+  Map<String, dynamic>? weekday;
+  if (allRec.length >= 20) {
+    final overall = _mean(allRec)!;
+    int? lowIdx;
+    var lowDelta = 0.0;
+    for (var w = 1; w <= 7; w++) {
+      if (byWeekday[w].length < 4) continue;
+      final dlt = _mean(byWeekday[w])! - overall;
+      if (dlt < lowDelta) {
+        lowDelta = dlt;
+        lowIdx = w;
+      }
+    }
+    if (lowIdx != null) weekday = {'weekday': lowIdx, 'delta': lowDelta, 'weeks': byWeekday[lowIdx].length};
+  }
+  List<double> lastN(String key, int count) {
+    final xs = <double>[];
+    for (var i = n - 1; i >= 0 && xs.length < count; i--) {
+      final v = _numOrNull(days[i][key]);
+      if (v != null) xs.add(v);
+    }
+    return xs;
+  }
+
+  // Monthly Healthspan delta: the 30-row window now against the one ending a
+  // month ago, and the factor that moved most.
+  final ageMonthAgo = ageAt(n - 31);
+  Map<String, dynamic>? monthly;
+  if (ageNow != null && ageMonthAgo != null) {
+    String? topKey;
+    var topYears = 0.0;
+    for (final f in ageNow.factors) {
+      final before = ageMonthAgo.factors.where((g) => g.key == f.key);
+      if (before.isEmpty) continue;
+      final dlt = f.years - before.first.years;
+      if (dlt.abs() > topYears.abs()) {
+        topYears = dlt;
+        topKey = f.key;
+      }
+    }
+    monthly = {
+      'delta_years': ageNow.deltaYears - ageMonthAgo.deltaYears,
+      'top_factor': topKey,
+      'top_factor_years': topKey == null ? null : topYears,
+    };
+  }
+  // Consecutive days the resting HR rose, newest first.
+  var rhrRisingDays = 0;
+  {
+    double? prev;
+    for (var i = n - 1; i >= 0; i--) {
+      final v = _numOrNull(days[i]['rhr']);
+      if (v == null) break;
+      if (prev != null) {
+        if (prev > v) {
+          rhrRisingDays++;
+        } else {
+          break;
+        }
+      }
+      prev = v;
+    }
+  }
+  double? prevWeekSum(String key) {
+    var sum = 0.0, rows = 0;
+    for (var i = n - 8; i >= 0 && i >= n - 14; i--) {
+      final v = _numOrNull(days[i][key]);
+      if (v == null) continue;
+      sum += v;
+      rows++;
+    }
+    return rows == 0 ? null : sum;
+  }
+
   return <String, dynamic>{
     'need': need.toJson(),
     'baseline': {
       'sec': baseline.baselineSec.round(),
       'source': baseline.source,
       'nights': baseline.nights,
+    },
+    'vitals': {
+      'spo2': vital('whoop_spo2_pct'),
+      'skin_temp_c': vital('whoop_skin_temp_c'),
+      'sleeping_hr_nadir': vital('sleeping_hr_nadir'),
+      'sol_min': vital('sol_min'),
+      'calories': vital('calories'),
+    },
+    'records': {
+      'nights': recordNights,
+      'tst_prev_max': priorMax((r) => _numOrNull(r['tst_min'])),
+      'readiness_prev_max': priorMax((r) => _numOrNull(r['readiness'])),
+      'restorative_prev_max': priorMax((r) {
+        final dp = _numOrNull(r['deep_min']), rm = _numOrNull(r['rem_min']);
+        return dp == null && rm == null ? null : (dp ?? 0) + (rm ?? 0);
+      }),
+    },
+    'zones_prev_week': {
+      'z13_min': prevWeekSum('whoop_z13_min'),
+      'z45_min': prevWeekSum('whoop_z45_min'),
+    },
+    'patterns': {
+      'hard_day_recovery': hard.length >= 5 ? _mean(hard) : null,
+      'easy_day_recovery': easy.length >= 5 ? _mean(easy) : null,
+      'pattern_days': hard.length + easy.length,
+      'weekday': weekday,
+      'hrv_cv7': whoopCv(lastN('rmssd', 7), minN: 6),
+      'hrv_cv30': whoopCv(lastN('rmssd', 30), minN: 20),
+      'monthly': monthly,
+      'rhr_rising_days': rhrRisingDays,
     },
     'debt_outstanding_sec': debt.round(),
     'last_night': lastNight,
@@ -1298,6 +1475,10 @@ Map<String, dynamic> whoopCrossDayBlock(
           'onset_sec': days[i]['onset_sec'],
           'wake_sec': days[i]['wake_sec'],
           'efficiency': _numOrNull(days[i]['efficiency']),
+          'calories': _numOrNull(days[i]['calories']),
+          'sol_min': _numOrNull(days[i]['sol_min']),
+          'whoop_max_hr': _numOrNull(days[i]['whoop_max_hr']),
+          'worn_min': _numOrNull(days[i]['worn_min']),
         },
     ],
   };

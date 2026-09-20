@@ -8,6 +8,7 @@ import 'package:personal_analytics/whoop_observations.dart';
 
 import '../../data/day_label.dart';
 import '../../state/prefs.dart';
+import '../../state/alarm_schedule.dart';
 import '../screens/home_screen.dart' show ChartPoint;
 import 'data.dart';
 
@@ -143,8 +144,24 @@ class WhView {
   double? get hrv => _n(d.health.hrv.value);
   double? get rhr => _n(d.home.rhr.value);
   double? get resp => _n(d.health.resp.value);
-  double? get spo2 => _n(d.oxygenPercent);
-  double? get tempC => _n(d.temperatureC);
+  // Band-first vitals (v8): the strap's own overnight SpO₂ estimate and the
+  // nightly skin temperature in °C from the day's WHOOP block; a WHOOP export
+  // fills the same tiles only when the band has nothing for the day.
+  Map<String, dynamic> get bandSpo2 => _m(d.whoopDay['spo2']);
+  Map<String, dynamic> get bandSkinTemp => _m(d.whoopDay['skin_temp']);
+  Map<String, dynamic> get crossVitals => _m(whoop['vitals']);
+  double? get spo2 => _n(bandSpo2['pct']) ?? _n(d.oxygenPercent);
+  String? get spo2Source => _n(bandSpo2['pct']) != null ? 'band' : _n(d.oxygenPercent) != null ? 'import' : null;
+  int? get spo2Samples => (bandSpo2['samples'] as num?)?.toInt();
+  double? get tempC => _n(bandSkinTemp['c']) ?? _n(d.temperatureC);
+  double? get tempDevC => _n(bandSkinTemp['dev_c']);
+
+  /// 10–90 % band of the prior 30 nights for a cross-day vital key.
+  WhRange? vitalRange(String key) {
+    final v = _m(crossVitals[key]);
+    final lo = _n(v['lo']), hi = _n(v['hi']), med = _n(v['median']);
+    return lo == null || hi == null || med == null ? null : WhRange(lo, hi, med, (v['nights'] as num?)?.toInt() ?? 0);
+  }
   WhRange? get hrvRange => rangeOf(trailing(d.health.points('hrv'), date, 30));
   WhRange? get rhrRange => rangeOf(trailing(d.health.points('resting_hr'), date, 30));
   WhRange? get respRange => rangeOf(trailing(d.health.points('resp_rate'), date, 30));
@@ -184,10 +201,10 @@ class WhView {
 
     return [
       row('resp', 'respiratory_rate', 'Частота дыхания', resp, respRange, '/мин', digits: 1),
-      row('temp', 'skin_temperature', 'Температура кожи', tempC, null, '°C', digits: 1),
+      row('temp', 'skin_temperature', 'Температура кожи', tempC, vitalRange('skin_temp_c'), '°C', digits: 1),
       row('rhr', 'rhr', 'Пульс в покое', rhr, rhrRange, 'уд/мин'),
       row('hrv', 'hrv', 'Вариабельность ритма', hrv, hrvRange, 'мс', higherBetter: true),
-      row('spo2', 'heart_rate', 'Кислород в крови', spo2, rangeOf(const <double?>[]) ?? (spo2 == null ? null : const WhRange(94, 100, 97, 0)), '%'),
+      row('spo2', 'heart_rate', 'Кислород в крови', spo2, vitalRange('spo2') ?? (spo2 == null ? null : const WhRange(94, 100, 97, 0)), '%'),
     ];
   }
 
@@ -311,8 +328,130 @@ class WhView {
     }
 
     final topFactor = ageFactors.isEmpty ? null : (ageFactors..sort((a, b) => (_n(b['years']) ?? 0).abs().compareTo((_n(a['years']) ?? 0).abs()))).first;
+    // ── v8 inputs ──
+    final pat = _m(whoop['patterns']);
+    final recs = _m(whoop['records']);
+    final zonesPrev = _m(whoop['zones_prev_week']);
+    final zonesWeek = _m(whoop['zones_week']);
+    final nowT = isToday ? DateTime.now() : DateTime(date.year, date.month, date.day, 21);
+    // Lowest sleeping HR of the night from the night curve.
+    double? nightMin;
+    int? nightMinAt;
+    for (final e in d.nightHr) {
+      final v = (e['v'] as num?)?.toDouble(), t = (e['t'] as num?)?.toInt();
+      if (v == null || t == null || v <= 0) continue;
+      if (nightMin == null || v < nightMin) {
+        nightMin = v;
+        nightMinAt = minOfDay(t);
+      }
+    }
+    final solVital = _m(crossVitals['sol_min']);
+    // Band alarm: the next occurrence within 24 h, and this morning's alarm
+    // against the measured wake time.
+    final schedule = [for (final r in d.alarmSchedule) AlarmScheduleEntry.fromRow(r)];
+    final nextAlarm = schedule.isEmpty ? null : nextAlarmOccurrence(schedule, nowT);
+    final alarmTomorrow = nextAlarm != null && nextAlarm.difference(nowT).inHours < 24 ? nextAlarm.hour * 60 + nextAlarm.minute : null;
+    int? wokeBefore;
+    if (wakeTs != null) {
+      final w = DateTime.fromMillisecondsSinceEpoch(wakeTs! * 1000);
+      for (final e in schedule) {
+        if (!e.enabled || e.weekday + 1 != w.weekday) continue;
+        final diff = e.hour * 60 + e.minute - (w.hour * 60 + w.minute);
+        if (diff > 0 && diff <= 120) wokeBefore = diff;
+      }
+    }
+    // Social jetlag: bedtimes of Friday/Saturday nights against the rest, on a
+    // clock shifted by 12 h so midnight does not split the median.
+    final weekendBeds = <double>[], weekdayBeds = <double>[];
+    for (final w in d.sleepWindows) {
+      final on = w['onset_ts'];
+      if (on is! num) continue;
+      final t = DateTime.fromMillisecondsSinceEpoch(on.toInt() * 1000);
+      final evening = DateTime.fromMillisecondsSinceEpoch((on.toInt() - 43200) * 1000);
+      final m = ((t.hour * 60 + t.minute + 720) % 1440).toDouble();
+      (evening.weekday == DateTime.friday || evening.weekday == DateTime.saturday ? weekendBeds : weekdayBeds).add(m);
+    }
+    double? medianOf(List<double> xs) {
+      if (xs.isEmpty) return null;
+      final sorted = [...xs]..sort();
+      return sorted[sorted.length ~/ 2];
+    }
+    final jetlag = weekendBeds.length >= 3 && weekdayBeds.length >= 5 ? medianOf(weekendBeds)! - medianOf(weekdayBeds)! : null;
+    // Longest off-wrist gap after waking that ended before the last sync.
+    double? gapMin;
+    int? gapStart, gapEnd;
+    {
+      final wakeMin = wakeTs == null ? 8 * 60 : minOfDay(wakeTs)!;
+      final syncMin = sinceSync == null ? null : nowT.hour * 60 + nowT.minute - sinceSync.inMinutes;
+      for (final sgm in d.wear['segments'] as List? ?? const []) {
+        if (sgm is! Map || sgm['on'] == true) continue;
+        final st = (sgm['start'] as num?)?.toInt(), en = (sgm['end'] as num?)?.toInt();
+        if (st == null || en == null) continue;
+        final sm = minOfDay(st)!, em = minOfDay(en)!;
+        if (sm < wakeMin) continue;
+        if (isToday && syncMin != null && em > syncMin - 5) continue;
+        final len = (en - st) / 60;
+        if (gapMin == null || len > gapMin) {
+          gapMin = len;
+          gapStart = sm;
+          gapEnd = em;
+        }
+      }
+    }
+    // HR ceiling used today against the previous rows' ceilings.
+    final ceilingNow = _n(d.whoopDay['max_hr']);
+    double? ceilingPrev;
+    for (final w in weekRows) {
+      if (w['date'] == d.day) continue;
+      final v = _n(w['whoop_max_hr']);
+      if (v != null && (ceilingPrev == null || v > ceilingPrev)) ceilingPrev = v;
+    }
+    // The day's last activity and the previous one of the same type.
+    final last = d.activities.isEmpty ? null : d.activities.last;
+    double? prevSame;
+    if (last != null) {
+      final lastStart = (last['start_ts'] as num?)?.toInt() ?? 0;
+      for (final r in d.recentSessions) {
+        if (r['type'] != last['type'] || ((r['start_ts'] as num?)?.toInt() ?? 0) >= lastStart) continue;
+        prevSame = _n(r['whoop_strain']) ?? (last['whoop_strain'] == null ? _n(r['strain']) : null);
+        break;
+      }
+    }
+    List<double> zoneList(Object? z) {
+      if (z is List && z.length == 5) return [for (final v in z) (v as num?)?.toDouble() ?? 0];
+      if (z is Map) return [for (var k = 1; k <= 5; k++) _n(z['z$k']) ?? _n(z['$k']) ?? 0];
+      return const [];
+    }
+    final lastTitle = (last?['title'] as String?) ?? '';
+    final lastName = last == null ? null : (lastTitle.isNotEmpty ? lastTitle : activityTypeRu(last['type']?.toString()));
+    final lastEnd = last == null ? null : (last['end_ts'] as num?)?.toInt();
+    final unlabeled = d.activities.where((a) => ((a['title'] as String?) ?? '').isEmpty && (a['type'] == null || a['type'] == 'other')).length;
+    var rest = 0;
+    {
+      final sessionDays = {for (final r in d.recentSessions) if (r['start_ts'] is num) dayLabelOf(DateTime.fromMillisecondsSinceEpoch((r['start_ts'] as num).toInt() * 1000))};
+      var day = DateTime(date.year, date.month, date.day - 1);
+      while (rest < 7 && !sessionDays.contains(dayLabelOf(day))) {
+        rest++;
+        day = DateTime(day.year, day.month, day.day - 1);
+      }
+    }
+    final respHist = trailing(d.health.points('resp_rate'), date, 8, excludeEnd: false);
+    var respStreak = 0;
+    if (respRange != null) {
+      for (var k = respHist.length - 1; k >= 0; k--) {
+        final v = k == respHist.length - 1 ? resp : respHist[k];
+        if (v == null || v <= respRange!.hi) break;
+        respStreak++;
+      }
+    }
+    final calSeries = trailing(d.series['calories'] ?? const [], date, 8, excludeEnd: false);
+    final calPrev = [for (var k = 0; k < calSeries.length - 1; k++) ?calSeries[k]];
+    final wd = _m(pat['weekday']);
+    final wdIdx = (wd['weekday'] as num?)?.toInt();
+    final monthly = _m(pat['monthly']);
+    const wdNames = ['', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
     return ObservationInput(
-      now: isToday ? DateTime.now() : DateTime(date.year, date.month, date.day, 21),
+      now: nowT,
       today: isToday,
       recovery: recovery,
       hrv: hrv,
@@ -384,6 +523,62 @@ class WhView {
       batteryPct: d.batteryPct,
       charging: d.charging,
       sinceSync: sinceSync,
+      nightHrMin: nightMin,
+      nightHrMinAtMinOfDay: nightMinAt,
+      nightHrMinBaseline: vitalRange('sleeping_hr_nadir')?.median,
+      latencyMin: solVital['date'] == d.day ? _n(solVital['value']) : null,
+      latencyTypicalMin: _n(solVital['median']),
+      napMin: _n(d.naps['nap_min']),
+      inBedMin: inBedMin,
+      alarmTomorrowMinOfDay: alarmTomorrow,
+      wokeBeforeAlarmMin: wokeBefore,
+      weekendBedShiftMin: jetlag,
+      recordNights: (recs['nights'] as num?)?.toInt() ?? 0,
+      sleepRecordPrevMax: _n(recs['tst_prev_max']),
+      recoveryRecordPrevMax: _n(recs['readiness_prev_max']),
+      restorativeRecordPrevMax: _n(recs['restorative_prev_max']),
+      noNightData: isToday && tstMin == null && sinceSync != null && sinceSync.inMinutes <= 60 && nowT.hour >= 9,
+      noNightReason: d.batteryPct != null && d.batteryPct! <= 5 ? 'Браслет разряжен' : 'Браслет не был на руке ночью или ночь ещё не рассчитана',
+      wearGapMin: gapMin,
+      wornMin: _n(d.wear['worn_min']),
+      wearGapStartMinOfDay: gapStart,
+      wearGapEndMinOfDay: gapEnd,
+      maxHrNew: ceilingNow,
+      maxHrPrev: ceilingPrev,
+      lastActivityName: lastName,
+      lastActivityStrain: last == null ? null : _n(last['whoop_strain']) ?? _n(last['strain']),
+      lastActivityPrevStrain: prevSame,
+      lastActivityAvgHr: last == null ? null : _n(last['avg_hr']),
+      lastActivityMaxHr: last == null ? null : _n(last['max_hr']),
+      lastActivityDurationMin: last == null ? null : _n(last['duration_min']),
+      lastActivityZoneMin: last == null ? const [] : zoneList(last['whoop_zone_min'] ?? last['zone_min']),
+      lastActivityEndMinOfDay: lastEnd == null ? null : minOfDay(lastEnd),
+      z13WeekMin: _n(zonesWeek['z13_min']),
+      z13PrevWeekMin: _n(zonesPrev['z13_min']),
+      z45WeekMin: _n(zonesWeek['z45_min']),
+      unlabeledActivities: unlabeled,
+      rhrRisingDays: (pat['rhr_rising_days'] as num?)?.toInt() ?? 0,
+      respAboveStreak: respStreak,
+      restDays: rest,
+      caloriesToday: _n(d.home.caloriesTotal.value) ?? (calSeries.isEmpty ? null : calSeries.last),
+      caloriesWeekAvg: avgOf(calPrev),
+      spo2Source: spo2Source,
+      spo2Samples: spo2Samples,
+      skinTempC: _n(bandSkinTemp['c']),
+      skinTempDevC: tempDevC,
+      hardDayRecovery: _n(pat['hard_day_recovery']),
+      easyDayRecovery: _n(pat['easy_day_recovery']),
+      patternDays: (pat['pattern_days'] as num?)?.toInt() ?? 0,
+      weekdayLow: wdIdx == null || wdIdx < 1 || wdIdx > 7 ? null : wdNames[wdIdx],
+      weekdayLowIndex: wdIdx,
+      weekdayLowDelta: _n(wd['delta']),
+      weekdayN: (wd['weeks'] as num?)?.toInt() ?? 0,
+      hrvCv7: _n(pat['hrv_cv7']),
+      hrvCv30: _n(pat['hrv_cv30']),
+      ageDelta30: _n(monthly['delta_years']),
+      ageTopChangeFactor: monthly['top_factor'] == null ? null : ageFactorName(monthly['top_factor'].toString()),
+      ageTopChangeYears: _n(monthly['top_factor_years']),
+      unifiedMorning: Prefs.getBool('familiar.obs.unified', true),
     );
   }
 
@@ -396,6 +591,25 @@ class WhView {
 
   List<Observation> allObservations({Duration? sinceSync}) => buildObservations(observationInput(sinceSync: sinceSync));
 }
+
+/// Russian name of an activity type code (session rows store the code).
+String activityTypeRu(String? type) => switch (type) {
+  'run' || 'running' => 'Бег',
+  'walk' || 'walking' => 'Ходьба',
+  'cycle' || 'cycling' || 'bike' => 'Велосипед',
+  'strength' || 'weightlifting' || 'gym' => 'Силовая',
+  'swim' || 'swimming' => 'Плавание',
+  'hike' || 'hiking' => 'Поход',
+  'yoga' => 'Йога',
+  'hiit' => 'HIIT',
+  'football' || 'soccer' => 'Футбол',
+  'basketball' => 'Баскетбол',
+  'tennis' => 'Теннис',
+  'rowing' => 'Гребля',
+  'elliptical' => 'Эллипс',
+  'other' || null => 'Активность',
+  _ => type,
+};
 
 String ageFactorName(String key) => switch (key) {
   'sleep_hours' => 'часы сна',

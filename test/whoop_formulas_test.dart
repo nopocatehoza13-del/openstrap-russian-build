@@ -210,4 +210,27 @@ void main() {
       expect(whoopStressBand(2.0), 'high');
     });
   });
+
+  // ── v8 ──
+  test('band SpO₂: bit 7 masked, 70–100 kept, median with count, thin nights refuse', () {
+    final r = whoopBandSpo2(const [97, 0, 98, 224, 96, 99, 97, 95, 96, 40])!;
+    expect(r.pct, 96.5);
+    expect(r.samples, 8);
+    expect(r.lo, 95);
+    expect(r.hi, 99);
+    expect(r.toJson()['source'], 'band');
+    expect(whoopBandSpo2(const [97, 98, 96, 99, 97, 95, 96]), isNull);
+    expect(whoopBandSpo2(const [97, 98, 96, 99, 97, 95, 96], minSamples: 7)!.pct, 97);
+    expect(whoopBandSpo2(const []), isNull);
+  });
+  test('coefficient of variation and the 10–90 % range', () {
+    expect(whoopCv(const [50, 50, 50, 50, 50, 50]), 0);
+    expect(whoopCv(const [50, 50, 50]), isNull);
+    expect(whoopCv(const [40, 60, 40, 60, 40, 60]), greaterThan(.2));
+    final r = whoopRange(const [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])!;
+    expect(r.lo, 2);
+    expect(r.median, 6);
+    expect(r.hi, 10);
+    expect(whoopRange(const [1, 2]), isNull);
+  });
 }

@@ -41,7 +41,7 @@ with zipfile.ZipFile(p) as z:
     assert not any(n.startswith(base+'Watch/') for n in names)
     verify_device_macho(z.read(base+'Runner'), 'Runner')
     verify_device_macho(z.read(base+'Frameworks/App.framework/App'), 'Flutter AOT')
-    assert info['CFBundleVersion'] == '72', 'Expected familiar UI v9 build 72'
+    assert info['CFBundleVersion'] == '73', 'Expected familiar UI v9.1 build 73'
     assert info['CFBundleShortVersionString'] == '0.9.32', 'Expected marketing version 0.9.32'
     aot = z.read(base+'Frameworks/App.framework/App')
     assert b'WHOOD' in aot, 'Missing v7 wordmark marker'

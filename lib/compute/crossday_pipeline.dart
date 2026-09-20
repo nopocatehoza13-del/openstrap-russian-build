@@ -17,6 +17,7 @@
 import 'dart:math' as math;
 
 import 'package:openstrap_analytics/onehz.dart' as ana;
+import 'package:personal_analytics/whoop_formulas.dart';
 
 import '../data/day_label.dart';
 
@@ -542,6 +543,8 @@ Map<String, dynamic> buildCrossDayBundle(
     'strain_coach': strainTgt.toJson((v) => v.toJson()),
     'percentiles': percentiles,
     'recent': recent,
+    // ── WHOOP-formula family (sleep need / performance / recovery / age) ──
+    'whoop': whoopCrossDayBlock(days, profile),
   };
 }
 
@@ -1067,4 +1070,216 @@ ana.Metric<ana.SriResult> _crossDaySri(List<Map<String, dynamic>> days) {
   // not its pair is emitted.
   return ana.phillipsSri(sleepWake, epochsPerDay,
       valid: valid, minPairCases: 240);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WHOOP-formula cross-day block (packages/personal_analytics/whoop_formulas.dart)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Sleep need for tonight (US 2024/0252121 A1: baseline + f₁(strain) + debt −
+/// naps), last night's sleep performance with the support-article thresholds,
+/// a baseline-relative recovery and the Healthspan age transform — all from the
+/// same oldest-first day rows the rest of the rollup reads. Pure; exported so a
+/// test can feed it synthetic rows.
+///
+/// A row's sleep is the night that ENDED on that day, so the strain that
+/// preceded it is the PREVIOUS calendar day's `whoop_strain`. Rows that are not
+/// calendar-adjacent do not lend each other a strain.
+Map<String, dynamic> whoopCrossDayBlock(
+  List<Map<String, dynamic>> days,
+  Map<String, dynamic> profile,
+) {
+  final n = days.length;
+  final age = _numOrNull(profile['age']);
+  final female = (profile['sex'] as String?)?.toLowerCase().startsWith('f') == true;
+
+  bool adjacent(int i) {
+    if (i <= 0) return false;
+    final a = days[i - 1]['date'], b = days[i]['date'];
+    if (a is! String || b is! String) return false;
+    try {
+      final da = DateTime.parse(a), db = DateTime.parse(b);
+      return DateTime(da.year, da.month, da.day + 1) == DateTime(db.year, db.month, db.day);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  double? priorStrainOf(int i) => adjacent(i) ? _numOrNull(days[i - 1]['whoop_strain']) : null;
+  double? priorNapMinOf(int i) => adjacent(i) ? _numOrNull(days[i - 1]['nap_min']) : null;
+
+  // Nights newest first, ending at [last] (inclusive).
+  List<({double tstSec, double? priorStrain})> nightsEndingAt(int last) => [
+    for (var i = last; i >= 0; i--)
+      if ((_numOrNull(days[i]['tst_min']) ?? 0) > 0)
+        (tstSec: _numOrNull(days[i]['tst_min'])! * 60, priorStrain: priorStrainOf(i)),
+  ];
+
+  double localMinuteOfDay(num epochSec) {
+    final t = DateTime.fromMillisecondsSinceEpoch(epochSec.toInt() * 1000);
+    return (t.hour * 60 + t.minute).toDouble();
+  }
+
+  double? consistencyEndingAt(int last) {
+    final beds = <double>[], wakes = <double>[];
+    for (var i = last; i >= 0 && beds.length < 5; i--) {
+      final on = days[i]['onset_sec'], wk = days[i]['wake_sec'];
+      if (on is num && wk is num) {
+        beds.add(localMinuteOfDay(on));
+        wakes.add(localMinuteOfDay(wk));
+      }
+    }
+    return whoopSleepConsistency(bedMinutes: beds, wakeMinutes: wakes);
+  }
+
+  // ── tonight's need ──
+  final nights = nightsEndingAt(n - 1);
+  final baseline = whoopSleepBaseline(nights, age: age);
+  final debt = whoopSleepDebtSec(nights, baseline.baselineSec);
+  final need = whoopSleepNeed(
+    baseline: baseline,
+    todayStrain: _todayNum(days, 'whoop_strain'),
+    debtSec: debt,
+    napSec: (_todayNum(days, 'nap_min') ?? 0) * 60,
+  );
+
+  // ── last night's performance ──
+  var k = n - 1;
+  while (k >= 0 && (_numOrNull(days[k]['tst_min']) ?? 0) <= 0) {
+    k--;
+  }
+  Map<String, dynamic>? lastNight;
+  double? lastPerf;
+  if (k >= 0) {
+    final before = nightsEndingAt(k - 1);
+    final baseK = whoopSleepBaseline(before.isEmpty ? nights : before, age: age);
+    final needK = whoopSleepNeed(
+      baseline: baseK,
+      todayStrain: priorStrainOf(k),
+      debtSec: whoopSleepDebtSec(before, baseK.baselineSec),
+      napSec: (priorNapMinOf(k) ?? 0) * 60,
+    );
+    final tstSec = _numOrNull(days[k]['tst_min'])! * 60;
+    final perf = whoopSleepPerformance(
+      tstSec: tstSec,
+      needSec: needK.needSec,
+      consistencyPct: consistencyEndingAt(k),
+      efficiencyPct: _numOrNull(days[k]['efficiency']),
+      highStressPct: _numOrNull(days[k]['sleep_high_stress_pct']),
+    );
+    lastPerf = perf.performancePct;
+    lastNight = {
+      'date': days[k]['date'],
+      'tst_sec': tstSec.round(),
+      'in_bed_sec': _numOrNull(days[k]['in_bed_min']) == null ? null : (_numOrNull(days[k]['in_bed_min'])! * 60).round(),
+      'need': needK.toJson(),
+      'performance': perf.toJson(),
+    };
+  }
+
+  // ── recovery for the newest scored night ──
+  var r = n - 1;
+  while (r >= 0 && _numOrNull(days[r]['rmssd']) == null) {
+    r--;
+  }
+  Map<String, dynamic>? recovery;
+  if (r >= 0) {
+    List<double> hist(String key) => [
+      for (var i = r - 1; i >= 0 && i >= r - 45; i--)
+        if (_numOrNull(days[i][key]) != null) _numOrNull(days[i][key])!,
+    ];
+    final rec = whoopRecovery(
+      hrvMs: _numOrNull(days[r]['rmssd']),
+      hrvBaselineMs: hist('rmssd'),
+      rhr: _numOrNull(days[r]['rhr']),
+      rhrBaseline: hist('rhr'),
+      respRate: _numOrNull(days[r]['resp_rate']),
+      respBaseline: hist('resp_rate'),
+      sleepPerformancePct: r == k ? lastPerf : null,
+    );
+    if (rec != null) recovery = {'date': days[r]['date'], ...rec.toJson()};
+  }
+
+  // ── Healthspan: 30-row window ending at an index; pace against 28 rows earlier ──
+  WhoopAge? ageAt(int last) {
+    if (last < 0) return null;
+    final lo = math.max(0, last - 29);
+    double? mean(String key, {double scale = 1}) {
+      final xs = <double>[
+        for (var i = lo; i <= last; i++)
+          if (_numOrNull(days[i][key]) != null) _numOrNull(days[i][key])! * scale,
+      ];
+      if (xs.length < 3) return null;
+      return xs.reduce((a, b) => a + b) / xs.length;
+    }
+
+    double? consMean() {
+      final xs = <double>[
+        for (var i = lo; i <= last; i++) ?consistencyEndingAt(i),
+      ];
+      if (xs.length < 3) return null;
+      return xs.reduce((a, b) => a + b) / xs.length;
+    }
+
+    double? perWeek(String key) {
+      var sum = 0.0, rows = 0;
+      for (var i = lo; i <= last; i++) {
+        final v = _numOrNull(days[i][key]);
+        if (v == null) continue;
+        sum += v;
+        rows++;
+      }
+      return rows < 7 ? null : sum / rows * 7;
+    }
+
+    return whoopAge(
+      chronologicalAge: age,
+      sleepHoursAvg: mean('tst_min', scale: 1 / 60),
+      sleepConsistencyPct: consMean(),
+      stepsAvg: mean('steps'),
+      zones13MinPerWeek: perWeek('whoop_z13_min'),
+      zones45MinPerWeek: perWeek('whoop_z45_min'),
+      rhrAvg: mean('rhr'),
+      female: female,
+    );
+  }
+
+  final ageNow = ageAt(n - 1);
+  final ageThen = ageAt(n - 29);
+  final pace = (ageNow == null || ageThen == null)
+      ? null
+      : whoopPaceOfAging(
+          deltaYearsNow: ageNow.deltaYears,
+          deltaYearsBefore: ageThen.deltaYears,
+          daysBetween: 28,
+        );
+
+  double? weekSum(String key) {
+    var sum = 0.0, rows = 0;
+    for (var i = n - 1; i >= 0 && i >= n - 7; i--) {
+      final v = _numOrNull(days[i][key]);
+      if (v == null) continue;
+      sum += v;
+      rows++;
+    }
+    return rows == 0 ? null : sum;
+  }
+
+  return <String, dynamic>{
+    'need': need.toJson(),
+    'baseline': {
+      'sec': baseline.baselineSec.round(),
+      'source': baseline.source,
+      'nights': baseline.nights,
+    },
+    'debt_outstanding_sec': debt.round(),
+    'last_night': lastNight,
+    'recovery': recovery,
+    'age': ageNow?.toJson(),
+    'pace_of_aging': pace == null ? null : (pace * 100).round() / 100,
+    'zones_week': {
+      'z13_min': weekSum('whoop_z13_min'),
+      'z45_min': weekSum('whoop_z45_min'),
+    },
+  };
 }

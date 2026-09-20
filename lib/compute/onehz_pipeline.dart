@@ -37,6 +37,7 @@ import 'hr_max.dart'
         smoothedMaxHr,
         smoothedMinHr,
         trainingZones;
+import 'package:personal_analytics/whoop_formulas.dart';
 import 'profile.dart' show workoutSex;
 import 'step_cadence.dart' show cadenceSpmForMinutes;
 // Same argument: a pure `DateTime` lookup, no DB / IO / Flutter binding. It is
@@ -852,6 +853,67 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
     female: workoutSex(sex) == 'female',
   );
 
+  // ── WHOOP-formula strain and HRR zones (personal_analytics/whoop_formulas) ─
+  // Patent-structured strain (arctan of the normalised, weighted heart-rate-
+  // reserve integral, US 9,750,415 B2) and the support-article zones (50/60/70/
+  // 80/90 % of reserve on the Gellish ceiling, raised to the observed one).
+  // Stored BESIDE the Banister strain above, never instead of it, and absent
+  // whenever the reserve is undefined — no reserve, no number.
+  Map<String, dynamic>? whoopBlock;
+  {
+    final whoopMhr = whoopMaxHr(
+      age: age,
+      observedMaxBpm: d.observedHrCeilingBpm,
+    );
+    final whoopRhr = rhrForTrimp;
+    if (whoopMhr != null &&
+        whoopRhr != null &&
+        whoopMhr > whoopRhr &&
+        perMin.isNotEmpty &&
+        sex != null) {
+      final female = workoutSex(sex) == 'female';
+      final ws = whoopStrain(
+        perMin,
+        rhr: whoopRhr,
+        maxHr: whoopMhr,
+        female: female,
+      );
+      if (ws != null) {
+        final lower = whoopZoneLowerBounds(rhr: whoopRhr, maxHr: whoopMhr);
+        final zm = whoopZoneMinutes(perMin, lower);
+        final curve = whoopStrainCurve(
+          perMin,
+          rhr: whoopRhr,
+          maxHr: whoopMhr,
+          female: female,
+        );
+        whoopBlock = {
+          'strain': _round(ws.score, 2),
+          'strain_intensity': _round(ws.intensity, 5),
+          'covered_sec': ws.coveredSec.round(),
+          'band': whoopStrainBand(ws.score),
+          'max_hr': _round(whoopMhr, 0),
+          'rhr': _round(whoopRhr, 0),
+          'zone_lower_bpm': [for (final z in lower) _round(z, 0)],
+          'zones': {for (final e in zm.entries) e.key: _round(e.value, 0)},
+          'strain_curve': [
+            for (var i = 0; i < wakeHr.length && i < curve.length; i++)
+              {'t': wakeHr[i].tsSec, 'v': _round(curve[i], 2)},
+          ],
+        };
+      }
+    }
+  }
+  final whoopZones = (whoopBlock?['zones'] as Map?)?.cast<String, dynamic>();
+  double? whoopZoneSum(List<String> keys) {
+    if (whoopZones == null) return null;
+    var sum = 0.0;
+    for (final k in keys) {
+      sum += (whoopZones[k] as num?)?.toDouble() ?? 0;
+    }
+    return sum;
+  }
+
   // ── curve series for the UI ────────────────────────────────────────────────
   final hrCurve = _downsampleHr(d.dayTsSec, d.dayHr);
   final hypnogram = _hypnogramSegments(d);
@@ -1368,6 +1430,7 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
     },
     'wellness': wellness,
     'stress': stressBlock,
+    'whoop': whoopBlock,
     'spo2': spo2Block,
     'series': {
       'hr_curve': hrCurve,
@@ -1403,6 +1466,11 @@ Map<String, dynamic> deriveDayBundle(Map<String, dynamic> inputJson) {
       // Headline 0–21 strain (the screens already expect a 0–21 scale); raw
       // Banister TRIMP stays under `trimp` as the secondary "training load".
       'strain': strainScalar,
+      // WHOOP-formula family (see `whoop` above) as scalars for the cross-day
+      // rows: strain 0–21 and minutes in HRR zones 1–3 / 4–5.
+      'whoop_strain': whoopBlock?['strain'],
+      'whoop_z13_min': whoopZoneSum(const ['z1', 'z2', 'z3']),
+      'whoop_z45_min': whoopZoneSum(const ['z4', 'z5']),
       'max_hr_used': hrMax,
       'ln_rmssd': lnToday,
       'resp_rate': respToday,

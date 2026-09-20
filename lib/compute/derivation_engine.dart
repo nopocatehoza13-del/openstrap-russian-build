@@ -1717,7 +1717,15 @@ import 'substrate.dart';
 // canonical sleep/workout spans, coverage gates and retained minute features.
 // Nightly Baevsky stress is unchanged. Personal analytics package is bundled;
 // upstream analytics/protocol pins are unchanged. No new BLE commands.
-const int kAlgoVersion = 97;
+// v98: WHOOP-formula family stored BESIDE the existing metrics, never instead
+// of them. Per-day `whoop` block (patent-structured strain, HRR zones on the
+// Gellish ceiling raised to the observed one) with `whoop_strain` /
+// `whoop_z13_min` / `whoop_z45_min` scalars; cross-day `whoop` block (sleep need
+// per US 2024/0252121 A1, sleep performance with the support-article
+// thresholds, baseline-relative recovery, Healthspan Δage = 10·ln(HR) and pace
+// of aging). Banister strain, readiness and the sleep coach are unchanged;
+// upstream analytics/protocol pins unchanged; no new BLE commands.
+const int kAlgoVersion = 98;
 /// The sibling SHAs this version was derived against, asserted against
 /// pubspec.yaml in test/db_serve_version_and_reads_test.dart.
 ///
@@ -5490,6 +5498,13 @@ class DerivationEngine {
       'steps': sc('steps'),
       'nap_min': sc('nap_min'),
       'efficiency': sc('efficiency'),
+      // WHOOP-formula scalars (onehz `whoop` block) + the night's stress share,
+      // for the cross-day `whoop` block (sleep need / performance / age).
+      'whoop_strain': sc('whoop_strain'),
+      'whoop_z13_min': sc('whoop_z13_min'),
+      'whoop_z45_min': sc('whoop_z45_min'),
+      'in_bed_min': inBedSec == null ? null : inBedSec / 60,
+      'sleep_high_stress_pct': _sleepHighStressPct(payload),
       'onset_sec': onsetMs == null ? null : (onsetMs / 1000).round(),
       'wake_sec': offsetMs == null ? null : (offsetMs / 1000).round(),
       'tst_min': tstSec == null ? null : (tstSec / 60).round(),
@@ -5513,6 +5528,21 @@ class DerivationEngine {
       // input alongside activity. 24 numbers a day, so the artifact stays small.
       'hourly_hr': hourlyHrProfile(series?['hr_curve']),
     };
+  }
+
+  /// Share of the observed sleep in the experimental stress model's HIGH band,
+  /// in percent — the "high sleep stress" component of the WHOOP-formula sleep
+  /// performance. Null when the night has no stress coverage at all.
+  static double? _sleepHighStressPct(Map<String, dynamic> payload) {
+    final st = payload['intraday_stress'];
+    if (st is! Map) return null;
+    final sums = st['summaries'];
+    if (sums is! Map) return null;
+    final s = sums['sleep'];
+    if (s is! Map) return null;
+    final covered = s['covered_sec'], high = s['high_sec'];
+    if (covered is! num || covered <= 0 || high is! num) return null;
+    return high / covered * 100;
   }
 
   /// Mean HR per LOCAL hour-of-day (24 entries, `null` where the hour is not

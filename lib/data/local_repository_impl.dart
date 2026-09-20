@@ -35,6 +35,7 @@ import 'local_repository.dart';
 import 'series_codec.dart';
 import '../gps/route_models.dart';
 import '../gps/route_math.dart' as rmath;
+import 'package:personal_analytics/whoop_formulas.dart';
 
 class LocalRepositoryImpl extends LocalRepository {
   LocalRepositoryImpl({required this.getProfileMap, this.saveProfileFields});
@@ -1497,6 +1498,9 @@ class LocalRepositoryImpl extends LocalRepository {
       // Headline 0–21 strain (the detail screen clamps to 0..21). Raw Banister
       // TRIMP is kept as the secondary "training load" figure.
       'strain': strain,
+      // WHOOP-formula block of this day (strain, HRR zones, curve) — see
+      // onehz_pipeline `whoop`. Null when the day never had a reserve.
+      'whoop': _sub(b, 'whoop'),
       'training_load': trimp,
       'load': cd?['load'], // {acwr, acute, chronic, band} when ≥ history exists
       // HR-zone minutes (Z1–Z5 by %HRmax) — the zone bars. `?? 0` on all five
@@ -2235,6 +2239,42 @@ class LocalRepositoryImpl extends LocalRepository {
             rescored.row['device_family'] as String?, await _zoneAnchors()));
         final avg = hr.reduce((a, b) => a + b) / hr.length;
         w['avg_hr'] = avg.round();
+        // WHOOP-formula activity strain over the session's own seconds, on the
+        // same reserve the day uses (28-day median resting HR, Gellish ceiling
+        // raised to the observed one). Absent without a reserve — never 0.
+        try {
+          final anchors = await _zoneAnchors();
+          final sexRaw = (getProfileMap()?['sex'] as String?)?.toLowerCase();
+          final rhrHist = [...anchors.restingHrHistory]..sort();
+          final rhrMed = rhrHist.isEmpty
+              ? null
+              : rhrHist.length.isOdd
+              ? rhrHist[rhrHist.length ~/ 2]
+              : (rhrHist[rhrHist.length ~/ 2 - 1] + rhrHist[rhrHist.length ~/ 2]) / 2;
+          final mhr = whoopMaxHr(
+            age: _profileAge()?.toDouble(),
+            observedMaxBpm: anchors.observedCeilingBpm,
+          );
+          if (rhrMed != null && mhr != null && sexRaw != null) {
+            final series = [for (final v in hr) v.toDouble()];
+            final ws = whoopStrain(
+              series,
+              rhr: rhrMed,
+              maxHr: mhr,
+              female: sexRaw.startsWith('f'),
+              durationSec: 1,
+            );
+            if (ws != null) {
+              final lower = whoopZoneLowerBounds(rhr: rhrMed, maxHr: mhr);
+              final zm = whoopZoneMinutes(series, lower, minutesPerSample: 1 / 60);
+              w['whoop_strain'] = (ws.score * 10).round() / 10;
+              w['whoop_zone_min'] = [for (var i = 1; i <= 5; i++) zm['z$i']!.round()];
+              w['whoop_zone_lower_bpm'] = [for (final z in lower) z.round()];
+            }
+          }
+        } catch (_) {
+          /* WHOOP-formula enrichment is best-effort like the rest of the trace */
+        }
         if (w['status'] == 'done') {
           final curve = await _recoveryCurve(endTs);
           if (curve.isNotEmpty) w['recovery_curve'] = curve;

@@ -16,6 +16,18 @@ class FamiliarData {
   final List<ChartPoint> recovery, strain, steps;
   final String day;
   final AgeEstimate? age;
+
+  /// This day's WHOOP-formula block (`getDayStrain(day)['whoop']`): strain
+  /// 0–21, HRR zone minutes, zone bounds, cumulative curve. Empty when the day
+  /// had no reserve.
+  final Map<String, dynamic> whoopDay;
+
+  /// The cross-day WHOOP-formula block (`insights['whoop']`): tonight's need,
+  /// last night's performance, recovery, Healthspan age. Empty when the rollup
+  /// is stale or absent.
+  Map<String, dynamic> get whoop => health.insights['whoop'] is Map
+      ? (health.insights['whoop'] as Map).cast<String, dynamic>()
+      : const {};
   Map get importedVitals => health.today['imported_vitals'] is Map
       ? health.today['imported_vitals'] as Map
       : const {};
@@ -40,6 +52,7 @@ class FamiliarData {
     this.steps = const [],
     this.day = '',
     this.age,
+    this.whoopDay = const {},
   });
 
   static Future<FamiliarData> load(LocalRepository repo, DateTime date) async {
@@ -51,6 +64,10 @@ class FamiliarData {
     final recovery = pointsOf(await repo.getChart('recovery'));
     final strain = pointsOf(await repo.getChart('strain'));
     final steps = pointsOf(await repo.getChart('steps'));
+    final strainDay = await repo.getDayStrain(label);
+    final whoopDay = strainDay['whoop'] is Map
+        ? (strainDay['whoop'] as Map).cast<String, dynamic>()
+        : const <String, dynamic>{};
     final rows = await repo.getSessions(
       from:
           DateTime(date.year, date.month, date.day).millisecondsSinceEpoch ~/
@@ -121,6 +138,7 @@ class FamiliarData {
       steps: steps,
       day: label,
       age: age,
+      whoopDay: whoopDay,
     );
   }
 }
